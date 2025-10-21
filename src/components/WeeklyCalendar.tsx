@@ -1,7 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Plus, Phone, Mail } from "lucide-react";
+import { Plus, Phone, Mail, Globe } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Guest } from "@/types/guest";
 
@@ -63,7 +63,7 @@ export const WeeklyCalendar = ({ guests, onGuestClick, onAddGuest, selectedWeek 
                 <Card
                   key={`${day.key}-${timeSlot.slot}`}
                   className={cn(
-                    "p-4 min-h-[120px] transition-all hover:shadow-md cursor-pointer",
+                    "p-4 min-h-[140px] transition-all hover:shadow-md cursor-pointer",
                     guest ? "bg-card" : "bg-muted/30 border-dashed"
                   )}
                   onClick={() => guest ? onGuestClick(guest) : onAddGuest(day.key, timeSlot.slot)}
@@ -77,9 +77,15 @@ export const WeeklyCalendar = ({ guests, onGuestClick, onAddGuest, selectedWeek 
                         </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground line-clamp-2">{guest.topic}</p>
+                      {guest.phone && (
+                        <div className="flex items-center gap-2 text-xs">
+                          <Phone className="w-3 h-3 text-primary" />
+                          <span className="text-foreground">{guest.phone}</span>
+                        </div>
+                      )}
                       <div className="flex gap-2 text-xs text-muted-foreground">
-                        {guest.phone && <Phone className="w-3 h-3" />}
-                        {guest.email && <Mail className="w-3 h-3" />}
+                        {guest.email && <Mail className="w-3 h-3 text-primary" />}
+                        {guest.social_networks && Object.keys(guest.social_networks).length > 0 && <Globe className="w-3 h-3 text-primary" />}
                       </div>
                     </div>
                   ) : (

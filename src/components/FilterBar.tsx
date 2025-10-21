@@ -2,7 +2,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Search, ChevronLeft, ChevronRight } from "lucide-react";
-import { addWeeks, subWeeks, format } from "date-fns";
+import { addWeeks, subWeeks, addMonths, subMonths, format } from "date-fns";
 import { es } from "date-fns/locale";
 
 interface FilterBarProps {
@@ -12,6 +12,11 @@ interface FilterBarProps {
   onStatusFilterChange: (value: string) => void;
   selectedWeek: Date;
   onWeekChange: (date: Date) => void;
+  selectedMonth: Date;
+  onMonthChange: (date: Date) => void;
+  selectedDay: string;
+  viewMode: "day" | "week" | "month";
+  onViewModeChange: (mode: "day" | "week" | "month") => void;
 }
 
 export const FilterBar = ({
@@ -21,31 +26,90 @@ export const FilterBar = ({
   onStatusFilterChange,
   selectedWeek,
   onWeekChange,
+  selectedMonth,
+  onMonthChange,
+  viewMode,
+  onViewModeChange,
 }: FilterBarProps) => {
+  const handlePrevious = () => {
+    if (viewMode === "week") {
+      onWeekChange(subWeeks(selectedWeek, 1));
+    } else if (viewMode === "month") {
+      onMonthChange(subMonths(selectedMonth, 1));
+    }
+  };
+
+  const handleNext = () => {
+    if (viewMode === "week") {
+      onWeekChange(addWeeks(selectedWeek, 1));
+    } else if (viewMode === "month") {
+      onMonthChange(addMonths(selectedMonth, 1));
+    }
+  };
+
+  const getDateLabel = () => {
+    if (viewMode === "week") {
+      return format(selectedWeek, "'Semana del' d 'de' MMMM 'de' yyyy", { locale: es });
+    } else if (viewMode === "month") {
+      return format(selectedMonth, "MMMM 'de' yyyy", { locale: es });
+    }
+    return "";
+  };
+
   return (
-    <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-      <div className="flex gap-2 items-center">
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => onWeekChange(subWeeks(selectedWeek, 1))}
-        >
-          <ChevronLeft className="w-4 h-4" />
-        </Button>
-        <div className="font-semibold text-lg min-w-[200px] text-center">
-          {format(selectedWeek, "'Semana del' d 'de' MMMM", { locale: es })}
+    <div className="space-y-4">
+      {/* Navigation and View Selector */}
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={handlePrevious}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          
+          <div className="min-w-[280px] text-center">
+            <span className="text-lg font-semibold capitalize">
+              {getDateLabel()}
+            </span>
+          </div>
+          
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={handleNext}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
         </div>
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => onWeekChange(addWeeks(selectedWeek, 1))}
-        >
-          <ChevronRight className="w-4 h-4" />
-        </Button>
+
+        {/* View Mode Selector */}
+        <div className="flex gap-2">
+          <Button
+            variant={viewMode === "day" ? "default" : "outline"}
+            onClick={() => onViewModeChange("day")}
+          >
+            Día
+          </Button>
+          <Button
+            variant={viewMode === "week" ? "default" : "outline"}
+            onClick={() => onViewModeChange("week")}
+          >
+            Semana
+          </Button>
+          <Button
+            variant={viewMode === "month" ? "default" : "outline"}
+            onClick={() => onViewModeChange("month")}
+          >
+            Mes
+          </Button>
+        </div>
       </div>
 
-      <div className="flex gap-2 w-full sm:w-auto">
-        <div className="relative flex-1 sm:w-64">
+      {/* Search and Filter */}
+      <div className="flex gap-2 w-full">
+        <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder="Buscar por nombre o tema..."
