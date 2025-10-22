@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
+import { Navigate } from "react-router-dom";
 import { startOfWeek, startOfMonth } from "date-fns";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import type { Session } from "@supabase/supabase-js";
 import { WeeklyCalendar } from "@/components/WeeklyCalendar";
 import { DayView } from "@/components/DayView";
 import { MonthView } from "@/components/MonthView";
@@ -9,7 +11,12 @@ import { GuestDetailModal } from "@/components/GuestDetailModal";
 import { FilterBar } from "@/components/FilterBar";
 import { Guest } from "@/types/guest";
 import logo from "@/assets/bla-bla-blu-logo.png";
+import { LogOut } from "lucide-react";
+import { Button } from "@/components/ui/button";
+
 const Index = () => {
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
   const [guests, setGuests] = useState<Guest[]>([]);
   const [viewMode, setViewMode] = useState<"day" | "week" | "month">("week");
   const [selectedWeek, setSelectedWeek] = useState(startOfWeek(new Date(), {
@@ -25,19 +32,39 @@ const Index = () => {
     day: string;
     slot: number;
   } | null>(null);
+  // Check authentication status
   useEffect(() => {
-    fetchGuests();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setLoading(false);
+    });
 
-    // Setup realtime subscription
-    const channel = supabase.channel('schema-db-changes').on('postgres_changes', {
-      event: '*',
-      schema: 'public',
-      table: 'guests'
-    }, () => fetchGuests()).subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [selectedWeek]);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setSession(session);
+        setLoading(false);
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (session) {
+      fetchGuests();
+
+      // Setup realtime subscription
+      const channel = supabase.channel('schema-db-changes').on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'guests'
+      }, () => fetchGuests()).subscribe();
+      
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [selectedWeek, session]);
   const fetchGuests = async () => {
     const weekStart = selectedWeek.toISOString().split('T')[0];
     const {
@@ -112,16 +139,38 @@ const Index = () => {
     setNewGuestSlot(null);
     setIsModalOpen(true);
   };
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    toast.success("Sesión cerrada");
+  };
+
   const filteredGuests = guests.filter(guest => {
     const matchesSearch = guest.name.toLowerCase().includes(searchQuery.toLowerCase()) || guest.topic.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === "all" || guest.recording_status === statusFilter;
     return matchesSearch && matchesStatus;
   });
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-muted-foreground">Cargando...</p>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return <Navigate to="/auth" />;
+  }
+
   return <div className="min-h-screen bg-background">
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center justify-between gap-3">
             <img src={logo} alt="Bla Bla Blu" className="h-12 w-auto" />
+            <Button variant="ghost" size="sm" onClick={handleLogout}>
+              <LogOut className="h-4 w-4 mr-2" />
+              Salir
+            </Button>
           </div>
         </div>
       </header>
