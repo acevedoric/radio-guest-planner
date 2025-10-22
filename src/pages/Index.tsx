@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Navigate } from "react-router-dom";
-import { startOfWeek, startOfMonth } from "date-fns";
+import { startOfWeek, startOfMonth, addDays, addWeeks, endOfMonth } from "date-fns";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session } from "@supabase/supabase-js";
@@ -64,13 +64,34 @@ const Index = () => {
         supabase.removeChannel(channel);
       };
     }
-  }, [selectedWeek, session]);
+  }, [selectedWeek, selectedMonth, viewMode, session]);
+
   const fetchGuests = async () => {
-    const weekStart = selectedWeek.toISOString().split('T')[0];
-    const {
-      data,
-      error
-    } = await supabase.from('guests').select('*').eq('week_date', weekStart).order('day_of_week').order('time_slot');
+    let query = supabase.from('guests').select('*');
+    
+    if (viewMode === "day" || viewMode === "week") {
+      const weekStart = selectedWeek.toISOString().split('T')[0];
+      query = query.eq('week_date', weekStart);
+    } else if (viewMode === "month") {
+      const monthStart = startOfMonth(selectedMonth);
+      const monthEnd = endOfMonth(selectedMonth);
+      
+      const mondaysInMonth: string[] = [];
+      let current = startOfWeek(monthStart, { weekStartsOn: 1 });
+      const end = startOfWeek(monthEnd, { weekStartsOn: 1 });
+      
+      while (current <= end) {
+        mondaysInMonth.push(current.toISOString().split('T')[0]);
+        current = addWeeks(current, 1);
+      }
+      
+      query = query.in('week_date', mondaysInMonth);
+    }
+    
+    const { data, error } = await query
+      .order('day_of_week')
+      .order('time_slot');
+      
     if (error) {
       toast.error("Error al cargar invitados");
       console.error(error);
@@ -144,6 +165,37 @@ const Index = () => {
     toast.success("Sesión cerrada");
   };
 
+  const getNextWorkDay = () => {
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    
+    if (dayOfWeek === 0) {
+      return addDays(today, 1);
+    } else if (dayOfWeek === 5) {
+      return addDays(today, 3);
+    } else if (dayOfWeek === 6) {
+      return addDays(today, 2);
+    }
+    
+    return today;
+  };
+
+  const handleLogoClick = () => {
+    const workDay = getNextWorkDay();
+    const weekStart = startOfWeek(workDay, { weekStartsOn: 1 });
+    
+    setViewMode("day");
+    setSelectedWeek(weekStart);
+    
+    const dayMap: Record<number, string> = {
+      1: "monday",
+      2: "tuesday",
+      3: "wednesday",
+      4: "thursday"
+    };
+    setSelectedDay(dayMap[workDay.getDay()]);
+  };
+
   const filteredGuests = guests.filter(guest => {
     const matchesSearch = guest.name.toLowerCase().includes(searchQuery.toLowerCase()) || guest.topic.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === "all" || guest.recording_status === statusFilter;
@@ -166,7 +218,12 @@ const Index = () => {
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between gap-3">
-            <img src={logo} alt="Bla Bla Blu" className="h-12 w-auto" />
+            <img 
+              src={logo} 
+              alt="Bla Bla Blu" 
+              className="h-12 w-auto cursor-pointer hover:opacity-80 transition-opacity" 
+              onClick={handleLogoClick}
+            />
             <Button variant="ghost" size="sm" onClick={handleLogout}>
               <LogOut className="h-4 w-4 mr-2" />
               Salir
@@ -186,6 +243,7 @@ const Index = () => {
           selectedMonth={selectedMonth}
           onMonthChange={setSelectedMonth}
           selectedDay={selectedDay}
+          onDayChange={setSelectedDay}
           viewMode={viewMode}
           onViewModeChange={setViewMode}
         />

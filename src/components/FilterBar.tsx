@@ -2,7 +2,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Search, ChevronLeft, ChevronRight } from "lucide-react";
-import { addWeeks, subWeeks, addMonths, subMonths, format } from "date-fns";
+import { addWeeks, subWeeks, addMonths, subMonths, addDays, subDays, format } from "date-fns";
 import { es } from "date-fns/locale";
 
 interface FilterBarProps {
@@ -15,6 +15,7 @@ interface FilterBarProps {
   selectedMonth: Date;
   onMonthChange: (date: Date) => void;
   selectedDay: string;
+  onDayChange: (day: string) => void;
   viewMode: "day" | "week" | "month";
   onViewModeChange: (mode: "day" | "week" | "month") => void;
 }
@@ -28,11 +29,51 @@ export const FilterBar = ({
   onWeekChange,
   selectedMonth,
   onMonthChange,
+  selectedDay,
+  onDayChange,
   viewMode,
   onViewModeChange,
 }: FilterBarProps) => {
+  const calculateDayDate = () => {
+    const dayIndex = {
+      monday: 0,
+      tuesday: 1,
+      wednesday: 2,
+      thursday: 3
+    }[selectedDay] || 0;
+    return addDays(selectedWeek, dayIndex);
+  };
+
   const handlePrevious = () => {
-    if (viewMode === "week") {
+    if (viewMode === "day") {
+      const currentDate = calculateDayDate();
+      let prevDate = subDays(currentDate, 1);
+      
+      // Skip weekend days
+      if (prevDate.getDay() === 0) { // Sunday
+        prevDate = subDays(prevDate, 2); // Go to Friday, then will go to Thursday
+      }
+      if (prevDate.getDay() === 5) { // Friday
+        prevDate = subDays(prevDate, 1); // Go to Thursday
+      }
+      if (prevDate.getDay() === 6) { // Saturday
+        prevDate = subDays(prevDate, 2); // Go to Thursday
+      }
+      
+      // Update week if needed
+      const newWeekStart = addDays(prevDate, -(prevDate.getDay() - 1));
+      onWeekChange(newWeekStart);
+      
+      // Set the day
+      const dayMap: Record<number, string> = {
+        1: "monday",
+        2: "tuesday",
+        3: "wednesday",
+        4: "thursday"
+      };
+      onDayChange(dayMap[prevDate.getDay()]);
+      onViewModeChange("day");
+    } else if (viewMode === "week") {
       onWeekChange(subWeeks(selectedWeek, 1));
     } else if (viewMode === "month") {
       onMonthChange(subMonths(selectedMonth, 1));
@@ -40,7 +81,35 @@ export const FilterBar = ({
   };
 
   const handleNext = () => {
-    if (viewMode === "week") {
+    if (viewMode === "day") {
+      const currentDate = calculateDayDate();
+      let nextDate = addDays(currentDate, 1);
+      
+      // Skip weekend days
+      if (nextDate.getDay() === 5) { // Friday
+        nextDate = addDays(nextDate, 3); // Go to Monday
+      }
+      if (nextDate.getDay() === 6) { // Saturday
+        nextDate = addDays(nextDate, 2); // Go to Monday
+      }
+      if (nextDate.getDay() === 0) { // Sunday
+        nextDate = addDays(nextDate, 1); // Go to Monday
+      }
+      
+      // Update week if needed
+      const newWeekStart = addDays(nextDate, -(nextDate.getDay() - 1));
+      onWeekChange(newWeekStart);
+      
+      // Set the day
+      const dayMap: Record<number, string> = {
+        1: "monday",
+        2: "tuesday",
+        3: "wednesday",
+        4: "thursday"
+      };
+      onDayChange(dayMap[nextDate.getDay()]);
+      onViewModeChange("day");
+    } else if (viewMode === "week") {
       onWeekChange(addWeeks(selectedWeek, 1));
     } else if (viewMode === "month") {
       onMonthChange(addMonths(selectedMonth, 1));
@@ -48,8 +117,12 @@ export const FilterBar = ({
   };
 
   const getDateLabel = () => {
-    if (viewMode === "week") {
-      return format(selectedWeek, "'Semana del' d 'de' MMMM 'de' yyyy", { locale: es });
+    if (viewMode === "day") {
+      return format(calculateDayDate(), "d 'de' MMMM yyyy", { locale: es });
+    } else if (viewMode === "week") {
+      const weekStart = selectedWeek;
+      const weekEnd = addDays(selectedWeek, 3);
+      return `del ${format(weekStart, "d", { locale: es })} al ${format(weekEnd, "d 'de' MMMM yyyy", { locale: es })}`;
     } else if (viewMode === "month") {
       return format(selectedMonth, "MMMM 'de' yyyy", { locale: es });
     }

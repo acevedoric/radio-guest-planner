@@ -19,8 +19,23 @@ export const MonthView = ({ guests, onGuestClick, selectedMonth, onDayClick }: M
   const calendarDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
 
   const getGuestsForDay = (day: Date) => {
-    const dayStr = format(day, "yyyy-MM-dd");
-    return guests.filter(g => g.week_date && g.week_date.toString().startsWith(dayStr.substring(0, 7)));
+    const dayOfWeekMap: Record<number, string> = {
+      1: "monday",
+      2: "tuesday",
+      3: "wednesday",
+      4: "thursday"
+    };
+    const dayOfWeekKey = dayOfWeekMap[day.getDay()];
+    
+    if (!dayOfWeekKey) return [];
+    
+    const weekStart = startOfWeek(day, { weekStartsOn: 1 });
+    const weekDateStr = format(weekStart, "yyyy-MM-dd");
+    
+    return guests.filter(g => 
+      g.week_date === weekDateStr &&
+      g.day_of_week === dayOfWeekKey
+    );
   };
 
   const isCurrentMonth = (day: Date) => {
@@ -35,16 +50,16 @@ export const MonthView = ({ guests, onGuestClick, selectedMonth, onDayClick }: M
   return (
     <div className="space-y-4">
       {/* Month Calendar Grid */}
-      <div className="grid grid-cols-7 gap-2">
+      <div className="grid grid-cols-4 gap-2">
         {/* Day headers */}
-        {["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"].map((day) => (
+        {["Lun", "Mar", "Mié", "Jue"].map((day) => (
           <div key={day} className="text-center text-sm font-semibold text-muted-foreground py-2">
             {day}
           </div>
         ))}
 
         {/* Calendar days */}
-        {calendarDays.map((day, index) => {
+        {calendarDays.filter(day => isWorkDay(day)).map((day, index) => {
           const dayGuests = getGuestsForDay(day);
           const hasGuests = dayGuests.length > 0;
           const isInMonth = isCurrentMonth(day);
