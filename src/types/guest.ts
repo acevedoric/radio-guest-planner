@@ -5,7 +5,7 @@ export interface Guest {
   email?: string | null;
   social_networks?: any;
   topic: string;
-  recording_status: "live" | "recorded" | "no_recording" | "cancelled";
+  recording_status: "live" | "recorded" | "to_record" | "postponed" | "proposed";
   program_type?: string | null;
   press_contact?: string | null;
   notes?: string | null;

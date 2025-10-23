@@ -148,7 +148,7 @@ const Index = () => {
     setSelectedGuest({
       name: "",
       topic: "",
-      recording_status: "no_recording",
+      recording_status: "proposed",
       day_of_week: day,
       time_slot: slot,
       week_date: selectedWeek.toISOString().split('T')[0]

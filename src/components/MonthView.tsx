@@ -47,6 +47,17 @@ export const MonthView = ({ guests, onGuestClick, selectedMonth, onDayClick }: M
     return dayOfWeek >= 1 && dayOfWeek <= 4; // Monday to Thursday
   };
 
+  const getStatusColor = (status: Guest["recording_status"]) => {
+    const colors = {
+      live: "bg-green-500 hover:bg-green-600 text-white",
+      recorded: "bg-red-500 hover:bg-red-600 text-white",
+      to_record: "bg-yellow-500 hover:bg-yellow-600 text-white",
+      postponed: "bg-gray-500 hover:bg-gray-600 text-white",
+      proposed: "bg-blue-500 hover:bg-blue-600 text-white"
+    };
+    return colors[status] || "bg-card";
+  };
+
   return (
     <div className="space-y-4">
       {/* Month Calendar Grid */}
@@ -95,16 +106,16 @@ export const MonthView = ({ guests, onGuestClick, selectedMonth, onDayClick }: M
                     {dayGuests.slice(0, 3).map((guest, gIndex) => (
                       <div
                         key={gIndex}
-                        className="text-xs p-1 bg-card rounded cursor-pointer hover:bg-primary/10 transition-colors"
+                        className={`text-xs p-1 rounded cursor-pointer transition-colors ${getStatusColor(guest.recording_status)}`}
                         onClick={(e) => {
                           e.stopPropagation();
                           onGuestClick(guest);
                         }}
                       >
-                        <div className="font-semibold text-foreground truncate">
+                        <div className="font-semibold truncate">
                           {guest.name}
                         </div>
-                        <div className="text-muted-foreground truncate">
+                        <div className="truncate opacity-90">
                           {guest.topic}
                         </div>
                       </div>

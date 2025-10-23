@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trash2 } from "lucide-react";
+import { Trash2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Guest } from "@/types/guest";
 
@@ -21,15 +21,35 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete }: G
   const [formData, setFormData] = useState<Guest>({
     name: "",
     topic: "",
-    recording_status: "no_recording",
+    recording_status: "proposed",
     day_of_week: "monday",
     time_slot: 1,
     week_date: new Date().toISOString().split('T')[0],
   });
 
+  const [socialNetworks, setSocialNetworks] = useState<{twitter: string, instagram: string}>({
+    twitter: "",
+    instagram: ""
+  });
+  const [customFields, setCustomFields] = useState<{[key: string]: string}>({});
+
   useEffect(() => {
     if (guest) {
       setFormData(guest);
+      
+      // Cargar redes sociales
+      if (guest.social_networks && typeof guest.social_networks === 'object') {
+        const { twitter = "", instagram = "", ...rest } = guest.social_networks as any;
+        setSocialNetworks({ twitter, instagram });
+        setCustomFields(rest);
+      } else {
+        setSocialNetworks({ twitter: "", instagram: "" });
+        setCustomFields({});
+      }
+    } else {
+      // Reset cuando no hay guest (nuevo invitado)
+      setSocialNetworks({ twitter: "", instagram: "" });
+      setCustomFields({});
     }
   }, [guest]);
 
@@ -41,7 +61,22 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete }: G
       return;
     }
 
-    onSave(formData);
+    // Combinar todas las redes sociales
+    const allSocialNetworks = {
+      ...socialNetworks,
+      ...customFields
+    };
+
+    // Eliminar campos vacíos
+    const cleanedSocialNetworks = Object.fromEntries(
+      Object.entries(allSocialNetworks).filter(([_, value]) => value.trim() !== "")
+    );
+
+    onSave({
+      ...formData,
+      social_networks: Object.keys(cleanedSocialNetworks).length > 0 ? cleanedSocialNetworks : null,
+      email: null
+    });
     onClose();
   };
 
@@ -84,10 +119,11 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete }: G
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="live">En Vivo</SelectItem>
-                  <SelectItem value="recorded">Grabado</SelectItem>
-                  <SelectItem value="no_recording">Sin Grabación</SelectItem>
-                  <SelectItem value="cancelled">Cancelado</SelectItem>
+                  <SelectItem value="live">EN VIVO</SelectItem>
+                  <SelectItem value="recorded">GRABADO</SelectItem>
+                  <SelectItem value="to_record">A GRABAR</SelectItem>
+                  <SelectItem value="postponed">APLAZADO</SelectItem>
+                  <SelectItem value="proposed">PROPUESTO</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -105,28 +141,90 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete }: G
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="phone">Teléfono</Label>
+          <div className="space-y-2">
+            <Label htmlFor="phone">Teléfono</Label>
+            <Input
+              id="phone"
+              type="tel"
+              value={formData.phone || ""}
+              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              placeholder="+56 9 1234 5678"
+            />
+          </div>
+
+          {/* Nueva sección de redes sociales */}
+          <div className="space-y-4">
+            <Label>Redes Sociales</Label>
+            
+            {/* Twitter/X */}
+            <div className="flex items-center gap-2">
+              <Label htmlFor="twitter" className="w-24 text-right">Twitter/X</Label>
               <Input
-                id="phone"
-                type="tel"
-                value={formData.phone || ""}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                placeholder="+56 9 1234 5678"
+                id="twitter"
+                value={socialNetworks.twitter}
+                onChange={(e) => setSocialNetworks({...socialNetworks, twitter: e.target.value})}
+                placeholder="@usuario"
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+            {/* Instagram */}
+            <div className="flex items-center gap-2">
+              <Label htmlFor="instagram" className="w-24 text-right">Instagram</Label>
               <Input
-                id="email"
-                type="email"
-                value={formData.email || ""}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="invitado@email.com"
+                id="instagram"
+                value={socialNetworks.instagram}
+                onChange={(e) => setSocialNetworks({...socialNetworks, instagram: e.target.value})}
+                placeholder="@usuario"
               />
             </div>
+
+            {/* Campos personalizados */}
+            {Object.entries(customFields).map(([key, value]) => (
+              <div key={key} className="flex items-center gap-2">
+                <Input
+                  value={key}
+                  onChange={(e) => {
+                    const newFields = {...customFields};
+                    delete newFields[key];
+                    newFields[e.target.value] = value;
+                    setCustomFields(newFields);
+                  }}
+                  placeholder="Nombre (ej: Email)"
+                  className="w-32"
+                />
+                <Input
+                  value={value}
+                  onChange={(e) => setCustomFields({...customFields, [key]: e.target.value})}
+                  placeholder="Valor"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    const newFields = {...customFields};
+                    delete newFields[key];
+                    setCustomFields(newFields);
+                  }}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
+            ))}
+
+            {/* Botón + */}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const fieldName = `campo_${Object.keys(customFields).length + 1}`;
+                setCustomFields({...customFields, [fieldName]: ""});
+              }}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Agregar Campo
+            </Button>
           </div>
 
           <div className="space-y-2">

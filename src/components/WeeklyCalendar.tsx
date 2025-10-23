@@ -26,10 +26,11 @@ const TIME_SLOTS = [
 ];
 
 const statusConfig = {
-  live: { label: "En Vivo", className: "bg-status-live text-white" },
-  recorded: { label: "Grabado", className: "bg-status-recorded text-white" },
-  no_recording: { label: "Sin Grabación", className: "bg-status-none text-white" },
-  cancelled: { label: "Cancelado", className: "bg-status-cancelled text-white" },
+  live: { label: "EN VIVO", className: "bg-green-500 text-white" },
+  recorded: { label: "GRABADO", className: "bg-red-500 text-white" },
+  to_record: { label: "A GRABAR", className: "bg-yellow-500 text-white" },
+  postponed: { label: "APLAZADO", className: "bg-gray-500 text-white" },
+  proposed: { label: "PROPUESTO", className: "bg-blue-500 text-white" },
 };
 
 export const WeeklyCalendar = ({ guests, onGuestClick, onAddGuest, selectedWeek }: WeeklyCalendarProps) => {
