@@ -1,16 +1,19 @@
 import { Card } from "@/components/ui/card";
 import { Guest } from "@/types/guest";
-import { startOfMonth, endOfMonth, eachDayOfInterval, format, isSameDay, startOfWeek, endOfWeek } from "date-fns";
-import { es } from "date-fns/locale";
+import { startOfMonth, endOfMonth, eachDayOfInterval, format, startOfWeek, endOfWeek } from "date-fns";
+import { DndContext, DragEndEvent, useDraggable, useDroppable, DragOverlay } from "@dnd-kit/core";
+import { useState } from "react";
 
 interface MonthViewProps {
   guests: Guest[];
   onGuestClick: (guest: Guest) => void;
   selectedMonth: Date;
   onDayClick: (day: Date) => void;
+  onMoveGuest?: (guestId: string, newDay: string, newSlot: number, targetGuestId?: string) => Promise<void>;
 }
 
-export const MonthView = ({ guests, onGuestClick, selectedMonth, onDayClick }: MonthViewProps) => {
+export const MonthView = ({ guests, onGuestClick, selectedMonth, onDayClick, onMoveGuest }: MonthViewProps) => {
+  const [activeGuest, setActiveGuest] = useState<Guest | null>(null);
   const monthStart = startOfMonth(selectedMonth);
   const monthEnd = endOfMonth(selectedMonth);
   const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 });
@@ -18,7 +21,7 @@ export const MonthView = ({ guests, onGuestClick, selectedMonth, onDayClick }: M
   
   const calendarDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
 
-  const getGuestsForDay = (day: Date) => {
+  const getGuestForSlot = (day: Date, slot: number): Guest | undefined => {
     const dayOfWeekMap: Record<number, string> = {
       1: "monday",
       2: "tuesday",
@@ -27,14 +30,15 @@ export const MonthView = ({ guests, onGuestClick, selectedMonth, onDayClick }: M
     };
     const dayOfWeekKey = dayOfWeekMap[day.getDay()];
     
-    if (!dayOfWeekKey) return [];
+    if (!dayOfWeekKey) return undefined;
     
     const weekStart = startOfWeek(day, { weekStartsOn: 1 });
     const weekDateStr = format(weekStart, "yyyy-MM-dd");
     
-    return guests.filter(g => 
+    return guests.find(g => 
       g.week_date === weekDateStr &&
-      g.day_of_week === dayOfWeekKey
+      g.day_of_week === dayOfWeekKey &&
+      g.time_slot === slot
     );
   };
 
@@ -58,8 +62,33 @@ export const MonthView = ({ guests, onGuestClick, selectedMonth, onDayClick }: M
     return colors[status] || "bg-card";
   };
 
+  const handleDragStart = (event: DragEndEvent) => {
+    const guestId = event.active.id.toString().replace('guest-', '');
+    const guest = guests.find(g => g.id === guestId);
+    setActiveGuest(guest || null);
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    setActiveGuest(null);
+    const { active, over } = event;
+    
+    if (!over || !onMoveGuest) return;
+    
+    const guestId = active.id.toString().replace('guest-', '');
+    const [_, dayStr, newSlotStr] = over.id.toString().split('-');
+    const newSlot = parseInt(newSlotStr);
+    
+    const targetGuest = getGuestForSlot(
+      calendarDays.find(d => format(d, "yyyy-MM-dd") === dayStr) || new Date(), 
+      newSlot
+    );
+    
+    await onMoveGuest(guestId, dayStr, newSlot, targetGuest?.id);
+  };
+
   return (
-    <div className="space-y-4">
+    <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+      <div className="space-y-4">
       {/* Month Calendar Grid */}
       <div className="grid grid-cols-4 gap-2">
         {/* Day headers */}
@@ -71,20 +100,16 @@ export const MonthView = ({ guests, onGuestClick, selectedMonth, onDayClick }: M
 
         {/* Calendar days */}
         {calendarDays.filter(day => isWorkDay(day)).map((day, index) => {
-          const dayGuests = getGuestsForDay(day);
-          const hasGuests = dayGuests.length > 0;
           const isInMonth = isCurrentMonth(day);
           const isWork = isWorkDay(day);
 
           return (
             <Card
               key={index}
-              className={`min-h-[120px] p-2 transition-all ${
+              className={`min-h-[140px] p-2 transition-all ${
                 !isInMonth ? "opacity-30 bg-muted/30" : ""
               } ${
                 isWork && isInMonth ? "cursor-pointer hover:shadow-md hover:border-primary" : ""
-              } ${
-                hasGuests ? "border-primary/50 bg-primary/5" : ""
               }`}
               onClick={() => {
                 if (isWork && isInMonth) {
@@ -94,51 +119,96 @@ export const MonthView = ({ guests, onGuestClick, selectedMonth, onDayClick }: M
             >
               <div className="space-y-2">
                 {/* Day number */}
-                <div className={`text-sm font-semibold ${
-                  hasGuests ? "text-primary" : "text-foreground"
-                }`}>
+                <div className="text-sm font-semibold text-foreground">
                   {format(day, "d")}
                 </div>
 
-                {/* Guests for this day */}
-                {hasGuests && (
-                  <div className="space-y-1">
-                    {dayGuests.slice(0, 3).map((guest, gIndex) => (
-                      <div
-                        key={gIndex}
-                        className={`text-xs p-1 rounded cursor-pointer transition-colors ${getStatusColor(guest.recording_status)}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onGuestClick(guest);
-                        }}
-                      >
-                        <div className="font-semibold truncate">
-                          {guest.name}
-                        </div>
-                        <div className="truncate opacity-90">
-                          {guest.topic}
-                        </div>
-                      </div>
-                    ))}
-                    {dayGuests.length > 3 && (
-                      <div className="text-xs text-muted-foreground text-center">
-                        +{dayGuests.length - 3} más
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Empty state for work days */}
-                {!hasGuests && isWork && isInMonth && (
-                  <div className="text-xs text-muted-foreground text-center pt-4">
-                    Sin invitados
-                  </div>
-                )}
+                {/* Always show 3 slots */}
+                <div className="space-y-1">
+                  {[1, 2, 3].map((slot) => {
+                    const guest = getGuestForSlot(day, slot);
+                    
+                    return (
+                      <SlotCard
+                        key={slot}
+                        guest={guest}
+                        day={day}
+                        slot={slot}
+                        onGuestClick={onGuestClick}
+                        getStatusColor={getStatusColor}
+                      />
+                    );
+                  })}
+                </div>
               </div>
             </Card>
           );
         })}
       </div>
+      <DragOverlay>
+        {activeGuest && (
+          <div className={`text-xs p-1 rounded shadow-lg cursor-grabbing ${getStatusColor(activeGuest.recording_status)}`}>
+            <div className="font-semibold truncate">{activeGuest.name}</div>
+            <div className="truncate opacity-90">{activeGuest.topic}</div>
+          </div>
+        )}
+      </DragOverlay>
+      </div>
+    </DndContext>
+  );
+};
+
+interface SlotCardProps {
+  guest: Guest | undefined;
+  day: Date;
+  slot: number;
+  onGuestClick: (guest: Guest) => void;
+  getStatusColor: (status: Guest["recording_status"]) => string;
+}
+
+const SlotCard = ({ guest, day, slot, onGuestClick, getStatusColor }: SlotCardProps) => {
+  const slotId = `${format(day, "yyyy-MM-dd")}-${slot}`;
+  
+  const { setNodeRef: setDropRef, isOver } = useDroppable({
+    id: slotId,
+  });
+
+  if (guest) {
+    const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({
+      id: `guest-${guest.id}`,
+    });
+
+    return (
+      <div ref={setDropRef}>
+        <div
+          ref={setDragRef}
+          {...listeners}
+          {...attributes}
+          className={`text-xs p-1 rounded cursor-grab active:cursor-grabbing transition-all ${
+            getStatusColor(guest.recording_status)
+          } ${isDragging ? "opacity-50" : ""} ${isOver ? "ring-2 ring-primary" : ""}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            onGuestClick(guest);
+          }}
+        >
+          <div className="font-semibold truncate">{guest.name}</div>
+          <div className="truncate opacity-90">{guest.topic}</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      ref={setDropRef}
+      className={`text-xs p-1 rounded border border-dashed transition-all ${
+        isOver 
+          ? "border-primary bg-primary/10 border-2" 
+          : "border-muted-foreground/30 bg-muted/10"
+      }`}
+    >
+      <div className="text-muted-foreground/60 text-center">—</div>
     </div>
   );
 };

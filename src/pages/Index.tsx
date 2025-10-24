@@ -140,6 +140,54 @@ const Index = () => {
       toast.success("Invitado eliminado");
     }
   };
+
+  const handleMoveGuest = async (guestId: string, newDay: string, newSlot: number, targetGuestId?: string) => {
+    const movedGuest = guests.find(g => g.id === guestId);
+    if (!movedGuest) return;
+
+    if (targetGuestId) {
+      const targetGuest = guests.find(g => g.id === targetGuestId);
+      if (!targetGuest) return;
+
+      const { error: error1 } = await supabase
+        .from('guests')
+        .update({ 
+          day_of_week: targetGuest.day_of_week, 
+          time_slot: targetGuest.time_slot 
+        })
+        .eq('id', guestId);
+
+      const { error: error2 } = await supabase
+        .from('guests')
+        .update({ 
+          day_of_week: newDay, 
+          time_slot: newSlot 
+        })
+        .eq('id', targetGuestId);
+
+      if (error1 || error2) {
+        toast.error("Error al intercambiar invitados");
+        console.error(error1 || error2);
+      } else {
+        toast.success("Invitados intercambiados");
+      }
+    } else {
+      const { error } = await supabase
+        .from('guests')
+        .update({ 
+          day_of_week: newDay, 
+          time_slot: newSlot 
+        })
+        .eq('id', guestId);
+
+      if (error) {
+        toast.error("Error al mover invitado");
+        console.error(error);
+      } else {
+        toast.success("Invitado movido");
+      }
+    }
+  };
   const handleAddGuest = (day: string, slot: number) => {
     setNewGuestSlot({
       day,
@@ -263,7 +311,8 @@ const Index = () => {
             guests={filteredGuests} 
             onGuestClick={handleGuestClick} 
             onAddGuest={handleAddGuest} 
-            selectedWeek={selectedWeek} 
+            selectedWeek={selectedWeek}
+            onMoveGuest={handleMoveGuest}
           />
         )}
 
@@ -276,6 +325,7 @@ const Index = () => {
               setSelectedDay(["monday", "tuesday", "wednesday", "thursday"][day.getDay() - 1]);
               setViewMode("day");
             }}
+            onMoveGuest={handleMoveGuest}
           />
         )}
 

@@ -4,12 +4,15 @@ import { Button } from "@/components/ui/button";
 import { Plus, Phone, Mail, Globe } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Guest } from "@/types/guest";
+import { DndContext, DragEndEvent, useDraggable, useDroppable, DragOverlay } from "@dnd-kit/core";
+import { useState } from "react";
 
 interface WeeklyCalendarProps {
   guests: Guest[];
   onGuestClick: (guest: Guest) => void;
   onAddGuest: (day: string, slot: number) => void;
   selectedWeek: Date;
+  onMoveGuest?: (guestId: string, newDay: string, newSlot: number, targetGuestId?: string) => Promise<void>;
 }
 
 const DAYS = [
@@ -33,13 +36,37 @@ const statusConfig = {
   proposed: { label: "PROPUESTO", className: "bg-blue-500 text-white" },
 };
 
-export const WeeklyCalendar = ({ guests, onGuestClick, onAddGuest, selectedWeek }: WeeklyCalendarProps) => {
+export const WeeklyCalendar = ({ guests, onGuestClick, onAddGuest, selectedWeek, onMoveGuest }: WeeklyCalendarProps) => {
+  const [activeGuest, setActiveGuest] = useState<Guest | null>(null);
+
   const getGuestForSlot = (day: string, slot: number) => {
     return guests.find(g => g.day_of_week === day && g.time_slot === slot);
   };
 
+  const handleDragStart = (event: DragEndEvent) => {
+    const guestId = event.active.id.toString().replace('guest-', '');
+    const guest = guests.find(g => g.id === guestId);
+    setActiveGuest(guest || null);
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    setActiveGuest(null);
+    const { active, over } = event;
+    
+    if (!over || !onMoveGuest) return;
+    
+    const guestId = active.id.toString().replace('guest-', '');
+    const [_, newDay, newSlotStr] = over.id.toString().split('-');
+    const newSlot = parseInt(newSlotStr);
+    
+    const targetGuest = getGuestForSlot(newDay, newSlot);
+    
+    await onMoveGuest(guestId, newDay, newSlot, targetGuest?.id);
+  };
+
   return (
-    <div className="w-full overflow-x-auto">
+    <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+      <div className="w-full overflow-x-auto">
       <div className="min-w-[800px]">
         {/* Header */}
         <div className="grid grid-cols-5 gap-4 mb-4">
@@ -61,48 +88,112 @@ export const WeeklyCalendar = ({ guests, onGuestClick, onAddGuest, selectedWeek 
               const guest = getGuestForSlot(day.key, timeSlot.slot);
               
               return (
-                <Card
+                <GuestSlotCard
                   key={`${day.key}-${timeSlot.slot}`}
-                  className={cn(
-                    "p-4 min-h-[140px] transition-all hover:shadow-md cursor-pointer",
-                    guest ? "bg-card" : "bg-muted/30 border-dashed"
-                  )}
-                  onClick={() => guest ? onGuestClick(guest) : onAddGuest(day.key, timeSlot.slot)}
-                >
-                  {guest ? (
-                    <div className="space-y-2">
-                      <div className="flex items-start justify-between gap-2">
-                        <h4 className="font-semibold text-sm line-clamp-1">{guest.name}</h4>
-                        <Badge className={cn("text-xs", statusConfig[guest.recording_status].className)}>
-                          {statusConfig[guest.recording_status].label}
-                        </Badge>
-                      </div>
-                      <p className="text-xs text-muted-foreground line-clamp-2">{guest.topic}</p>
-                      {guest.phone && (
-                        <div className="flex items-center gap-2 text-xs">
-                          <Phone className="w-3 h-3 text-primary" />
-                          <span className="text-foreground">{guest.phone}</span>
-                        </div>
-                      )}
-                      <div className="flex gap-2 text-xs text-muted-foreground">
-                        {guest.email && <Mail className="w-3 h-3 text-primary" />}
-                        {guest.social_networks && Object.keys(guest.social_networks).length > 0 && <Globe className="w-3 h-3 text-primary" />}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-center h-full">
-                      <Button variant="ghost" size="sm" className="text-muted-foreground">
-                        <Plus className="w-4 h-4 mr-2" />
-                        Agregar
-                      </Button>
-                    </div>
-                  )}
-                </Card>
+                  day={day.key}
+                  slot={timeSlot.slot}
+                  guest={guest}
+                  onGuestClick={onGuestClick}
+                  onAddGuest={onAddGuest}
+                />
               );
             })}
           </div>
         ))}
       </div>
+      <DragOverlay>
+        {activeGuest && (
+          <Card className="p-4 min-h-[140px] shadow-lg cursor-grabbing">
+            <div className="space-y-2">
+              <div className="flex items-start justify-between gap-2">
+                <h4 className="font-semibold text-sm line-clamp-1">{activeGuest.name}</h4>
+                <Badge className={cn("text-xs", statusConfig[activeGuest.recording_status].className)}>
+                  {statusConfig[activeGuest.recording_status].label}
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground line-clamp-2">{activeGuest.topic}</p>
+            </div>
+          </Card>
+        )}
+      </DragOverlay>
+      </div>
+    </DndContext>
+  );
+};
+
+interface GuestSlotCardProps {
+  day: string;
+  slot: number;
+  guest: Guest | undefined;
+  onGuestClick: (guest: Guest) => void;
+  onAddGuest: (day: string, slot: number) => void;
+}
+
+const GuestSlotCard = ({ day, slot, guest, onGuestClick, onAddGuest }: GuestSlotCardProps) => {
+  const slotId = `slot-${day}-${slot}`;
+  
+  const { setNodeRef: setDropRef, isOver } = useDroppable({
+    id: slotId,
+  });
+
+  if (guest) {
+    const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({
+      id: `guest-${guest.id}`,
+    });
+
+    return (
+      <div ref={setDropRef}>
+        <Card
+          ref={setDragRef}
+          {...listeners}
+          {...attributes}
+          className={cn(
+            "p-4 min-h-[140px] transition-all cursor-grab active:cursor-grabbing bg-card",
+            isDragging && "opacity-50",
+            isOver && "ring-2 ring-primary shadow-lg"
+          )}
+          onClick={() => onGuestClick(guest)}
+        >
+          <div className="space-y-2">
+            <div className="flex items-start justify-between gap-2">
+              <h4 className="font-semibold text-sm line-clamp-1">{guest.name}</h4>
+              <Badge className={cn("text-xs", statusConfig[guest.recording_status].className)}>
+                {statusConfig[guest.recording_status].label}
+              </Badge>
+            </div>
+            <p className="text-xs text-muted-foreground line-clamp-2">{guest.topic}</p>
+            {guest.phone && (
+              <div className="flex items-center gap-2 text-xs">
+                <Phone className="w-3 h-3 text-primary" />
+                <span className="text-foreground">{guest.phone}</span>
+              </div>
+            )}
+            <div className="flex gap-2 text-xs text-muted-foreground">
+              {guest.email && <Mail className="w-3 h-3 text-primary" />}
+              {guest.social_networks && Object.keys(guest.social_networks).length > 0 && <Globe className="w-3 h-3 text-primary" />}
+            </div>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div ref={setDropRef}>
+      <Card
+        className={cn(
+          "p-4 min-h-[140px] transition-all hover:shadow-md cursor-pointer bg-muted/30 border-dashed",
+          isOver && "border-primary bg-primary/10 border-2"
+        )}
+        onClick={() => onAddGuest(day, slot)}
+      >
+        <div className="flex items-center justify-center h-full">
+          <Button variant="ghost" size="sm" className="text-muted-foreground pointer-events-none">
+            <Plus className="w-4 h-4 mr-2" />
+            Agregar
+          </Button>
+        </div>
+      </Card>
     </div>
   );
 };
