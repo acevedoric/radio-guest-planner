@@ -173,11 +173,13 @@ const SlotCard = ({ guest, day, slot, onGuestClick, getStatusColor }: SlotCardPr
     id: slotId,
   });
 
-  if (guest) {
-    const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({
-      id: `guest-${guest.id}`,
-    });
+  // Always call useDraggable hook (Rules of Hooks - must be called unconditionally)
+  const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({
+    id: `guest-${guest?.id || `empty-${slotId}`}`,
+    disabled: !guest, // Disable dragging when there's no guest
+  });
 
+  if (guest) {
     return (
       <div ref={setDropRef}>
         <div
