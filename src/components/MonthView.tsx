@@ -75,15 +75,17 @@ export const MonthView = ({ guests, onGuestClick, selectedMonth, onDayClick, onM
     if (!over || !onMoveGuest) return;
     
     const guestId = active.id.toString().replace('guest-', '');
-    const [_, dayStr, newSlotStr] = over.id.toString().split('-');
-    const newSlot = parseInt(newSlotStr);
+    // Formato: slot-YYYY-MM-DD-dayOfWeek-slotNumber
+    const parts = over.id.toString().split('-');
+    const newDayOfWeek = parts[4]; // Extraer "monday", "tuesday", etc
+    const newSlot = parseInt(parts[5]); // Extraer el número de slot
     
     const targetGuest = getGuestForSlot(
-      calendarDays.find(d => format(d, "yyyy-MM-dd") === dayStr) || new Date(), 
+      calendarDays.find(d => format(d, "yyyy-MM-dd") === `${parts[1]}-${parts[2]}-${parts[3]}`) || new Date(), 
       newSlot
     );
     
-    await onMoveGuest(guestId, dayStr, newSlot, targetGuest?.id);
+    await onMoveGuest(guestId, newDayOfWeek, newSlot, targetGuest?.id);
   };
 
   return (
@@ -167,7 +169,14 @@ interface SlotCardProps {
 }
 
 const SlotCard = ({ guest, day, slot, onGuestClick, getStatusColor }: SlotCardProps) => {
-  const slotId = `${format(day, "yyyy-MM-dd")}-${slot}`;
+  const dayOfWeekMap: Record<number, string> = {
+    1: "monday",
+    2: "tuesday",
+    3: "wednesday",
+    4: "thursday"
+  };
+  const dayOfWeekKey = dayOfWeekMap[day.getDay()];
+  const slotId = `slot-${format(day, "yyyy-MM-dd")}-${dayOfWeekKey}-${slot}`;
   
   const { setNodeRef: setDropRef, isOver } = useDroppable({
     id: slotId,

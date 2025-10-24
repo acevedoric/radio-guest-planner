@@ -69,7 +69,7 @@ export const WeeklyCalendar = ({ guests, onGuestClick, onAddGuest, selectedWeek,
       <div className="w-full overflow-x-auto">
       <div className="min-w-[800px]">
         {/* Header */}
-        <div className="grid grid-cols-5 gap-4 mb-4">
+        <div className="grid gap-4 mb-4" style={{ gridTemplateColumns: "150px repeat(4, 1fr)" }}>
           <div className="font-semibold text-sm text-muted-foreground">Horario</div>
           {DAYS.map(day => (
             <div key={day.key} className="font-semibold text-center text-foreground">
@@ -80,7 +80,7 @@ export const WeeklyCalendar = ({ guests, onGuestClick, onAddGuest, selectedWeek,
 
         {/* Time Slots Grid */}
         {TIME_SLOTS.map(timeSlot => (
-          <div key={timeSlot.slot} className="grid grid-cols-5 gap-4 mb-4">
+          <div key={timeSlot.slot} className="grid gap-4 mb-4" style={{ gridTemplateColumns: "150px repeat(4, 1fr)" }}>
             <div className="flex items-center font-medium text-muted-foreground">
               {timeSlot.label}
             </div>

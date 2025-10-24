@@ -142,6 +142,21 @@ const Index = () => {
   };
 
   const handleMoveGuest = async (guestId: string, newDay: string, newSlot: number, targetGuestId?: string) => {
+    // Validar que newDay sea un día de la semana válido
+    const validDays = ["monday", "tuesday", "wednesday", "thursday"];
+    if (!validDays.includes(newDay)) {
+      toast.error("Día inválido");
+      console.error(`Invalid day: ${newDay}`);
+      return;
+    }
+    
+    // Validar que newSlot sea un slot válido (1, 2, 3)
+    if (![1, 2, 3].includes(newSlot)) {
+      toast.error("Slot inválido");
+      console.error(`Invalid slot: ${newSlot}`);
+      return;
+    }
+
     const movedGuest = guests.find(g => g.id === guestId);
     if (!movedGuest) return;
 
