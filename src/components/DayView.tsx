@@ -10,6 +10,7 @@ interface DayViewProps {
   onAddGuest: (day: string, slot: number) => void;
   selectedDay: string;
   onDayChange: (day: string) => void;
+  editMode: boolean;
 }
 
 const DAYS = [
@@ -33,7 +34,7 @@ const statusConfig = {
   proposed: { label: "PROPUESTO", className: "bg-blue-500 text-white" },
 };
 
-export const DayView = ({ guests, onGuestClick, onAddGuest, selectedDay, onDayChange }: DayViewProps) => {
+export const DayView = ({ guests, onGuestClick, onAddGuest, selectedDay, onDayChange, editMode }: DayViewProps) => {
   const getGuestForSlot = (slot: number) => {
     return guests.find(g => g.day_of_week === selectedDay && g.time_slot === slot);
   };
@@ -69,10 +70,12 @@ export const DayView = ({ guests, onGuestClick, onAddGuest, selectedDay, onDayCh
           return (
             <Card
               key={slot}
-              className={`p-6 transition-all hover:shadow-lg ${
-                guest ? "cursor-pointer bg-card" : "border-dashed cursor-pointer hover:border-primary"
+              className={`p-6 transition-all ${
+                editMode ? "hover:shadow-lg cursor-pointer" : "cursor-default"
+              } ${
+                guest ? "bg-card" : "border-dashed hover:border-primary"
               }`}
-              onClick={() => guest ? onGuestClick(guest) : onAddGuest(selectedDay, slot)}
+              onClick={() => editMode && (guest ? onGuestClick(guest) : onAddGuest(selectedDay, slot))}
             >
               {guest ? (
                 <div className="space-y-4">

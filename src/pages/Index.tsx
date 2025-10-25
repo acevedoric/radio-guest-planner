@@ -32,6 +32,8 @@ const Index = () => {
     day: string;
     slot: number;
   } | null>(null);
+  const [editMode, setEditMode] = useState(false);
+  
   // Check authentication status
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -141,7 +143,7 @@ const Index = () => {
     }
   };
 
-  const handleMoveGuest = async (guestId: string, newDay: string, newSlot: number, targetGuestId?: string) => {
+  const handleMoveGuest = async (guestId: string, newDay: string, newSlot: number, newWeekDate: string, targetGuestId?: string) => {
     // Validar que newDay sea un día de la semana válido
     const validDays = ["monday", "tuesday", "wednesday", "thursday"];
     if (!validDays.includes(newDay)) {
@@ -168,7 +170,8 @@ const Index = () => {
         .from('guests')
         .update({ 
           day_of_week: targetGuest.day_of_week, 
-          time_slot: targetGuest.time_slot 
+          time_slot: targetGuest.time_slot,
+          week_date: targetGuest.week_date
         })
         .eq('id', guestId);
 
@@ -176,7 +179,8 @@ const Index = () => {
         .from('guests')
         .update({ 
           day_of_week: newDay, 
-          time_slot: newSlot 
+          time_slot: newSlot,
+          week_date: newWeekDate
         })
         .eq('id', targetGuestId);
 
@@ -191,7 +195,8 @@ const Index = () => {
         .from('guests')
         .update({ 
           day_of_week: newDay, 
-          time_slot: newSlot 
+          time_slot: newSlot,
+          week_date: newWeekDate
         })
         .eq('id', guestId);
 
@@ -203,7 +208,7 @@ const Index = () => {
       }
     }
   };
-  const handleAddGuest = (day: string, slot: number) => {
+  const handleAddGuest = (day: string, slot: number, weekDate?: string) => {
     setNewGuestSlot({
       day,
       slot
@@ -214,7 +219,7 @@ const Index = () => {
       recording_status: "proposed",
       day_of_week: day,
       time_slot: slot,
-      week_date: selectedWeek.toISOString().split('T')[0]
+      week_date: weekDate || selectedWeek.toISOString().split('T')[0]
     });
     setIsModalOpen(true);
   };
@@ -309,6 +314,8 @@ const Index = () => {
           onDayChange={setSelectedDay}
           viewMode={viewMode}
           onViewModeChange={setViewMode}
+          editMode={editMode}
+          onEditModeChange={setEditMode}
         />
 
         {viewMode === "day" && (
@@ -318,6 +325,7 @@ const Index = () => {
             onAddGuest={handleAddGuest}
             selectedDay={selectedDay}
             onDayChange={setSelectedDay}
+            editMode={editMode}
           />
         )}
 
@@ -328,6 +336,7 @@ const Index = () => {
             onAddGuest={handleAddGuest} 
             selectedWeek={selectedWeek}
             onMoveGuest={handleMoveGuest}
+            editMode={editMode}
           />
         )}
 
@@ -340,7 +349,9 @@ const Index = () => {
               setSelectedDay(["monday", "tuesday", "wednesday", "thursday"][day.getDay() - 1]);
               setViewMode("day");
             }}
+            onAddGuest={handleAddGuest}
             onMoveGuest={handleMoveGuest}
+            editMode={editMode}
           />
         )}
 

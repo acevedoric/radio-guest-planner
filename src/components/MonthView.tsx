@@ -1,7 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Guest } from "@/types/guest";
 import { startOfMonth, endOfMonth, eachDayOfInterval, format, startOfWeek, endOfWeek } from "date-fns";
-import { DndContext, DragEndEvent, useDraggable, useDroppable, DragOverlay } from "@dnd-kit/core";
+import { DndContext, DragEndEvent, useDraggable, useDroppable, DragOverlay, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { useState } from "react";
 
 interface MonthViewProps {
@@ -9,11 +9,22 @@ interface MonthViewProps {
   onGuestClick: (guest: Guest) => void;
   selectedMonth: Date;
   onDayClick: (day: Date) => void;
-  onMoveGuest?: (guestId: string, newDay: string, newSlot: number, targetGuestId?: string) => Promise<void>;
+  onAddGuest: (day: string, slot: number, weekDate: string) => void;
+  onMoveGuest?: (guestId: string, newDay: string, newSlot: number, newWeekDate: string, targetGuestId?: string) => Promise<void>;
+  editMode: boolean;
 }
 
-export const MonthView = ({ guests, onGuestClick, selectedMonth, onDayClick, onMoveGuest }: MonthViewProps) => {
+export const MonthView = ({ guests, onGuestClick, selectedMonth, onDayClick, onAddGuest, onMoveGuest, editMode }: MonthViewProps) => {
   const [activeGuest, setActiveGuest] = useState<Guest | null>(null);
+  
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 10,
+      },
+    })
+  );
+  
   const monthStart = startOfMonth(selectedMonth);
   const monthEnd = endOfMonth(selectedMonth);
   const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 });
@@ -80,16 +91,24 @@ export const MonthView = ({ guests, onGuestClick, selectedMonth, onDayClick, onM
     const newDayOfWeek = parts[4]; // Extraer "monday", "tuesday", etc
     const newSlot = parseInt(parts[5]); // Extraer el número de slot
     
-    const targetGuest = getGuestForSlot(
-      calendarDays.find(d => format(d, "yyyy-MM-dd") === `${parts[1]}-${parts[2]}-${parts[3]}`) || new Date(), 
-      newSlot
+    // Encontrar el día completo para obtener su week_date
+    const targetDay = calendarDays.find(
+      d => format(d, "yyyy-MM-dd") === `${parts[1]}-${parts[2]}-${parts[3]}`
     );
     
-    await onMoveGuest(guestId, newDayOfWeek, newSlot, targetGuest?.id);
+    if (!targetDay) return;
+    
+    // Calcular el week_date correcto para ese día
+    const weekStart = startOfWeek(targetDay, { weekStartsOn: 1 });
+    const newWeekDate = format(weekStart, "yyyy-MM-dd");
+    
+    const targetGuest = getGuestForSlot(targetDay, newSlot);
+    
+    await onMoveGuest(guestId, newDayOfWeek, newSlot, newWeekDate, targetGuest?.id);
   };
 
   return (
-    <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+    <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <div className="space-y-4">
       {/* Month Calendar Grid */}
       <div className="grid grid-cols-4 gap-2">
@@ -137,7 +156,9 @@ export const MonthView = ({ guests, onGuestClick, selectedMonth, onDayClick, onM
                         day={day}
                         slot={slot}
                         onGuestClick={onGuestClick}
+                        onAddGuest={onAddGuest}
                         getStatusColor={getStatusColor}
+                        editMode={editMode}
                       />
                     );
                   })}
@@ -165,10 +186,12 @@ interface SlotCardProps {
   day: Date;
   slot: number;
   onGuestClick: (guest: Guest) => void;
+  onAddGuest: (day: string, slot: number, weekDate: string) => void;
   getStatusColor: (status: Guest["recording_status"]) => string;
+  editMode: boolean;
 }
 
-const SlotCard = ({ guest, day, slot, onGuestClick, getStatusColor }: SlotCardProps) => {
+const SlotCard = ({ guest, day, slot, onGuestClick, onAddGuest, getStatusColor, editMode }: SlotCardProps) => {
   const dayOfWeekMap: Record<number, string> = {
     1: "monday",
     2: "tuesday",
@@ -185,7 +208,7 @@ const SlotCard = ({ guest, day, slot, onGuestClick, getStatusColor }: SlotCardPr
   // Always call useDraggable hook (Rules of Hooks - must be called unconditionally)
   const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({
     id: `guest-${guest?.id || `empty-${slotId}`}`,
-    disabled: !guest, // Disable dragging when there's no guest
+    disabled: !guest || !editMode, // Disable dragging when there's no guest or not in edit mode
   });
 
   if (guest) {
@@ -195,12 +218,14 @@ const SlotCard = ({ guest, day, slot, onGuestClick, getStatusColor }: SlotCardPr
           ref={setDragRef}
           {...listeners}
           {...attributes}
-          className={`text-xs p-1 rounded cursor-grab active:cursor-grabbing transition-all ${
-            getStatusColor(guest.recording_status)
-          } ${isDragging ? "opacity-50" : ""} ${isOver ? "ring-2 ring-primary" : ""}`}
+          className={`text-xs p-1 rounded transition-all ${
+            editMode ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"
+          } ${getStatusColor(guest.recording_status)} ${isDragging ? "opacity-50" : ""} ${isOver ? "ring-2 ring-primary" : ""}`}
           onClick={(e) => {
             e.stopPropagation();
-            onGuestClick(guest);
+            if (editMode) {
+              onGuestClick(guest);
+            }
           }}
         >
           <div className="font-semibold truncate">{guest.name}</div>
@@ -214,12 +239,29 @@ const SlotCard = ({ guest, day, slot, onGuestClick, getStatusColor }: SlotCardPr
     <div
       ref={setDropRef}
       className={`text-xs p-1 rounded border border-dashed transition-all ${
+        editMode ? "cursor-pointer hover:border-primary/50" : "cursor-default"
+      } ${
         isOver 
           ? "border-primary bg-primary/10 border-2" 
           : "border-muted-foreground/30 bg-muted/10"
       }`}
+      onClick={(e) => {
+        e.stopPropagation();
+        if (editMode) {
+          const dayOfWeekMap: Record<number, string> = {
+            1: "monday", 2: "tuesday", 3: "wednesday", 4: "thursday"
+          };
+          const dayOfWeek = dayOfWeekMap[day.getDay()];
+          const weekStart = startOfWeek(day, { weekStartsOn: 1 });
+          const weekDate = format(weekStart, "yyyy-MM-dd");
+          
+          if (dayOfWeek) {
+            onAddGuest(dayOfWeek, slot, weekDate);
+          }
+        }
+      }}
     >
-      <div className="text-muted-foreground/60 text-center">—</div>
+      <div className="text-muted-foreground/60 text-center">{editMode ? "+ Agregar" : "—"}</div>
     </div>
   );
 };

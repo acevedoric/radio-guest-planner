@@ -1,7 +1,8 @@
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Search, ChevronLeft, ChevronRight, Lock, Unlock } from "lucide-react";
 import { addWeeks, subWeeks, addMonths, subMonths, addDays, subDays, format } from "date-fns";
 import { es } from "date-fns/locale";
 
@@ -18,6 +19,8 @@ interface FilterBarProps {
   onDayChange: (day: string) => void;
   viewMode: "day" | "week" | "month";
   onViewModeChange: (mode: "day" | "week" | "month") => void;
+  editMode: boolean;
+  onEditModeChange: (mode: boolean) => void;
 }
 
 export const FilterBar = ({
@@ -33,6 +36,8 @@ export const FilterBar = ({
   onDayChange,
   viewMode,
   onViewModeChange,
+  editMode,
+  onEditModeChange,
 }: FilterBarProps) => {
   const calculateDayDate = () => {
     const dayIndex = {
@@ -158,7 +163,7 @@ export const FilterBar = ({
         </div>
 
         {/* View Mode Selector */}
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
           <Button
             variant={viewMode === "day" ? "default" : "outline"}
             onClick={() => onViewModeChange("day")}
@@ -177,6 +182,19 @@ export const FilterBar = ({
           >
             Mes
           </Button>
+          
+          <div className="h-6 w-px bg-border mx-2" />
+          
+          <div className="flex items-center gap-2">
+            {editMode ? <Unlock className="h-4 w-4 text-primary" /> : <Lock className="h-4 w-4 text-muted-foreground" />}
+            <Switch 
+              checked={editMode} 
+              onCheckedChange={onEditModeChange}
+            />
+            <span className="text-sm font-medium whitespace-nowrap">
+              {editMode ? "Editar" : "Presentar"}
+            </span>
+          </div>
         </div>
       </div>
 

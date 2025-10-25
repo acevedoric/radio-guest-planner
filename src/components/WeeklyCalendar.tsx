@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Plus, Phone, Mail, Globe } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Guest } from "@/types/guest";
-import { DndContext, DragEndEvent, useDraggable, useDroppable, DragOverlay } from "@dnd-kit/core";
+import { DndContext, DragEndEvent, useDraggable, useDroppable, DragOverlay, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { useState } from "react";
 
 interface WeeklyCalendarProps {
@@ -12,7 +12,8 @@ interface WeeklyCalendarProps {
   onGuestClick: (guest: Guest) => void;
   onAddGuest: (day: string, slot: number) => void;
   selectedWeek: Date;
-  onMoveGuest?: (guestId: string, newDay: string, newSlot: number, targetGuestId?: string) => Promise<void>;
+  onMoveGuest?: (guestId: string, newDay: string, newSlot: number, newWeekDate: string, targetGuestId?: string) => Promise<void>;
+  editMode: boolean;
 }
 
 const DAYS = [
@@ -36,8 +37,16 @@ const statusConfig = {
   proposed: { label: "PROPUESTO", className: "bg-blue-500 text-white" },
 };
 
-export const WeeklyCalendar = ({ guests, onGuestClick, onAddGuest, selectedWeek, onMoveGuest }: WeeklyCalendarProps) => {
+export const WeeklyCalendar = ({ guests, onGuestClick, onAddGuest, selectedWeek, onMoveGuest, editMode }: WeeklyCalendarProps) => {
   const [activeGuest, setActiveGuest] = useState<Guest | null>(null);
+  
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 10,
+      },
+    })
+  );
 
   const getGuestForSlot = (day: string, slot: number) => {
     return guests.find(g => g.day_of_week === day && g.time_slot === slot);
@@ -60,12 +69,13 @@ export const WeeklyCalendar = ({ guests, onGuestClick, onAddGuest, selectedWeek,
     const newSlot = parseInt(newSlotStr);
     
     const targetGuest = getGuestForSlot(newDay, newSlot);
+    const newWeekDate = selectedWeek.toISOString().split('T')[0];
     
-    await onMoveGuest(guestId, newDay, newSlot, targetGuest?.id);
+    await onMoveGuest(guestId, newDay, newSlot, newWeekDate, targetGuest?.id);
   };
 
   return (
-    <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+    <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <div className="w-full overflow-x-auto">
       <div className="min-w-[800px]">
         {/* Header */}
@@ -95,6 +105,7 @@ export const WeeklyCalendar = ({ guests, onGuestClick, onAddGuest, selectedWeek,
                   guest={guest}
                   onGuestClick={onGuestClick}
                   onAddGuest={onAddGuest}
+                  editMode={editMode}
                 />
               );
             })}
@@ -127,9 +138,10 @@ interface GuestSlotCardProps {
   guest: Guest | undefined;
   onGuestClick: (guest: Guest) => void;
   onAddGuest: (day: string, slot: number) => void;
+  editMode: boolean;
 }
 
-const GuestSlotCard = ({ day, slot, guest, onGuestClick, onAddGuest }: GuestSlotCardProps) => {
+const GuestSlotCard = ({ day, slot, guest, onGuestClick, onAddGuest, editMode }: GuestSlotCardProps) => {
   const slotId = `slot-${day}-${slot}`;
   
   const { setNodeRef: setDropRef, isOver } = useDroppable({
@@ -139,7 +151,7 @@ const GuestSlotCard = ({ day, slot, guest, onGuestClick, onAddGuest }: GuestSlot
   // Always call useDraggable hook (Rules of Hooks - must be called unconditionally)
   const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({
     id: `guest-${guest?.id || `empty-${slotId}`}`,
-    disabled: !guest, // Disable dragging when there's no guest
+    disabled: !guest || !editMode, // Disable dragging when there's no guest or not in edit mode
   });
 
   if (guest) {
@@ -150,11 +162,12 @@ const GuestSlotCard = ({ day, slot, guest, onGuestClick, onAddGuest }: GuestSlot
           {...listeners}
           {...attributes}
           className={cn(
-            "p-4 min-h-[140px] transition-all cursor-grab active:cursor-grabbing bg-card",
+            "p-4 min-h-[140px] transition-all bg-card",
+            editMode ? "cursor-grab active:cursor-grabbing" : "cursor-pointer",
             isDragging && "opacity-50",
             isOver && "ring-2 ring-primary shadow-lg"
           )}
-          onClick={() => onGuestClick(guest)}
+          onClick={() => editMode && onGuestClick(guest)}
         >
           <div className="space-y-2">
             <div className="flex items-start justify-between gap-2">
@@ -184,10 +197,11 @@ const GuestSlotCard = ({ day, slot, guest, onGuestClick, onAddGuest }: GuestSlot
     <div ref={setDropRef}>
       <Card
         className={cn(
-          "p-4 min-h-[140px] transition-all hover:shadow-md cursor-pointer bg-muted/30 border-dashed",
+          "p-4 min-h-[140px] transition-all bg-muted/30 border-dashed",
+          editMode ? "cursor-pointer hover:shadow-md" : "cursor-default",
           isOver && "border-primary bg-primary/10 border-2"
         )}
-        onClick={() => onAddGuest(day, slot)}
+        onClick={() => editMode && onAddGuest(day, slot)}
       >
         <div className="flex items-center justify-center h-full">
           <Button variant="ghost" size="sm" className="text-muted-foreground pointer-events-none">
