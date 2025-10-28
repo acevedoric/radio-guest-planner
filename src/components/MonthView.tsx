@@ -3,6 +3,7 @@ import { Guest } from "@/types/guest";
 import { startOfMonth, endOfMonth, eachDayOfInterval, format, startOfWeek, endOfWeek } from "date-fns";
 import { DndContext, DragEndEvent, useDraggable, useDroppable, DragOverlay, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { useState } from "react";
+import { GuestTooltip } from "./GuestTooltip";
 
 interface MonthViewProps {
   guests: Guest[];
@@ -214,23 +215,23 @@ const SlotCard = ({ guest, day, slot, onGuestClick, onAddGuest, getStatusColor, 
   if (guest) {
     return (
       <div ref={setDropRef}>
-        <div
-          ref={setDragRef}
-          {...listeners}
-          {...attributes}
-          className={`text-xs p-1 rounded transition-all ${
-            editMode ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"
-          } ${getStatusColor(guest.recording_status)} ${isDragging ? "opacity-50" : ""} ${isOver ? "ring-2 ring-primary" : ""}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            if (editMode) {
+        <GuestTooltip guest={guest}>
+          <div
+            ref={setDragRef}
+            {...listeners}
+            {...attributes}
+            className={`text-xs p-1 rounded transition-all ${
+              editMode ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"
+            } ${getStatusColor(guest.recording_status)} ${isDragging ? "opacity-50" : ""} ${isOver ? "ring-2 ring-primary" : ""}`}
+            onClick={(e) => {
+              e.stopPropagation();
               onGuestClick(guest);
-            }
-          }}
-        >
-          <div className="font-semibold truncate">{guest.name}</div>
-          <div className="truncate opacity-90">{guest.topic}</div>
-        </div>
+            }}
+          >
+            <div className="font-semibold truncate">{guest.name}</div>
+            <div className="truncate opacity-90">{guest.topic}</div>
+          </div>
+        </GuestTooltip>
       </div>
     );
   }

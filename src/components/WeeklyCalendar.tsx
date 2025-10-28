@@ -167,7 +167,7 @@ const GuestSlotCard = ({ day, slot, guest, onGuestClick, onAddGuest, editMode }:
             isDragging && "opacity-50",
             isOver && "ring-2 ring-primary shadow-lg"
           )}
-          onClick={() => editMode && onGuestClick(guest)}
+          onClick={() => onGuestClick(guest)}
         >
           <div className="space-y-2">
             <div className="flex items-start justify-between gap-2">

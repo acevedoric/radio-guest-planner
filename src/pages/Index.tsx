@@ -355,11 +355,18 @@ const Index = () => {
           />
         )}
 
-        <GuestDetailModal guest={selectedGuest} isOpen={isModalOpen} onClose={() => {
-        setIsModalOpen(false);
-        setSelectedGuest(null);
-        setNewGuestSlot(null);
-      }} onSave={handleSaveGuest} onDelete={handleDeleteGuest} />
+        <GuestDetailModal 
+          guest={selectedGuest} 
+          isOpen={isModalOpen} 
+          onClose={() => {
+            setIsModalOpen(false);
+            setSelectedGuest(null);
+            setNewGuestSlot(null);
+          }} 
+          onSave={handleSaveGuest} 
+          onDelete={handleDeleteGuest}
+          readOnly={!editMode}
+        />
       </main>
     </div>;
 };

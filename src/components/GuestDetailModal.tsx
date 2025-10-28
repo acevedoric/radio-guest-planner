@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Trash2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Guest } from "@/types/guest";
+import { ContactLink } from "./ContactLink";
 
 interface GuestDetailModalProps {
   guest: Guest | null;
@@ -15,9 +16,10 @@ interface GuestDetailModalProps {
   onClose: () => void;
   onSave: (guest: Guest) => void;
   onDelete?: (guestId: string) => void;
+  readOnly?: boolean;
 }
 
-export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete }: GuestDetailModalProps) => {
+export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, readOnly = false }: GuestDetailModalProps) => {
   const [formData, setFormData] = useState<Guest>({
     name: "",
     topic: "",
@@ -93,7 +95,7 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete }: G
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{guest?.id ? "Editar Invitado" : "Nuevo Invitado"}</DialogTitle>
+          <DialogTitle>{readOnly ? "Ver Invitado" : (guest?.id ? "Editar Invitado" : "Nuevo Invitado")}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -106,6 +108,7 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete }: G
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="Nombre del invitado"
                 required
+                disabled={readOnly}
               />
             </div>
 
@@ -114,6 +117,7 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete }: G
               <Select
                 value={formData.recording_status}
                 onValueChange={(value: any) => setFormData({ ...formData, recording_status: value })}
+                disabled={readOnly}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -138,18 +142,24 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete }: G
               placeholder="Descripción del tema"
               rows={3}
               required
+              disabled={readOnly}
             />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="phone">Teléfono</Label>
-            <Input
-              id="phone"
-              type="tel"
-              value={formData.phone || ""}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              placeholder="+56 9 1234 5678"
-            />
+            {readOnly && formData.phone ? (
+              <ContactLink type="phone" value={formData.phone} />
+            ) : (
+              <Input
+                id="phone"
+                type="tel"
+                value={formData.phone || ""}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                placeholder="+56 9 1234 5678"
+                disabled={readOnly}
+              />
+            )}
           </div>
 
           {/* Nueva sección de redes sociales */}
@@ -164,6 +174,7 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete }: G
                 value={socialNetworks.twitter}
                 onChange={(e) => setSocialNetworks({...socialNetworks, twitter: e.target.value})}
                 placeholder="@usuario"
+                disabled={readOnly}
               />
             </div>
 
@@ -175,6 +186,7 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete }: G
                 value={socialNetworks.instagram}
                 onChange={(e) => setSocialNetworks({...socialNetworks, instagram: e.target.value})}
                 placeholder="@usuario"
+                disabled={readOnly}
               />
             </div>
 
@@ -191,40 +203,46 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete }: G
                   }}
                   placeholder="Nombre (ej: Email)"
                   className="w-32"
+                  disabled={readOnly}
                 />
                 <Input
                   value={value}
                   onChange={(e) => setCustomFields({...customFields, [key]: e.target.value})}
                   placeholder="Valor"
+                  disabled={readOnly}
                 />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    const newFields = {...customFields};
-                    delete newFields[key];
-                    setCustomFields(newFields);
-                  }}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
+                {!readOnly && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      const newFields = {...customFields};
+                      delete newFields[key];
+                      setCustomFields(newFields);
+                    }}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                )}
               </div>
             ))}
 
             {/* Botón + */}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                const fieldName = `campo_${Object.keys(customFields).length + 1}`;
-                setCustomFields({...customFields, [fieldName]: ""});
-              }}
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Agregar Campo
-            </Button>
+            {!readOnly && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const fieldName = `campo_${Object.keys(customFields).length + 1}`;
+                  setCustomFields({...customFields, [fieldName]: ""});
+                }}
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Agregar Campo
+              </Button>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -234,6 +252,7 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete }: G
               value={formData.program_type || ""}
               onChange={(e) => setFormData({ ...formData, program_type: e.target.value })}
               placeholder="Ej: Entrevista, Panel, Musical"
+              disabled={readOnly}
             />
           </div>
 
@@ -244,6 +263,7 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete }: G
               value={formData.press_contact || ""}
               onChange={(e) => setFormData({ ...formData, press_contact: e.target.value })}
               placeholder="Nombre y contacto del representante"
+              disabled={readOnly}
             />
           </div>
 
@@ -255,11 +275,12 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete }: G
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
               placeholder="Información adicional relevante"
               rows={3}
+              disabled={readOnly}
             />
           </div>
 
           <DialogFooter className="gap-2">
-            {guest?.id && onDelete && (
+            {!readOnly && guest?.id && onDelete && (
               <Button
                 type="button"
                 variant="destructive"
@@ -271,11 +292,13 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete }: G
               </Button>
             )}
             <Button type="button" variant="outline" onClick={onClose}>
-              Cancelar
+              {readOnly ? "Cerrar" : "Cancelar"}
             </Button>
-            <Button type="submit" className="bg-primary hover:bg-primary-glow">
-              Guardar
-            </Button>
+            {!readOnly && (
+              <Button type="submit" className="bg-primary hover:bg-primary-glow">
+                Guardar
+              </Button>
+            )}
           </DialogFooter>
         </form>
       </DialogContent>

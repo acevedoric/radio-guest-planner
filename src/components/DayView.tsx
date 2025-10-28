@@ -1,8 +1,9 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Phone, Mail, Globe, User } from "lucide-react";
+import { Globe, User } from "lucide-react";
 import { Guest } from "@/types/guest";
 import { Button } from "@/components/ui/button";
+import { ContactLink } from "./ContactLink";
 
 interface DayViewProps {
   guests: Guest[];
@@ -104,24 +105,8 @@ export const DayView = ({ guests, onGuestClick, onAddGuest, selectedDay, onDayCh
 
                   {/* Contact Information */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t">
-                    {guest.phone && (
-                      <div className="flex items-start gap-2">
-                        <Phone className="w-4 h-4 text-primary mt-1" />
-                        <div>
-                          <span className="text-xs text-muted-foreground block">Teléfono</span>
-                          <span className="text-sm text-foreground">{guest.phone}</span>
-                        </div>
-                      </div>
-                    )}
-                    {guest.email && (
-                      <div className="flex items-start gap-2">
-                        <Mail className="w-4 h-4 text-primary mt-1" />
-                        <div>
-                          <span className="text-xs text-muted-foreground block">Email</span>
-                          <span className="text-sm text-foreground break-all">{guest.email}</span>
-                        </div>
-                      </div>
-                    )}
+                    {guest.phone && <ContactLink type="phone" value={guest.phone} />}
+                    {guest.email && <ContactLink type="email" value={guest.email} />}
                     {guest.social_networks && Object.keys(guest.social_networks).length > 0 && (
                       <div className="flex items-start gap-2">
                         <Globe className="w-4 h-4 text-primary mt-1" />
