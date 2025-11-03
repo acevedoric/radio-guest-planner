@@ -24,6 +24,7 @@ export type Database = {
           notes: string | null
           phone: string | null
           press_contact: string | null
+          press_phone: string | null
           program_type: string | null
           recording_status: string
           social_networks: Json | null
@@ -41,6 +42,7 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           press_contact?: string | null
+          press_phone?: string | null
           program_type?: string | null
           recording_status?: string
           social_networks?: Json | null
@@ -58,6 +60,7 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           press_contact?: string | null
+          press_phone?: string | null
           program_type?: string | null
           recording_status?: string
           social_networks?: Json | null

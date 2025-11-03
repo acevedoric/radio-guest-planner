@@ -8,6 +8,7 @@ export interface Guest {
   recording_status: "live" | "recorded" | "to_record" | "postponed" | "proposed";
   program_type?: string | null;
   press_contact?: string | null;
+  press_phone?: string | null;
   notes?: string | null;
   day_of_week: string;
   time_slot: number;

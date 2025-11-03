@@ -146,21 +146,21 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="phone">Teléfono</Label>
-            {readOnly && formData.phone ? (
-              <ContactLink type="phone" value={formData.phone} />
-            ) : (
-              <Input
-                id="phone"
-                type="tel"
-                value={formData.phone || ""}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                placeholder="+56 9 1234 5678"
-                disabled={readOnly}
-              />
-            )}
-          </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone">Teléfono del Invitado</Label>
+                {readOnly && formData.phone ? (
+                  <ContactLink type="phone" value={formData.phone} />
+                ) : (
+                  <Input
+                    id="phone"
+                    type="tel"
+                    value={formData.phone || ""}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    placeholder="+56 9 1234 5678"
+                    disabled={readOnly}
+                  />
+                )}
+              </div>
 
           {/* Nueva sección de redes sociales */}
           <div className="space-y-4">
@@ -246,25 +246,30 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="program_type">Tipo de Programa</Label>
-            <Input
-              id="program_type"
-              value={formData.program_type || ""}
-              onChange={(e) => setFormData({ ...formData, program_type: e.target.value })}
-              placeholder="Ej: Entrevista, Panel, Musical"
-              disabled={readOnly}
-            />
-          </div>
-
-          <div className="space-y-2">
             <Label htmlFor="press_contact">Contacto de Prensa</Label>
             <Input
               id="press_contact"
               value={formData.press_contact || ""}
               onChange={(e) => setFormData({ ...formData, press_contact: e.target.value })}
-              placeholder="Nombre y contacto del representante"
+              placeholder="Nombre del contacto"
               disabled={readOnly}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="press_phone">Número de Prensa</Label>
+            {readOnly && formData.press_phone ? (
+              <ContactLink type="phone" value={formData.press_phone} />
+            ) : (
+              <Input
+                id="press_phone"
+                type="tel"
+                value={formData.press_phone || ""}
+                onChange={(e) => setFormData({ ...formData, press_phone: e.target.value })}
+                placeholder="+57 1 234 5678"
+                disabled={readOnly}
+              />
+            )}
           </div>
 
           <div className="space-y-2">
