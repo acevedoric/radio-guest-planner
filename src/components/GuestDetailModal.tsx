@@ -27,6 +27,7 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
     day_of_week: "monday",
     time_slot: 1,
     week_date: new Date().toISOString().split('T')[0],
+    scheduled_date: null,
   });
 
   const [socialNetworks, setSocialNetworks] = useState<{twitter: string, instagram: string}>({
@@ -116,7 +117,15 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
               <Label htmlFor="recording_status">Estado *</Label>
               <Select
                 value={formData.recording_status}
-                onValueChange={(value: any) => setFormData({ ...formData, recording_status: value })}
+                onValueChange={(value: any) => {
+                  setFormData({ 
+                    ...formData, 
+                    recording_status: value,
+                    scheduled_date: (value === "live" || value === "recorded") 
+                      ? null 
+                      : formData.scheduled_date
+                  });
+                }}
                 disabled={readOnly}
               >
                 <SelectTrigger>
@@ -132,6 +141,27 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
               </Select>
             </div>
           </div>
+
+          {/* Campo condicional para fecha según estado */}
+          {(formData.recording_status === "to_record" || 
+            formData.recording_status === "postponed" || 
+            formData.recording_status === "proposed") && (
+            <div className="space-y-2">
+              <Label htmlFor="scheduled_date">
+                {formData.recording_status === "to_record" && "Fecha para Grabar"}
+                {formData.recording_status === "postponed" && "Fecha de Aplazamiento"}
+                {formData.recording_status === "proposed" && "Fecha Propuesta"}
+              </Label>
+              <Input
+                id="scheduled_date"
+                type="date"
+                value={formData.scheduled_date || ""}
+                onChange={(e) => setFormData({ ...formData, scheduled_date: e.target.value })}
+                disabled={readOnly}
+                className="w-full"
+              />
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="topic">Tema a Tratar *</Label>

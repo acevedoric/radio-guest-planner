@@ -13,4 +13,5 @@ export interface Guest {
   day_of_week: string;
   time_slot: number;
   week_date: string;
+  scheduled_date?: string | null;
 }

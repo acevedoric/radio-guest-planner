@@ -27,6 +27,7 @@ export type Database = {
           press_phone: string | null
           program_type: string | null
           recording_status: string
+          scheduled_date: string | null
           social_networks: Json | null
           time_slot: number
           topic: string
@@ -45,6 +46,7 @@ export type Database = {
           press_phone?: string | null
           program_type?: string | null
           recording_status?: string
+          scheduled_date?: string | null
           social_networks?: Json | null
           time_slot: number
           topic: string
@@ -63,6 +65,7 @@ export type Database = {
           press_phone?: string | null
           program_type?: string | null
           recording_status?: string
+          scheduled_date?: string | null
           social_networks?: Json | null
           time_slot?: number
           topic?: string
