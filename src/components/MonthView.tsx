@@ -10,12 +10,13 @@ interface MonthViewProps {
   onGuestClick: (guest: Guest) => void;
   selectedMonth: Date;
   onDayClick: (day: Date) => void;
+  onScheduledDateClick: (day: Date) => void;
   onAddGuest: (day: string, slot: number, weekDate: string) => void;
   onMoveGuest?: (guestId: string, newDay: string, newSlot: number, newWeekDate: string, targetGuestId?: string) => Promise<void>;
   editMode: boolean;
 }
 
-export const MonthView = ({ guests, onGuestClick, selectedMonth, onDayClick, onAddGuest, onMoveGuest, editMode }: MonthViewProps) => {
+export const MonthView = ({ guests, onGuestClick, selectedMonth, onDayClick, onScheduledDateClick, onAddGuest, onMoveGuest, editMode }: MonthViewProps) => {
   const [activeGuest, setActiveGuest] = useState<Guest | null>(null);
   
   const sensors = useSensors(
@@ -52,6 +53,21 @@ export const MonthView = ({ guests, onGuestClick, selectedMonth, onDayClick, onA
       g.day_of_week === dayOfWeekKey &&
       g.time_slot === slot
     );
+  };
+
+  const getScheduledRecordings = (day: Date): number => {
+    const dayStr = format(day, "yyyy-MM-dd");
+    
+    // Filtrar invitados que tienen scheduled_date igual a este día
+    // Y que estén en estado de grabación pendiente
+    const scheduledGuests = guests.filter(g => 
+      g.scheduled_date === dayStr &&
+      (g.recording_status === "to_record" || 
+       g.recording_status === "postponed" || 
+       g.recording_status === "proposed")
+    );
+    
+    return scheduledGuests.length;
   };
 
   const isCurrentMonth = (day: Date) => {
@@ -140,9 +156,26 @@ export const MonthView = ({ guests, onGuestClick, selectedMonth, onDayClick, onA
               }}
             >
               <div className="space-y-2">
-                {/* Day number */}
-                <div className="text-sm font-semibold text-foreground">
-                  {format(day, "d")}
+                {/* Day number and scheduled recordings indicator */}
+                <div className="flex items-center justify-between">
+                  <div className="text-sm font-semibold text-foreground">
+                    {format(day, "d")}
+                  </div>
+                  
+                  {/* Indicador de grabaciones pendientes */}
+                  {getScheduledRecordings(day) > 0 && (
+                    <div
+                      className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold cursor-pointer transition-all hover:scale-105"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onScheduledDateClick(day);
+                      }}
+                      title={`${getScheduledRecordings(day)} grabación(es) pendiente(s)`}
+                    >
+                      <span>📹</span>
+                      <span>{getScheduledRecordings(day)}</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Always show 3 slots */}

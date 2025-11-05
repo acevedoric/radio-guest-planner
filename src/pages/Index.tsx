@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Navigate } from "react-router-dom";
-import { startOfWeek, startOfMonth, addDays, addWeeks, endOfMonth } from "date-fns";
+import { startOfWeek, startOfMonth, addDays, addWeeks, endOfMonth, format } from "date-fns";
+import { es } from "date-fns/locale";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session } from "@supabase/supabase-js";
@@ -264,6 +265,31 @@ const Index = () => {
     setSelectedDay(dayMap[workDay.getDay()]);
   };
 
+  const handleScheduledDateClick = (date: Date) => {
+    // Cambiar a vista DÍA
+    setViewMode("day");
+    
+    // Establecer la semana correcta (lunes de esa semana)
+    const weekStart = startOfWeek(date, { weekStartsOn: 1 });
+    setSelectedWeek(weekStart);
+    
+    // Establecer el día correcto basado en la fecha
+    const dayMap: Record<number, string> = {
+      1: "monday",
+      2: "tuesday",
+      3: "wednesday",
+      4: "thursday"
+    };
+    const dayOfWeek = date.getDay();
+    
+    // Si es un día laboral (Lun-Jue), establecerlo
+    if (dayMap[dayOfWeek]) {
+      setSelectedDay(dayMap[dayOfWeek]);
+    }
+    
+    toast.success(`Navegando a ${format(date, "EEEE d 'de' MMMM", { locale: es })}`);
+  };
+
   const filteredGuests = guests.filter(guest => {
     const matchesSearch = guest.name.toLowerCase().includes(searchQuery.toLowerCase()) || guest.topic.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === "all" || guest.recording_status === statusFilter;
@@ -349,6 +375,7 @@ const Index = () => {
               setSelectedDay(["monday", "tuesday", "wednesday", "thursday"][day.getDay() - 1]);
               setViewMode("day");
             }}
+            onScheduledDateClick={handleScheduledDateClick}
             onAddGuest={handleAddGuest}
             onMoveGuest={handleMoveGuest}
             editMode={editMode}
