@@ -147,8 +147,13 @@ export const FilterBar = ({
             <ChevronLeft className="h-4 w-4" />
           </Button>
           
-          <div className="min-w-[280px] text-center">
-            <span className="text-lg font-semibold capitalize">
+          <div className="min-w-[320px] text-center px-4 py-2 bg-primary/5 rounded-lg border border-primary/20">
+            <div className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
+              {viewMode === "day" && "Día"}
+              {viewMode === "week" && "Semana"}
+              {viewMode === "month" && "Mes"}
+            </div>
+            <span className="text-2xl font-bold capitalize text-primary">
               {getDateLabel()}
             </span>
           </div>
