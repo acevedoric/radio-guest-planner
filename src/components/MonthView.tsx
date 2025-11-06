@@ -70,6 +70,60 @@ export const MonthView = ({ guests, onGuestClick, selectedMonth, onDayClick, onS
     return scheduledGuests.length;
   };
 
+  const getScheduledRecordingsUrgency = (day: Date): { count: number; colorClasses: string; urgencyLevel: string } => {
+    const dayStr = format(day, "yyyy-MM-dd");
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Normalizar a medianoche
+    
+    // Calcular la diferencia en días
+    const targetDate = new Date(day);
+    targetDate.setHours(0, 0, 0, 0);
+    const diffInMs = targetDate.getTime() - today.getTime();
+    const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+    
+    // Filtrar invitados con grabaciones pendientes
+    const scheduledGuests = guests.filter(g => 
+      g.scheduled_date === dayStr &&
+      (g.recording_status === "to_record" || 
+       g.recording_status === "postponed" || 
+       g.recording_status === "proposed")
+    );
+    
+    const count = scheduledGuests.length;
+    
+    if (count === 0) {
+      return { count: 0, colorClasses: "", urgencyLevel: "" };
+    }
+    
+    // Determinar color según urgencia
+    let colorClasses = "";
+    let urgencyLevel = "";
+    
+    if (diffInDays < 0) {
+      // Fecha pasada - GRIS
+      colorClasses = "bg-gray-400 hover:bg-gray-500";
+      urgencyLevel = "Fecha vencida";
+    } else if (diffInDays <= 1) {
+      // Hoy o mañana - ROJO CRÍTICO
+      colorClasses = "bg-red-600 hover:bg-red-700";
+      urgencyLevel = diffInDays === 0 ? "¡HOY!" : "Mañana";
+    } else if (diffInDays <= 5) {
+      // 2-5 días - NARANJA URGENTE
+      colorClasses = "bg-orange-500 hover:bg-orange-600";
+      urgencyLevel = `En ${diffInDays} días`;
+    } else if (diffInDays <= 14) {
+      // 6-14 días - AMARILLO MODERADO
+      colorClasses = "bg-yellow-500 hover:bg-yellow-600";
+      urgencyLevel = `En ${diffInDays} días`;
+    } else {
+      // 15+ días - AZUL PLANIFICADO
+      colorClasses = "bg-blue-500 hover:bg-blue-600";
+      urgencyLevel = `En ${diffInDays} días`;
+    }
+    
+    return { count, colorClasses, urgencyLevel };
+  };
+
   const isCurrentMonth = (day: Date) => {
     return day.getMonth() === selectedMonth.getMonth();
   };
@@ -162,20 +216,23 @@ export const MonthView = ({ guests, onGuestClick, selectedMonth, onDayClick, onS
                     {format(day, "d")}
                   </div>
                   
-                  {/* Indicador de grabaciones pendientes */}
-                  {getScheduledRecordings(day) > 0 && (
-                    <div
-                      className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold cursor-pointer transition-all hover:scale-105"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onScheduledDateClick(day);
-                      }}
-                      title={`${getScheduledRecordings(day)} grabación(es) pendiente(s)`}
-                    >
-                      <span>📹</span>
-                      <span>{getScheduledRecordings(day)}</span>
-                    </div>
-                  )}
+                  {/* Indicador de grabaciones pendientes con colores por urgencia */}
+                  {(() => {
+                    const { count, colorClasses, urgencyLevel } = getScheduledRecordingsUrgency(day);
+                    return count > 0 ? (
+                      <div
+                        className={`flex items-center gap-1 px-2 py-0.5 rounded-full ${colorClasses} text-white text-xs font-semibold cursor-pointer transition-all hover:scale-105 shadow-sm`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onScheduledDateClick(day);
+                        }}
+                        title={`${count} grabación(es) pendiente(s) - ${urgencyLevel}`}
+                      >
+                        <span>📹</span>
+                        <span>{count}</span>
+                      </div>
+                    ) : null;
+                  })()}
                 </div>
 
                 {/* Always show 3 slots */}
