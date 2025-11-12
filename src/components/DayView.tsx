@@ -156,52 +156,50 @@ export const DayView = ({ guests, onGuestClick, onAddGuest, selectedDay, onDayCh
                   </div>
 
                   {/* Checkboxes de confirmación */}
-                  {editMode && (
-                    <div className="pt-4 border-t space-y-3">
-                      <div className="text-xs text-muted-foreground font-semibold mb-2">Estado de Confirmación</div>
-                      <div className="flex flex-col gap-2">
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`proposed-${guest.id}`}
-                            checked={guest.recording_status === 'proposed'}
-                            onCheckedChange={(checked) => handleCheckboxChange(guest, 'proposed', checked as boolean)}
-                          />
-                          <label
-                            htmlFor={`proposed-${guest.id}`}
-                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                          >
-                            PROPUESTO
-                          </label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`blu-${guest.id}`}
-                            checked={guest.program_type === 'Blu'}
-                            onCheckedChange={(checked) => handleCheckboxChange(guest, 'blu', checked as boolean)}
-                          />
-                          <label
-                            htmlFor={`blu-${guest.id}`}
-                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                          >
-                            CONFIRMADO BLU
-                          </label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`pr-${guest.id}`}
-                            checked={guest.program_type === 'PR'}
-                            onCheckedChange={(checked) => handleCheckboxChange(guest, 'pr', checked as boolean)}
-                          />
-                          <label
-                            htmlFor={`pr-${guest.id}`}
-                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                          >
-                            CONFIRMADO PR
-                          </label>
-                        </div>
+                  <div className="pt-4 border-t space-y-3">
+                    <div className="text-xs text-muted-foreground font-semibold mb-2">Estado de Confirmación</div>
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`proposed-${guest.id}`}
+                          checked={guest.recording_status === 'proposed'}
+                          onCheckedChange={(checked) => handleCheckboxChange(guest, 'proposed', checked as boolean)}
+                        />
+                        <label
+                          htmlFor={`proposed-${guest.id}`}
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                        >
+                          PROPUESTO
+                        </label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`blu-${guest.id}`}
+                          checked={guest.program_type === 'Blu'}
+                          onCheckedChange={(checked) => handleCheckboxChange(guest, 'blu', checked as boolean)}
+                        />
+                        <label
+                          htmlFor={`blu-${guest.id}`}
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                        >
+                          CONFIRMADO BLU
+                        </label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`pr-${guest.id}`}
+                          checked={guest.program_type === 'PR'}
+                          onCheckedChange={(checked) => handleCheckboxChange(guest, 'pr', checked as boolean)}
+                        />
+                        <label
+                          htmlFor={`pr-${guest.id}`}
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                        >
+                          CONFIRMADO PR
+                        </label>
                       </div>
                     </div>
-                  )}
+                  </div>
 
                   {/* Additional Info */}
                   {(guest.press_contact || guest.program_type || guest.notes) && (
