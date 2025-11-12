@@ -4,6 +4,9 @@ import { Globe, User } from "lucide-react";
 import { Guest } from "@/types/guest";
 import { Button } from "@/components/ui/button";
 import { ContactLink } from "./ContactLink";
+import { Checkbox } from "@/components/ui/checkbox";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface DayViewProps {
   guests: Guest[];
@@ -41,6 +44,34 @@ export const DayView = ({ guests, onGuestClick, onAddGuest, selectedDay, onDayCh
   };
 
   const currentDayLabel = DAYS.find(d => d.value === selectedDay)?.label || "Día";
+
+  const handleCheckboxChange = async (guest: Guest, type: 'proposed' | 'blu' | 'pr', checked: boolean) => {
+    if (!guest.id) return;
+    
+    try {
+      let updateData: Partial<Guest> = {};
+      
+      if (type === 'proposed') {
+        updateData.recording_status = checked ? 'proposed' : 'to_record';
+      } else if (type === 'blu') {
+        updateData.program_type = checked ? 'Blu' : null;
+      } else if (type === 'pr') {
+        updateData.program_type = checked ? 'PR' : null;
+      }
+      
+      const { error } = await supabase
+        .from('guests')
+        .update(updateData)
+        .eq('id', guest.id);
+      
+      if (error) throw error;
+      
+      toast.success("Estado actualizado correctamente");
+    } catch (error) {
+      console.error('Error updating guest:', error);
+      toast.error("Error al actualizar el estado");
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -123,6 +154,54 @@ export const DayView = ({ guests, onGuestClick, onAddGuest, selectedDay, onDayCh
                       </div>
                     )}
                   </div>
+
+                  {/* Checkboxes de confirmación */}
+                  {editMode && (
+                    <div className="pt-4 border-t space-y-3">
+                      <div className="text-xs text-muted-foreground font-semibold mb-2">Estado de Confirmación</div>
+                      <div className="flex flex-col gap-2">
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`proposed-${guest.id}`}
+                            checked={guest.recording_status === 'proposed'}
+                            onCheckedChange={(checked) => handleCheckboxChange(guest, 'proposed', checked as boolean)}
+                          />
+                          <label
+                            htmlFor={`proposed-${guest.id}`}
+                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                          >
+                            PROPUESTO
+                          </label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`blu-${guest.id}`}
+                            checked={guest.program_type === 'Blu'}
+                            onCheckedChange={(checked) => handleCheckboxChange(guest, 'blu', checked as boolean)}
+                          />
+                          <label
+                            htmlFor={`blu-${guest.id}`}
+                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                          >
+                            CONFIRMADO BLU
+                          </label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`pr-${guest.id}`}
+                            checked={guest.program_type === 'PR'}
+                            onCheckedChange={(checked) => handleCheckboxChange(guest, 'pr', checked as boolean)}
+                          />
+                          <label
+                            htmlFor={`pr-${guest.id}`}
+                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                          >
+                            CONFIRMADO PR
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Additional Info */}
                   {(guest.press_contact || guest.program_type || guest.notes) && (

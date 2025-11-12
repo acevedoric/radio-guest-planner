@@ -4,6 +4,9 @@ import { startOfMonth, endOfMonth, eachDayOfInterval, format, startOfWeek, endOf
 import { DndContext, DragEndEvent, useDraggable, useDroppable, DragOverlay, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { useState } from "react";
 import { GuestTooltip } from "./GuestTooltip";
+import { Checkbox } from "@/components/ui/checkbox";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface MonthViewProps {
   guests: Guest[];
@@ -283,6 +286,34 @@ interface SlotCardProps {
 }
 
 const SlotCard = ({ guest, day, slot, onGuestClick, onAddGuest, getStatusColor, editMode }: SlotCardProps) => {
+  const handleCheckboxChange = async (guest: Guest, type: 'proposed' | 'blu' | 'pr', checked: boolean) => {
+    if (!guest.id) return;
+    
+    try {
+      let updateData: Partial<Guest> = {};
+      
+      if (type === 'proposed') {
+        updateData.recording_status = checked ? 'proposed' : 'to_record';
+      } else if (type === 'blu') {
+        updateData.program_type = checked ? 'Blu' : null;
+      } else if (type === 'pr') {
+        updateData.program_type = checked ? 'PR' : null;
+      }
+      
+      const { error } = await supabase
+        .from('guests')
+        .update(updateData)
+        .eq('id', guest.id);
+      
+      if (error) throw error;
+      
+      toast.success("Estado actualizado");
+    } catch (error) {
+      console.error('Error updating guest:', error);
+      toast.error("Error al actualizar");
+    }
+  };
+  
   const dayOfWeekMap: Record<number, string> = {
     1: "monday",
     2: "tuesday",
@@ -320,6 +351,54 @@ const SlotCard = ({ guest, day, slot, onGuestClick, onAddGuest, getStatusColor, 
           >
             <div className="font-semibold truncate">{guest.name}</div>
             <div className="truncate opacity-90">{guest.topic}</div>
+            
+            {/* Checkboxes de confirmación */}
+            {editMode && (
+              <div className="mt-2 pt-2 border-t border-white/20 space-y-1" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center space-x-1">
+                  <Checkbox
+                    id={`proposed-${guest.id}-${slot}`}
+                    checked={guest.recording_status === 'proposed'}
+                    onCheckedChange={(checked) => handleCheckboxChange(guest, 'proposed', checked as boolean)}
+                    className="h-3 w-3 bg-white"
+                  />
+                  <label
+                    htmlFor={`proposed-${guest.id}-${slot}`}
+                    className="text-[10px] font-medium leading-none cursor-pointer"
+                  >
+                    PROPUESTO
+                  </label>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <Checkbox
+                    id={`blu-${guest.id}-${slot}`}
+                    checked={guest.program_type === 'Blu'}
+                    onCheckedChange={(checked) => handleCheckboxChange(guest, 'blu', checked as boolean)}
+                    className="h-3 w-3 bg-white"
+                  />
+                  <label
+                    htmlFor={`blu-${guest.id}-${slot}`}
+                    className="text-[10px] font-medium leading-none cursor-pointer"
+                  >
+                    CONF. BLU
+                  </label>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <Checkbox
+                    id={`pr-${guest.id}-${slot}`}
+                    checked={guest.program_type === 'PR'}
+                    onCheckedChange={(checked) => handleCheckboxChange(guest, 'pr', checked as boolean)}
+                    className="h-3 w-3 bg-white"
+                  />
+                  <label
+                    htmlFor={`pr-${guest.id}-${slot}`}
+                    className="text-[10px] font-medium leading-none cursor-pointer"
+                  >
+                    CONF. PR
+                  </label>
+                </div>
+              </div>
+            )}
           </div>
         </GuestTooltip>
       </div>
