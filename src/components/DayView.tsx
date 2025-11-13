@@ -164,6 +164,7 @@ export const DayView = ({ guests, onGuestClick, onAddGuest, selectedDay, onDayCh
                           id={`proposed-${guest.id}`}
                           checked={guest.recording_status === 'proposed'}
                           onCheckedChange={(checked) => handleCheckboxChange(guest, 'proposed', checked as boolean)}
+                          disabled={!editMode}
                         />
                         <label
                           htmlFor={`proposed-${guest.id}`}
@@ -177,6 +178,7 @@ export const DayView = ({ guests, onGuestClick, onAddGuest, selectedDay, onDayCh
                           id={`blu-${guest.id}`}
                           checked={guest.confirmed_blu || false}
                           onCheckedChange={(checked) => handleCheckboxChange(guest, 'blu', checked as boolean)}
+                          disabled={!editMode}
                         />
                         <label
                           htmlFor={`blu-${guest.id}`}
@@ -190,6 +192,7 @@ export const DayView = ({ guests, onGuestClick, onAddGuest, selectedDay, onDayCh
                           id={`pr-${guest.id}`}
                           checked={guest.confirmed_pr || false}
                           onCheckedChange={(checked) => handleCheckboxChange(guest, 'pr', checked as boolean)}
+                          disabled={!editMode}
                         />
                         <label
                           htmlFor={`pr-${guest.id}`}

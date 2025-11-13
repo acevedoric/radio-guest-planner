@@ -359,6 +359,7 @@ const SlotCard = ({ guest, day, slot, onGuestClick, onAddGuest, getStatusColor, 
                   id={`proposed-${guest.id}-${slot}`}
                   checked={guest.recording_status === 'proposed'}
                   onCheckedChange={(checked) => handleCheckboxChange(guest, 'proposed', checked as boolean)}
+                  disabled={!editMode}
                   className="h-3 w-3 bg-white"
                 />
                 <label
@@ -373,6 +374,7 @@ const SlotCard = ({ guest, day, slot, onGuestClick, onAddGuest, getStatusColor, 
                   id={`blu-${guest.id}-${slot}`}
                   checked={guest.confirmed_blu || false}
                   onCheckedChange={(checked) => handleCheckboxChange(guest, 'blu', checked as boolean)}
+                  disabled={!editMode}
                   className="h-3 w-3 bg-white"
                 />
                 <label
@@ -387,6 +389,7 @@ const SlotCard = ({ guest, day, slot, onGuestClick, onAddGuest, getStatusColor, 
                   id={`pr-${guest.id}-${slot}`}
                   checked={guest.confirmed_pr || false}
                   onCheckedChange={(checked) => handleCheckboxChange(guest, 'pr', checked as boolean)}
+                  disabled={!editMode}
                   className="h-3 w-3 bg-white"
                 />
                 <label

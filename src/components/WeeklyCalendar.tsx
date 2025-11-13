@@ -6,6 +6,9 @@ import { cn } from "@/lib/utils";
 import { Guest } from "@/types/guest";
 import { DndContext, DragEndEvent, useDraggable, useDroppable, DragOverlay, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { useState } from "react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface WeeklyCalendarProps {
   guests: Guest[];
@@ -154,6 +157,34 @@ const GuestSlotCard = ({ day, slot, guest, onGuestClick, onAddGuest, editMode }:
     disabled: !guest || !editMode, // Disable dragging when there's no guest or not in edit mode
   });
 
+  const handleCheckboxChange = async (guest: Guest, type: 'proposed' | 'blu' | 'pr', checked: boolean) => {
+    if (!guest.id) return;
+    
+    try {
+      let updateData: Partial<Guest> = {};
+      
+      if (type === 'proposed') {
+        updateData.recording_status = checked ? 'proposed' : 'to_record';
+      } else if (type === 'blu') {
+        updateData.confirmed_blu = checked;
+      } else if (type === 'pr') {
+        updateData.confirmed_pr = checked;
+      }
+      
+      const { error } = await supabase
+        .from('guests')
+        .update(updateData)
+        .eq('id', guest.id);
+      
+      if (error) throw error;
+      
+      toast.success("Estado actualizado");
+    } catch (error) {
+      console.error('Error updating guest:', error);
+      toast.error("Error al actualizar");
+    }
+  };
+
   if (guest) {
     return (
       <div ref={setDropRef}>
@@ -186,6 +217,54 @@ const GuestSlotCard = ({ day, slot, guest, onGuestClick, onAddGuest, editMode }:
             <div className="flex gap-2 text-xs text-muted-foreground">
               {guest.email && <Mail className="w-3 h-3 text-primary" />}
               {guest.social_networks && Object.keys(guest.social_networks).length > 0 && <Globe className="w-3 h-3 text-primary" />}
+            </div>
+            {/* Checkboxes de confirmación */}
+            <div className="pt-2 border-t border-muted space-y-1" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center space-x-1">
+                <Checkbox
+                  id={`proposed-week-${guest.id}-${slot}`}
+                  checked={guest.recording_status === 'proposed'}
+                  onCheckedChange={(checked) => handleCheckboxChange(guest, 'proposed', checked as boolean)}
+                  disabled={!editMode}
+                  className="h-3 w-3"
+                />
+                <label
+                  htmlFor={`proposed-week-${guest.id}-${slot}`}
+                  className="text-[10px] font-medium leading-none cursor-pointer"
+                >
+                  PROPUESTO
+                </label>
+              </div>
+              <div className="flex items-center space-x-1">
+                <Checkbox
+                  id={`blu-week-${guest.id}-${slot}`}
+                  checked={guest.confirmed_blu || false}
+                  onCheckedChange={(checked) => handleCheckboxChange(guest, 'blu', checked as boolean)}
+                  disabled={!editMode}
+                  className="h-3 w-3"
+                />
+                <label
+                  htmlFor={`blu-week-${guest.id}-${slot}`}
+                  className="text-[10px] font-medium leading-none cursor-pointer"
+                >
+                  CONF. BLU
+                </label>
+              </div>
+              <div className="flex items-center space-x-1">
+                <Checkbox
+                  id={`pr-week-${guest.id}-${slot}`}
+                  checked={guest.confirmed_pr || false}
+                  onCheckedChange={(checked) => handleCheckboxChange(guest, 'pr', checked as boolean)}
+                  disabled={!editMode}
+                  className="h-3 w-3"
+                />
+                <label
+                  htmlFor={`pr-week-${guest.id}-${slot}`}
+                  className="text-[10px] font-medium leading-none cursor-pointer"
+                >
+                  CONF. PR
+                </label>
+              </div>
             </div>
           </div>
         </Card>
