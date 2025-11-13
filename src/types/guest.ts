@@ -14,4 +14,6 @@ export interface Guest {
   time_slot: number;
   week_date: string;
   scheduled_date?: string | null;
+  confirmed_blu?: boolean;
+  confirmed_pr?: boolean;
 }

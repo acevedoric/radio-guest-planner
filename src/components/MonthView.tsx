@@ -295,9 +295,9 @@ const SlotCard = ({ guest, day, slot, onGuestClick, onAddGuest, getStatusColor, 
       if (type === 'proposed') {
         updateData.recording_status = checked ? 'proposed' : 'to_record';
       } else if (type === 'blu') {
-        updateData.program_type = checked ? 'Blu' : null;
+        updateData.confirmed_blu = checked;
       } else if (type === 'pr') {
-        updateData.program_type = checked ? 'PR' : null;
+        updateData.confirmed_pr = checked;
       }
       
       const { error } = await supabase
@@ -371,7 +371,7 @@ const SlotCard = ({ guest, day, slot, onGuestClick, onAddGuest, getStatusColor, 
               <div className="flex items-center space-x-1">
                 <Checkbox
                   id={`blu-${guest.id}-${slot}`}
-                  checked={guest.program_type === 'Blu'}
+                  checked={guest.confirmed_blu || false}
                   onCheckedChange={(checked) => handleCheckboxChange(guest, 'blu', checked as boolean)}
                   className="h-3 w-3 bg-white"
                 />
@@ -385,7 +385,7 @@ const SlotCard = ({ guest, day, slot, onGuestClick, onAddGuest, getStatusColor, 
               <div className="flex items-center space-x-1">
                 <Checkbox
                   id={`pr-${guest.id}-${slot}`}
-                  checked={guest.program_type === 'PR'}
+                  checked={guest.confirmed_pr || false}
                   onCheckedChange={(checked) => handleCheckboxChange(guest, 'pr', checked as boolean)}
                   className="h-3 w-3 bg-white"
                 />

@@ -54,9 +54,9 @@ export const DayView = ({ guests, onGuestClick, onAddGuest, selectedDay, onDayCh
       if (type === 'proposed') {
         updateData.recording_status = checked ? 'proposed' : 'to_record';
       } else if (type === 'blu') {
-        updateData.program_type = checked ? 'Blu' : null;
+        updateData.confirmed_blu = checked;
       } else if (type === 'pr') {
-        updateData.program_type = checked ? 'PR' : null;
+        updateData.confirmed_pr = checked;
       }
       
       const { error } = await supabase
@@ -175,7 +175,7 @@ export const DayView = ({ guests, onGuestClick, onAddGuest, selectedDay, onDayCh
                       <div className="flex items-center space-x-2">
                         <Checkbox
                           id={`blu-${guest.id}`}
-                          checked={guest.program_type === 'Blu'}
+                          checked={guest.confirmed_blu || false}
                           onCheckedChange={(checked) => handleCheckboxChange(guest, 'blu', checked as boolean)}
                         />
                         <label
@@ -188,7 +188,7 @@ export const DayView = ({ guests, onGuestClick, onAddGuest, selectedDay, onDayCh
                       <div className="flex items-center space-x-2">
                         <Checkbox
                           id={`pr-${guest.id}`}
-                          checked={guest.program_type === 'PR'}
+                          checked={guest.confirmed_pr || false}
                           onCheckedChange={(checked) => handleCheckboxChange(guest, 'pr', checked as boolean)}
                         />
                         <label

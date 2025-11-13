@@ -16,6 +16,8 @@ export type Database = {
     Tables: {
       guests: {
         Row: {
+          confirmed_blu: boolean
+          confirmed_pr: boolean
           created_at: string
           day_of_week: string
           email: string | null
@@ -35,6 +37,8 @@ export type Database = {
           week_date: string
         }
         Insert: {
+          confirmed_blu?: boolean
+          confirmed_pr?: boolean
           created_at?: string
           day_of_week: string
           email?: string | null
@@ -54,6 +58,8 @@ export type Database = {
           week_date: string
         }
         Update: {
+          confirmed_blu?: boolean
+          confirmed_pr?: boolean
           created_at?: string
           day_of_week?: string
           email?: string | null
