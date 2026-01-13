@@ -9,6 +9,7 @@ import { Trash2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Guest } from "@/types/guest";
 import { ContactLink } from "./ContactLink";
+import { SocialNetworkLink, getSocialPlatformOptions } from "./SocialNetworkLink";
 
 interface GuestDetailModalProps {
   guest: Guest | null;
@@ -22,6 +23,7 @@ interface GuestDetailModalProps {
 export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, readOnly = false }: GuestDetailModalProps) => {
   const [formData, setFormData] = useState<Guest>({
     name: "",
+    position: "",
     topic: "",
     recording_status: "proposed",
     day_of_week: "monday",
@@ -51,6 +53,16 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
       }
     } else {
       // Reset cuando no hay guest (nuevo invitado)
+      setFormData({
+        name: "",
+        position: "",
+        topic: "",
+        recording_status: "proposed",
+        day_of_week: "monday",
+        time_slot: 1,
+        week_date: new Date().toISOString().split('T')[0],
+        scheduled_date: null,
+      });
       setSocialNetworks({ twitter: "", instagram: "" });
       setCustomFields({});
     }
@@ -92,6 +104,16 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
     }
   };
 
+  // Get available platforms for the dropdown (exclude already used ones)
+  const getAvailablePlatforms = () => {
+    const allPlatforms = getSocialPlatformOptions();
+    return allPlatforms.filter(p => !customFields.hasOwnProperty(p.value));
+  };
+
+  const handleAddSocialNetwork = (platform: string) => {
+    setCustomFields({...customFields, [platform]: ""});
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -113,6 +135,19 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
               />
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="position">Cargo / Profesión</Label>
+              <Input
+                id="position"
+                value={formData.position || ""}
+                onChange={(e) => setFormData({ ...formData, position: e.target.value })}
+                placeholder="Ej: CEO, Periodista, Abogado"
+                disabled={readOnly}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="recording_status">Estado *</Label>
               <Select
@@ -139,6 +174,22 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
                   <SelectItem value="proposed">PROPUESTO</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="phone">Teléfono del Invitado</Label>
+              {readOnly && formData.phone ? (
+                <ContactLink type="phone" value={formData.phone} />
+              ) : (
+                <Input
+                  id="phone"
+                  type="tel"
+                  value={formData.phone || ""}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  placeholder="+56 9 1234 5678"
+                  disabled={readOnly}
+                />
+              )}
             </div>
           </div>
 
@@ -176,22 +227,6 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
             />
           </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="phone">Teléfono del Invitado</Label>
-                {readOnly && formData.phone ? (
-                  <ContactLink type="phone" value={formData.phone} />
-                ) : (
-                  <Input
-                    id="phone"
-                    type="tel"
-                    value={formData.phone || ""}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    placeholder="+56 9 1234 5678"
-                    disabled={readOnly}
-                  />
-                )}
-              </div>
-
           {/* Nueva sección de redes sociales */}
           <div className="space-y-4">
             <Label>Redes Sociales</Label>
@@ -199,79 +234,82 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
             {/* Twitter/X */}
             <div className="flex items-center gap-2">
               <Label htmlFor="twitter" className="w-24 text-right">Twitter/X</Label>
-              <Input
-                id="twitter"
-                value={socialNetworks.twitter}
-                onChange={(e) => setSocialNetworks({...socialNetworks, twitter: e.target.value})}
-                placeholder="@usuario"
-                disabled={readOnly}
-              />
+              {readOnly && socialNetworks.twitter ? (
+                <SocialNetworkLink platform="twitter" username={socialNetworks.twitter} />
+              ) : (
+                <Input
+                  id="twitter"
+                  value={socialNetworks.twitter}
+                  onChange={(e) => setSocialNetworks({...socialNetworks, twitter: e.target.value})}
+                  placeholder="@usuario"
+                  disabled={readOnly}
+                />
+              )}
             </div>
 
             {/* Instagram */}
             <div className="flex items-center gap-2">
               <Label htmlFor="instagram" className="w-24 text-right">Instagram</Label>
-              <Input
-                id="instagram"
-                value={socialNetworks.instagram}
-                onChange={(e) => setSocialNetworks({...socialNetworks, instagram: e.target.value})}
-                placeholder="@usuario"
-                disabled={readOnly}
-              />
+              {readOnly && socialNetworks.instagram ? (
+                <SocialNetworkLink platform="instagram" username={socialNetworks.instagram} />
+              ) : (
+                <Input
+                  id="instagram"
+                  value={socialNetworks.instagram}
+                  onChange={(e) => setSocialNetworks({...socialNetworks, instagram: e.target.value})}
+                  placeholder="@usuario"
+                  disabled={readOnly}
+                />
+              )}
             </div>
 
-            {/* Campos personalizados */}
-            {Object.entries(customFields).map(([key, value]) => (
-              <div key={key} className="flex items-center gap-2">
-                <Input
-                  value={key}
-                  onChange={(e) => {
-                    const newFields = {...customFields};
-                    delete newFields[key];
-                    newFields[e.target.value] = value;
-                    setCustomFields(newFields);
-                  }}
-                  placeholder="Nombre (ej: Email)"
-                  className="w-32"
-                  disabled={readOnly}
-                />
-                <Input
-                  value={value}
-                  onChange={(e) => setCustomFields({...customFields, [key]: e.target.value})}
-                  placeholder="Valor"
-                  disabled={readOnly}
-                />
-                {!readOnly && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      const newFields = {...customFields};
-                      delete newFields[key];
-                      setCustomFields(newFields);
-                    }}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
+            {/* Campos personalizados (Facebook, YouTube, LinkedIn, Pinterest) */}
+            {Object.entries(customFields).map(([platform, value]) => (
+              <div key={platform} className="flex items-center gap-2">
+                <Label className="w-24 text-right capitalize">{platform}</Label>
+                {readOnly && value ? (
+                  <SocialNetworkLink platform={platform} username={value} />
+                ) : (
+                  <>
+                    <Input
+                      value={value}
+                      onChange={(e) => setCustomFields({...customFields, [platform]: e.target.value})}
+                      placeholder={`@usuario de ${platform}`}
+                      disabled={readOnly}
+                    />
+                    {!readOnly && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          const newFields = {...customFields};
+                          delete newFields[platform];
+                          setCustomFields(newFields);
+                        }}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </>
                 )}
               </div>
             ))}
 
-            {/* Botón + */}
-            {!readOnly && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  const fieldName = `campo_${Object.keys(customFields).length + 1}`;
-                  setCustomFields({...customFields, [fieldName]: ""});
-                }}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Agregar Campo
-              </Button>
+            {/* Menú desplegable para agregar red social */}
+            {!readOnly && getAvailablePlatforms().length > 0 && (
+              <Select onValueChange={handleAddSocialNetwork}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="+ Agregar red social..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {getAvailablePlatforms().map((platform) => (
+                    <SelectItem key={platform.value} value={platform.value}>
+                      {platform.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             )}
           </div>
 
