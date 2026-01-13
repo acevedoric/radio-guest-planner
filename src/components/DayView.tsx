@@ -7,6 +7,7 @@ import { ContactLink } from "./ContactLink";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { SocialNetworkLink } from "./SocialNetworkLink";
 
 interface DayViewProps {
   guests: Guest[];
@@ -119,13 +120,20 @@ export const DayView = ({ guests, onGuestClick, onAddGuest, selectedDay, onDayCh
                     </Badge>
                   </div>
 
-                  {/* Guest name */}
+                  {/* Guest name and position */}
                   <div>
                     <div className="flex items-center gap-2 mb-1">
                       <User className="w-4 h-4 text-muted-foreground" />
                       <span className="text-xs text-muted-foreground">Invitado</span>
                     </div>
-                    <h4 className="text-xl font-bold text-foreground">{guest.name}</h4>
+                    <h4 className="text-xl font-bold text-foreground">
+                      {guest.name}
+                      {guest.position && (
+                        <span className="text-sm font-normal text-muted-foreground ml-2">
+                          ({guest.position})
+                        </span>
+                      )}
+                    </h4>
                   </div>
 
                   {/* Topic */}
@@ -143,11 +151,13 @@ export const DayView = ({ guests, onGuestClick, onAddGuest, selectedDay, onDayCh
                         <Globe className="w-4 h-4 text-primary mt-1" />
                         <div>
                           <span className="text-xs text-muted-foreground block">Redes Sociales</span>
-                          <div className="text-sm text-foreground">
+                          <div className="text-sm space-y-1">
                             {Object.entries(guest.social_networks).map(([platform, value]) => (
-                              <div key={platform} className="truncate">
-                                {platform}: {String(value)}
-                              </div>
+                              <SocialNetworkLink 
+                                key={platform} 
+                                platform={platform} 
+                                username={String(value)} 
+                              />
                             ))}
                           </div>
                         </div>

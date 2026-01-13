@@ -349,7 +349,10 @@ const SlotCard = ({ guest, day, slot, onGuestClick, onAddGuest, getStatusColor, 
               onGuestClick(guest);
             }}
           >
-            <div className="font-semibold truncate">{guest.name}</div>
+<div className="font-semibold truncate">{guest.name}</div>
+            {guest.position && (
+              <div className="text-[10px] text-white/70 truncate">{guest.position}</div>
+            )}
             <div className="truncate opacity-90">{guest.topic}</div>
             
             {/* Checkboxes de confirmación */}

@@ -120,7 +120,12 @@ export const WeeklyCalendar = ({ guests, onGuestClick, onAddGuest, selectedWeek,
           <Card className="p-4 min-h-[140px] shadow-lg cursor-grabbing">
             <div className="space-y-2">
               <div className="flex items-start justify-between gap-2">
-                <h4 className="font-semibold text-sm line-clamp-1">{activeGuest.name}</h4>
+<div>
+                  <h4 className="font-semibold text-sm line-clamp-1">{activeGuest.name}</h4>
+                  {activeGuest.position && (
+                    <span className="text-[10px] text-muted-foreground">({activeGuest.position})</span>
+                  )}
+                </div>
                 <Badge className={cn("text-xs", statusConfig[activeGuest.recording_status].className)}>
                   {statusConfig[activeGuest.recording_status].label}
                 </Badge>
@@ -202,7 +207,12 @@ const GuestSlotCard = ({ day, slot, guest, onGuestClick, onAddGuest, editMode }:
         >
           <div className="space-y-2">
             <div className="flex items-start justify-between gap-2">
-              <h4 className="font-semibold text-sm line-clamp-1">{guest.name}</h4>
+<div>
+                <h4 className="font-semibold text-sm line-clamp-1">{guest.name}</h4>
+                {guest.position && (
+                  <span className="text-[10px] text-muted-foreground">({guest.position})</span>
+                )}
+              </div>
               <Badge className={cn("text-xs", statusConfig[guest.recording_status].className)}>
                 {statusConfig[guest.recording_status].label}
               </Badge>

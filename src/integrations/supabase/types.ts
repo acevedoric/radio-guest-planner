@@ -25,6 +25,7 @@ export type Database = {
           name: string
           notes: string | null
           phone: string | null
+          position: string | null
           press_contact: string | null
           press_phone: string | null
           program_type: string | null
@@ -46,6 +47,7 @@ export type Database = {
           name: string
           notes?: string | null
           phone?: string | null
+          position?: string | null
           press_contact?: string | null
           press_phone?: string | null
           program_type?: string | null
@@ -67,6 +69,7 @@ export type Database = {
           name?: string
           notes?: string | null
           phone?: string | null
+          position?: string | null
           press_contact?: string | null
           press_phone?: string | null
           program_type?: string | null
