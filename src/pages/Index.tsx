@@ -109,28 +109,58 @@ const Index = () => {
       day_of_week: newGuestSlot?.day || guest.day_of_week,
       time_slot: newGuestSlot?.slot || guest.time_slot
     };
+    
+    const isNewGuest = !guest.id;
+    const timeSlot = guestData.time_slot;
+    
     if (guest.id) {
-      const {
-        error
-      } = await supabase.from('guests').update(guestData).eq('id', guest.id);
+      const { error } = await supabase.from('guests').update(guestData).eq('id', guest.id);
       if (error) {
         toast.error("Error al actualizar invitado");
         console.error(error);
       } else {
         toast.success("Invitado actualizado");
+        
+        // Trigger n8n scraping if HORA 1 guest has name and position updated
+        if (timeSlot === 1 && guestData.name && guestData.position) {
+          triggerN8nScraping(guest.id, guestData.name, guestData.position);
+        }
       }
     } else {
-      const {
-        error
-      } = await supabase.from('guests').insert([guestData]);
+      const { data, error } = await supabase.from('guests').insert([guestData]).select().single();
       if (error) {
         toast.error("Error al crear invitado");
         console.error(error);
       } else {
         toast.success("Invitado creado");
+        
+        // Trigger n8n scraping for new HORA 1 guest with name and position
+        if (data && timeSlot === 1 && guestData.name && guestData.position) {
+          triggerN8nScraping(data.id, guestData.name, guestData.position);
+        }
       }
     }
     setNewGuestSlot(null);
+  };
+
+  const triggerN8nScraping = async (guestId: string, name: string, position: string) => {
+    try {
+      console.log(`Triggering n8n scraping for: ${name} - ${position}`);
+      
+      const { data, error } = await supabase.functions.invoke('trigger-n8n-scraping', {
+        body: { guest_id: guestId, name, position }
+      });
+      
+      if (error) {
+        console.error('Error triggering n8n scraping:', error);
+        toast.error("Error al solicitar información del invitado");
+      } else {
+        console.log('n8n scraping triggered successfully:', data);
+        toast.info("🔍 Solicitando información del invitado...");
+      }
+    } catch (err) {
+      console.error('Exception triggering n8n scraping:', err);
+    }
   };
   const handleDeleteGuest = async (guestId: string) => {
     const {
