@@ -8,6 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { SocialNetworkLink } from "./SocialNetworkLink";
+import { GuestInfoModules } from "./GuestInfoModules";
 
 interface DayViewProps {
   guests: Guest[];
@@ -236,6 +237,18 @@ export const DayView = ({ guests, onGuestClick, onAddGuest, selectedDay, onDayCh
                         </div>
                       )}
                     </div>
+                  )}
+
+                  {/* Módulos de información solo para HORA 1 */}
+                  {slot === 1 && (
+                    <GuestInfoModules
+                      guest={guest}
+                      editMode={editMode}
+                      onGuestUpdate={(updates) => {
+                        // Refresh will happen via parent component
+                        console.log("Guest updated:", updates);
+                      }}
+                    />
                   )}
                 </div>
               ) : (

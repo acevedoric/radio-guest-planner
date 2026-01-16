@@ -17,4 +17,13 @@ export interface Guest {
   scheduled_date?: string | null;
   confirmed_blu?: boolean;
   confirmed_pr?: boolean;
+  
+  // Módulos de información (HORA 1)
+  tema_principal?: string | null;
+  tema_principal_documento_url?: string | null;
+  tema_principal_documento_nombre?: string | null;
+  infancia_vida_privada?: string | null;
+  carrera_profesional?: string | null;
+  datos_curiosos?: string | null;
+  n8n_updated_at?: string | null;
 }

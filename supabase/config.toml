@@ -1,1 +1,4 @@
 project_id = "wkztzkvjtabfvcdfemby"
+
+[functions.n8n-guest-info]
+verify_jwt = false
