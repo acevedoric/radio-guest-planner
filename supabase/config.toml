@@ -2,3 +2,6 @@ project_id = "wkztzkvjtabfvcdfemby"
 
 [functions.n8n-guest-info]
 verify_jwt = false
+
+[functions.trigger-n8n-scraping]
+verify_jwt = false
