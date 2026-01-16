@@ -16,12 +16,16 @@ export type Database = {
     Tables: {
       guests: {
         Row: {
+          carrera_profesional: string | null
           confirmed_blu: boolean
           confirmed_pr: boolean
           created_at: string
+          datos_curiosos: string | null
           day_of_week: string
           email: string | null
           id: string
+          infancia_vida_privada: string | null
+          n8n_updated_at: string | null
           name: string
           notes: string | null
           phone: string | null
@@ -32,18 +36,25 @@ export type Database = {
           recording_status: string
           scheduled_date: string | null
           social_networks: Json | null
+          tema_principal: string | null
+          tema_principal_documento_nombre: string | null
+          tema_principal_documento_url: string | null
           time_slot: number
           topic: string
           updated_at: string
           week_date: string
         }
         Insert: {
+          carrera_profesional?: string | null
           confirmed_blu?: boolean
           confirmed_pr?: boolean
           created_at?: string
+          datos_curiosos?: string | null
           day_of_week: string
           email?: string | null
           id?: string
+          infancia_vida_privada?: string | null
+          n8n_updated_at?: string | null
           name: string
           notes?: string | null
           phone?: string | null
@@ -54,18 +65,25 @@ export type Database = {
           recording_status?: string
           scheduled_date?: string | null
           social_networks?: Json | null
+          tema_principal?: string | null
+          tema_principal_documento_nombre?: string | null
+          tema_principal_documento_url?: string | null
           time_slot: number
           topic: string
           updated_at?: string
           week_date: string
         }
         Update: {
+          carrera_profesional?: string | null
           confirmed_blu?: boolean
           confirmed_pr?: boolean
           created_at?: string
+          datos_curiosos?: string | null
           day_of_week?: string
           email?: string | null
           id?: string
+          infancia_vida_privada?: string | null
+          n8n_updated_at?: string | null
           name?: string
           notes?: string | null
           phone?: string | null
@@ -76,6 +94,9 @@ export type Database = {
           recording_status?: string
           scheduled_date?: string | null
           social_networks?: Json | null
+          tema_principal?: string | null
+          tema_principal_documento_nombre?: string | null
+          tema_principal_documento_url?: string | null
           time_slot?: number
           topic?: string
           updated_at?: string
