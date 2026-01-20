@@ -163,17 +163,8 @@ export const GuestInfoModules = ({ guest, editMode, onGuestUpdate }: GuestInfoMo
     return (guest[key] as string) || "";
   };
 
-  const isProcessing = guest.id && !guest.n8n_updated_at && 
-    (guest.tema_principal === null || guest.tema_principal === undefined || guest.tema_principal === '');
-
   return (
     <div className="mt-4 space-y-2">
-      {isProcessing && (
-        <div className="flex items-center gap-2 text-xs text-primary bg-primary/10 px-3 py-2 rounded-md mb-2">
-          <Loader2 className="h-3 w-3 animate-spin" />
-          <span>Buscando información del invitado...</span>
-        </div>
-      )}
       
       {guest.n8n_updated_at && (
         <p className="text-xs text-muted-foreground mb-2">
