@@ -166,7 +166,45 @@ export const DayView = ({ guests, onGuestClick, onAddGuest, selectedDay, onDayCh
                     )}
                   </div>
 
-                  {/* Checkboxes de confirmación */}
+                  {/* Módulos de información solo para HORA 1 - debajo de redes sociales */}
+                  {slot === 1 && (
+                    <GuestInfoModules
+                      guest={guest}
+                      editMode={editMode}
+                      onGuestUpdate={(updates) => {
+                        console.log("Guest updated:", updates);
+                      }}
+                    />
+                  )}
+
+                  {/* Additional Info - Prensa (para todas las horas) */}
+                  {(guest.press_contact || guest.press_phone || guest.program_type || guest.notes) && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
+                      {guest.press_contact && (
+                        <div>
+                          <span className="text-xs text-muted-foreground block">Contacto de Prensa</span>
+                          <span className="text-sm text-foreground">{guest.press_contact}</span>
+                        </div>
+                      )}
+                      {guest.press_phone && (
+                        <ContactLink type="phone" value={guest.press_phone} label="Tel. Prensa" />
+                      )}
+                      {guest.program_type && (
+                        <div>
+                          <span className="text-xs text-muted-foreground block">Tipo de Programa</span>
+                          <span className="text-sm text-foreground">{guest.program_type}</span>
+                        </div>
+                      )}
+                      {guest.notes && (
+                        <div className="md:col-span-2">
+                          <span className="text-xs text-muted-foreground block">Notas</span>
+                          <p className="text-sm text-foreground mt-1">{guest.notes}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Checkboxes de confirmación - junto a prensa */}
                   <div className="pt-4 border-t space-y-3">
                     <div className="text-xs text-muted-foreground font-semibold mb-2">Estado de Confirmación</div>
                     <div className="flex flex-col gap-2">
@@ -214,42 +252,6 @@ export const DayView = ({ guests, onGuestClick, onAddGuest, selectedDay, onDayCh
                       </div>
                     </div>
                   </div>
-
-                  {/* Additional Info */}
-                  {(guest.press_contact || guest.program_type || guest.notes) && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
-                      {guest.press_contact && (
-                        <div>
-                          <span className="text-xs text-muted-foreground block">Contacto de Prensa</span>
-                          <span className="text-sm text-foreground">{guest.press_contact}</span>
-                        </div>
-                      )}
-                      {guest.program_type && (
-                        <div>
-                          <span className="text-xs text-muted-foreground block">Tipo de Programa</span>
-                          <span className="text-sm text-foreground">{guest.program_type}</span>
-                        </div>
-                      )}
-                      {guest.notes && (
-                        <div className="md:col-span-2">
-                          <span className="text-xs text-muted-foreground block">Notas</span>
-                          <p className="text-sm text-foreground mt-1">{guest.notes}</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Módulos de información solo para HORA 1 */}
-                  {slot === 1 && (
-                    <GuestInfoModules
-                      guest={guest}
-                      editMode={editMode}
-                      onGuestUpdate={(updates) => {
-                        // Refresh will happen via parent component
-                        console.log("Guest updated:", updates);
-                      }}
-                    />
-                  )}
                 </div>
               ) : (
                 <div className="text-center py-8">

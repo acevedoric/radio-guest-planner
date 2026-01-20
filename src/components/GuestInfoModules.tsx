@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, FileText, Upload, Download, X, Loader2 } from "lucide-react";
+import { ChevronDown, FileText, Upload, Download, X, Loader2, Sparkles } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -25,7 +25,7 @@ const MODULES: ModuleConfig[] = [
   { key: "tema_principal", title: "TEMA PRINCIPAL", icon: "🎯", hasDocument: true },
   { key: "infancia_vida_privada", title: "INFANCIA Y VIDA PRIVADA", icon: "👶" },
   { key: "carrera_profesional", title: "CARRERA ARTÍSTICA O PROFESIONAL", icon: "🎭" },
-  { key: "datos_curiosos", title: "DATOS CURIOSOS", icon: "✨" },
+  { key: "datos_curiosos", title: "DATOS CURIOSOS", icon: "💡" },
 ];
 
 export const GuestInfoModules = ({ guest, editMode, onGuestUpdate }: GuestInfoModulesProps) => {
@@ -163,6 +163,32 @@ export const GuestInfoModules = ({ guest, editMode, onGuestUpdate }: GuestInfoMo
     return (guest[key] as string) || "";
   };
 
+  const handleTriggerAI = async (moduleKey: string) => {
+    if (!guest.id || !guest.name) {
+      toast({ title: "Error", description: "El invitado debe tener nombre para buscar información", variant: "destructive" });
+      return;
+    }
+
+    try {
+      toast({ title: "Buscando...", description: `Solicitando información para ${MODULES.find(m => m.key === moduleKey)?.title}` });
+      
+      const { error } = await supabase.functions.invoke('trigger-n8n-scraping', {
+        body: {
+          guest_id: guest.id,
+          name: guest.name,
+          position: guest.position || ''
+        }
+      });
+
+      if (error) throw error;
+      
+      toast({ title: "Solicitud enviada", description: "La información se actualizará automáticamente cuando esté lista" });
+    } catch (error) {
+      console.error("Error triggering AI:", error);
+      toast({ title: "Error", description: "No se pudo solicitar la información", variant: "destructive" });
+    }
+  };
+
   return (
     <div className="mt-4 space-y-2">
       
@@ -178,23 +204,37 @@ export const GuestInfoModules = ({ guest, editMode, onGuestUpdate }: GuestInfoMo
           open={openModules[module.key]}
           onOpenChange={() => toggleModule(module.key)}
         >
-          <CollapsibleTrigger asChild>
+          <div className="flex items-center gap-1">
+            <CollapsibleTrigger asChild>
+              <Button
+                variant="ghost"
+                className="flex-1 justify-between p-3 h-auto bg-muted/50 hover:bg-muted"
+              >
+                <span className="flex items-center gap-2 font-medium text-sm">
+                  <span>{module.icon}</span>
+                  {module.title}
+                </span>
+                <ChevronDown
+                  className={cn(
+                    "h-4 w-4 transition-transform duration-200",
+                    openModules[module.key] && "rotate-180"
+                  )}
+                />
+              </Button>
+            </CollapsibleTrigger>
             <Button
               variant="ghost"
-              className="w-full justify-between p-3 h-auto bg-muted/50 hover:bg-muted"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleTriggerAI(module.key);
+              }}
+              title="Generar con IA"
+              className="h-10 w-10 p-0 hover:bg-primary/10"
             >
-              <span className="flex items-center gap-2 font-medium text-sm">
-                <span>{module.icon}</span>
-                {module.title}
-              </span>
-              <ChevronDown
-                className={cn(
-                  "h-4 w-4 transition-transform duration-200",
-                  openModules[module.key] && "rotate-180"
-                )}
-              />
+              <Sparkles className="h-4 w-4 text-primary" />
             </Button>
-          </CollapsibleTrigger>
+          </div>
           
           <CollapsibleContent className="px-3 py-2 bg-background border border-t-0 rounded-b-md">
             {editMode ? (

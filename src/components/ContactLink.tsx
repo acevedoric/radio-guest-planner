@@ -2,12 +2,13 @@ import { Phone, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ContactLinkProps {
-  type: "phone" | "email";
+  type: "phone" | "email" | "text";
   value: string;
+  label?: string;
   className?: string;
 }
 
-export const ContactLink = ({ type, value, className }: ContactLinkProps) => {
+export const ContactLink = ({ type, value, label: customLabel, className }: ContactLinkProps) => {
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     
@@ -20,12 +21,12 @@ export const ContactLink = ({ type, value, className }: ContactLinkProps) => {
     }
   };
 
-  const Icon = type === "phone" ? Phone : Mail;
-  const label = type === "phone" ? "Teléfono" : "Email";
+  const Icon = type === "phone" ? Phone : type === "email" ? Mail : null;
+  const label = customLabel || (type === "phone" ? "Teléfono" : type === "email" ? "Email" : "");
 
   return (
     <div className="flex items-start gap-2">
-      <Icon className="w-4 h-4 text-primary mt-1" />
+      {Icon && <Icon className="w-4 h-4 text-primary mt-1" />}
       <div>
         <span className="text-xs text-muted-foreground block">{label}</span>
         <a
