@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, FileText, Upload, Download, X, Loader2, Sparkles } from "lucide-react";
+import { ChevronDown, FileText, Upload, Download, X, Loader2, Sparkles, ExternalLink } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -32,6 +32,7 @@ export const GuestInfoModules = ({ guest, editMode, onGuestUpdate }: GuestInfoMo
   const [openModules, setOpenModules] = useState<Record<string, boolean>>({});
   const [editingContent, setEditingContent] = useState<Record<string, string>>({});
   const [uploading, setUploading] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   const toggleModule = (key: string) => {
     setOpenModules(prev => ({ ...prev, [key]: !prev[key] }));
@@ -96,16 +97,11 @@ export const GuestInfoModules = ({ guest, editMode, onGuestUpdate }: GuestInfoMo
 
       if (uploadError) throw uploadError;
 
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from("guest-documents")
-        .getPublicUrl(filePath);
-
-      // Update guest record
+      // Update guest record with the relative file path (not public URL)
       const { error: updateError } = await supabase
         .from("guests")
         .update({
-          tema_principal_documento_url: publicUrl,
+          tema_principal_documento_url: filePath,
           tema_principal_documento_nombre: file.name
         })
         .eq("id", guest.id);
@@ -113,7 +109,7 @@ export const GuestInfoModules = ({ guest, editMode, onGuestUpdate }: GuestInfoMo
       if (updateError) throw updateError;
 
       onGuestUpdate?.({
-        tema_principal_documento_url: publicUrl,
+        tema_principal_documento_url: filePath,
         tema_principal_documento_nombre: file.name
       });
 
@@ -126,15 +122,35 @@ export const GuestInfoModules = ({ guest, editMode, onGuestUpdate }: GuestInfoMo
     }
   };
 
+  const handleDocumentDownload = async () => {
+    if (!guest.tema_principal_documento_url) return;
+    
+    setDownloading(true);
+    try {
+      const { data, error } = await supabase.storage
+        .from("guest-documents")
+        .createSignedUrl(guest.tema_principal_documento_url, 3600); // 1 hour expiry
+
+      if (error) throw error;
+      if (data?.signedUrl) {
+        window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+      }
+    } catch (error) {
+      console.error("Error getting signed URL:", error);
+      toast({ title: "Error", description: "No se pudo acceder al documento", variant: "destructive" });
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   const handleDocumentRemove = async () => {
     if (!guest.id || !guest.tema_principal_documento_url) return;
 
     try {
-      const filePath = `${guest.id}/${guest.tema_principal_documento_nombre}`;
-      
+      // Now tema_principal_documento_url contains the filePath directly
       await supabase.storage
         .from("guest-documents")
-        .remove([filePath]);
+        .remove([guest.tema_principal_documento_url]);
 
       const { error } = await supabase
         .from("guests")
@@ -269,14 +285,20 @@ export const GuestInfoModules = ({ guest, editMode, onGuestUpdate }: GuestInfoMo
                     <span className="flex-1 truncate">
                       {guest.tema_principal_documento_nombre}
                     </span>
-                    <a
-                      href={guest.tema_principal_documento_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-primary hover:underline"
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleDocumentDownload}
+                      disabled={downloading}
+                      className="h-6 w-6 p-0 text-primary hover:text-primary"
+                      title="Descargar documento"
                     >
-                      <Download className="h-4 w-4" />
-                    </a>
+                      {downloading ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <ExternalLink className="h-4 w-4" />
+                      )}
+                    </Button>
                     {editMode && (
                       <Button
                         variant="ghost"
