@@ -1,48 +1,84 @@
 
 
-## Plan: Actualizar Guest Documents a Signed URLs
+## Plan: Mejorar Login con Visibilidad de Contraseña y Recuperación
 
-### Contexto
-El bucket `guest-documents` ahora es privado por seguridad. El código actual usa `getPublicUrl()` que ya no funciona. Necesitamos cambiar a **signed URLs** (URLs temporales con firma de seguridad).
+### Cambios a Implementar
 
-### Cambios a Realizar
+**Archivo: `src/pages/Auth.tsx`**
 
-**Archivo: `src/components/GuestInfoModules.tsx`**
+#### 1. Toggle de Visibilidad de Contraseña (Ojito)
 
-1. **Modificar `handleDocumentUpload`**
-   - En lugar de guardar la URL pública completa, guardar solo el `filePath` relativo
-   - Esto permite generar signed URLs dinámicamente cuando se necesiten
+- Agregar estado `showPassword` y `showConfirmPassword`
+- Agregar icono Eye/EyeOff de lucide-react junto al input de contraseña
+- El input cambia entre `type="password"` y `type="text"` según el estado
 
-2. **Agregar función `getSignedUrl`**
-   - Nueva función que genera una URL firmada temporal (válida por 1 hora)
-   - Se llamará al hacer clic en el botón de descarga
+#### 2. Campo de Confirmación de Contraseña (Solo en Registro)
 
-3. **Modificar el botón de descarga**
-   - Cambiar de un link directo `<a href={url}>` a un botón que:
-     - Genera la signed URL al momento
-     - Abre la URL en una nueva pestaña
+- Agregar estado `confirmPassword`
+- Mostrar segundo campo de contraseña solo cuando `!isLogin`
+- Validar que ambas contraseñas coincidan antes de enviar el formulario
+- Mostrar mensaje de error si no coinciden
 
-### Resumen de Cambios
+#### 3. Link "Olvidé mi Contraseña"
+
+- Agregar link visible solo en modo login
+- Implementar función `handleForgotPassword` que usa `supabase.auth.resetPasswordForEmail()`
+- Supabase envía automáticamente un email con link de recuperación
+- Agregar una nueva ruta `/reset-password` para manejar el token
+
+**Nuevo archivo: `src/pages/ResetPassword.tsx`**
+
+- Página para establecer nueva contraseña
+- Recibe el token de recuperación de la URL
+- Permite al usuario ingresar y confirmar nueva contraseña
+- Usa `supabase.auth.updateUser({ password })` para actualizar
+
+### Flujo de Recuperación de Contraseña
 
 ```text
-┌─────────────────────────────────────────────────────────┐
-│                    ANTES (Inseguro)                     │
-├─────────────────────────────────────────────────────────┤
-│  Subir → getPublicUrl() → Guardar URL pública           │
-│  Descargar → Usar URL pública directamente              │
-└─────────────────────────────────────────────────────────┘
-                          ↓
-┌─────────────────────────────────────────────────────────┐
-│                   DESPUÉS (Seguro)                      │
-├─────────────────────────────────────────────────────────┤
-│  Subir → Guardar solo el filePath relativo              │
-│  Descargar → Generar signed URL temporal → Abrir        │
-└─────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│  1. Usuario hace clic en "¿Olvidaste tu contraseña?"         │
+│     ↓                                                        │
+│  2. Ingresa su email                                         │
+│     ↓                                                        │
+│  3. Supabase envía email automáticamente con link            │
+│     ↓                                                        │
+│  4. Usuario hace clic en el link del email                   │
+│     ↓                                                        │
+│  5. Llega a /reset-password con el token                     │
+│     ↓                                                        │
+│  6. Ingresa nueva contraseña (con confirmación)              │
+│     ↓                                                        │
+│  7. Contraseña actualizada, redirige a login                 │
+└──────────────────────────────────────────────────────────────┘
 ```
 
-### Detalles Técnicos
+### Detalles de UI
 
-- Las signed URLs expiran después de 1 hora (3600 segundos)
-- Solo usuarios con rol `producer` o `admin` pueden acceder (gracias a las políticas RLS ya configuradas)
-- El campo `tema_principal_documento_url` ahora guardará el path relativo, no la URL completa
+**Input con toggle de visibilidad:**
+- El campo de contraseña tendrá un botón con icono de ojo a la derecha
+- Eye = contraseña visible, EyeOff = contraseña oculta
+- El botón no afecta el foco del input
+
+**Validación de contraseñas en registro:**
+- Si las contraseñas no coinciden, mostrar error "Las contraseñas no coinciden"
+- Deshabilitar botón de registro si no coinciden
+
+**Modal/Vista para "Olvidé contraseña":**
+- Opción A: Usar un estado para mostrar vista alternativa en la misma página
+- Opción B: Crear página separada
+
+Recomiendo Opción A para mantener todo simple.
+
+### Archivos a Modificar/Crear
+
+| Archivo | Acción |
+|---------|--------|
+| `src/pages/Auth.tsx` | Modificar - agregar toggle, confirmación, forgot password |
+| `src/pages/ResetPassword.tsx` | Crear - página para nueva contraseña |
+| `src/App.tsx` | Modificar - agregar ruta /reset-password |
+
+### Nota sobre Emails
+
+Supabase Auth envía emails de recuperación automáticamente. El email usa la plantilla predeterminada de Supabase. Si quieres personalizar el diseño del email, eso requeriría configuración adicional con Resend.
 
