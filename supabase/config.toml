@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.trigger-n8n-scraping]
 verify_jwt = false
+
+[functions.check-email-exists]
+verify_jwt = false
