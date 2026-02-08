@@ -104,6 +104,34 @@ const Auth = () => {
     setLoading(true);
     
     try {
+      // First check if email exists
+      const checkResponse = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-email-exists`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email }),
+        }
+      );
+      
+      const checkResult = await checkResponse.json();
+      
+      if (!checkResult.exists) {
+        toast.error("Este email no está registrado", {
+          description: "¿Quieres crear una cuenta?",
+          action: {
+            label: "Registrarme",
+            onClick: () => {
+              setIsForgotPassword(false);
+              setIsLogin(false);
+            },
+          },
+        });
+        setLoading(false);
+        return;
+      }
+      
+      // Email exists, proceed with password reset
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/reset-password`,
       });
@@ -115,6 +143,7 @@ const Auth = () => {
         setIsForgotPassword(false);
       }
     } catch (error: any) {
+      console.error("Error:", error);
       toast.error("Error al enviar el email de recuperación");
     } finally {
       setLoading(false);
