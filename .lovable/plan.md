@@ -1,84 +1,63 @@
 
 
-## Plan: Mejorar Login con Visibilidad de Contraseña y Recuperación
+## Plan: Validación de Email en Recuperación de Contraseña
 
-### Cambios a Implementar
+### Problema Identificado
 
-**Archivo: `src/pages/Auth.tsx`**
+1. **El email de recuperación no llegó**: El log muestra que la solicitud fue procesada correctamente (status 200), pero el email puede no haber llegado. Esto puede deberse a:
+   - El email fue a la carpeta de spam/no deseado
+   - El email que usaste no está registrado en el sistema
+   - Retraso en la entrega del proveedor de emails
 
-#### 1. Toggle de Visibilidad de Contraseña (Ojito)
+2. **Supabase no indica si el email existe**: Por seguridad, `resetPasswordForEmail()` siempre retorna éxito aunque el email no esté registrado (para prevenir que atacantes descubran qué emails están registrados).
 
-- Agregar estado `showPassword` y `showConfirmPassword`
-- Agregar icono Eye/EyeOff de lucide-react junto al input de contraseña
-- El input cambia entre `type="password"` y `type="text"` según el estado
+### Solución Propuesta
 
-#### 2. Campo de Confirmación de Contraseña (Solo en Registro)
-
-- Agregar estado `confirmPassword`
-- Mostrar segundo campo de contraseña solo cuando `!isLogin`
-- Validar que ambas contraseñas coincidan antes de enviar el formulario
-- Mostrar mensaje de error si no coinciden
-
-#### 3. Link "Olvidé mi Contraseña"
-
-- Agregar link visible solo en modo login
-- Implementar función `handleForgotPassword` que usa `supabase.auth.resetPasswordForEmail()`
-- Supabase envía automáticamente un email con link de recuperación
-- Agregar una nueva ruta `/reset-password` para manejar el token
-
-**Nuevo archivo: `src/pages/ResetPassword.tsx`**
-
-- Página para establecer nueva contraseña
-- Recibe el token de recuperación de la URL
-- Permite al usuario ingresar y confirmar nueva contraseña
-- Usa `supabase.auth.updateUser({ password })` para actualizar
-
-### Flujo de Recuperación de Contraseña
+Crear una edge function que verifique si el email existe antes de intentar la recuperación:
 
 ```text
-┌──────────────────────────────────────────────────────────────┐
-│  1. Usuario hace clic en "¿Olvidaste tu contraseña?"         │
-│     ↓                                                        │
-│  2. Ingresa su email                                         │
-│     ↓                                                        │
-│  3. Supabase envía email automáticamente con link            │
-│     ↓                                                        │
-│  4. Usuario hace clic en el link del email                   │
-│     ↓                                                        │
-│  5. Llega a /reset-password con el token                     │
-│     ↓                                                        │
-│  6. Ingresa nueva contraseña (con confirmación)              │
-│     ↓                                                        │
-│  7. Contraseña actualizada, redirige a login                 │
-└──────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│  1. Usuario ingresa email para recuperación                    │
+│     ↓                                                           │
+│  2. Frontend llama a edge function "check-email-exists"        │
+│     ↓                                                           │
+│  3. Edge function consulta auth.users (con service_role_key)   │
+│     ↓                                                           │
+│  ┌───────────────────────────────────────────────────────────┐ │
+│  │ ¿Email existe?                                             │ │
+│  ├───────────────────────────────────────────────────────────┤ │
+│  │ SÍ → Proceder con resetPasswordForEmail()                 │ │
+│  │ NO → Mostrar error y link a registro                      │ │
+│  └───────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-### Detalles de UI
-
-**Input con toggle de visibilidad:**
-- El campo de contraseña tendrá un botón con icono de ojo a la derecha
-- Eye = contraseña visible, EyeOff = contraseña oculta
-- El botón no afecta el foco del input
-
-**Validación de contraseñas en registro:**
-- Si las contraseñas no coinciden, mostrar error "Las contraseñas no coinciden"
-- Deshabilitar botón de registro si no coinciden
-
-**Modal/Vista para "Olvidé contraseña":**
-- Opción A: Usar un estado para mostrar vista alternativa en la misma página
-- Opción B: Crear página separada
-
-Recomiendo Opción A para mantener todo simple.
-
-### Archivos a Modificar/Crear
+### Cambios a Realizar
 
 | Archivo | Acción |
 |---------|--------|
-| `src/pages/Auth.tsx` | Modificar - agregar toggle, confirmación, forgot password |
-| `src/pages/ResetPassword.tsx` | Crear - página para nueva contraseña |
-| `src/App.tsx` | Modificar - agregar ruta /reset-password |
+| `supabase/functions/check-email-exists/index.ts` | Crear - Edge function para verificar email |
+| `src/pages/Auth.tsx` | Modificar - Llamar a la edge function antes de recuperar |
 
-### Nota sobre Emails
+### Detalles Técnicos
 
-Supabase Auth envía emails de recuperación automáticamente. El email usa la plantilla predeterminada de Supabase. Si quieres personalizar el diseño del email, eso requeriría configuración adicional con Resend.
+**Nueva Edge Function: `check-email-exists`**
+- Recibe el email como parámetro
+- Usa `SUPABASE_SERVICE_ROLE_KEY` para consultar `auth.users`
+- Retorna `{ exists: true/false }`
+
+**Modificación en Auth.tsx**
+- `handleForgotPassword` primero llama a la edge function
+- Si el email no existe:
+  - Mostrar mensaje: "Este email no está registrado"
+  - Mostrar botón para ir a registro
+- Si existe: proceder con la recuperación normal
+
+### Nota sobre el Email no Recibido
+
+Primero deberíamos verificar:
+1. ¿El email que usaste está realmente registrado en el sistema?
+2. ¿Revisaste la carpeta de spam?
+
+Si el email sí está registrado y no llega, podemos configurar Resend como proveedor de emails (requiere API key y dominio verificado).
 
