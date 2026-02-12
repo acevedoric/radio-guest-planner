@@ -50,7 +50,6 @@ serve(async (req) => {
     };
 
     console.log(`Sending to n8n webhook: ${n8nWebhookUrl}`);
-    console.log(`Payload: ${JSON.stringify(n8nPayload)}`);
 
     const n8nResponse = await fetch(n8nWebhookUrl, {
       method: 'POST',
@@ -67,21 +66,40 @@ serve(async (req) => {
       );
     }
 
-    // Read n8n response body to check for inline data
+    // Read and parse n8n response
     let dataSaved = false;
+    let savedData: Record<string, string> = {};
     try {
       const responseText = await n8nResponse.text();
-      console.log(`n8n response body: ${responseText}`);
+      console.log(`n8n raw response: ${responseText}`);
 
       if (responseText) {
         const n8nData = JSON.parse(responseText);
+        console.log(`n8n parsed response keys: ${Object.keys(n8nData).join(', ')}`);
 
-        // Check if response contains any of the 4 info fields
-        const hasData = n8nData.tema_principal || n8nData.infancia_vida_privada ||
-                        n8nData.carrera_profesional || n8nData.datos_curiosos;
+        // Extract data - support multiple response structures
+        let extractedData: Record<string, string | undefined> = {};
+
+        if (n8nData.output !== undefined) {
+          console.log(`Found "output" field, type: ${typeof n8nData.output}`);
+          
+          if (typeof n8nData.output === 'object' && n8nData.output !== null) {
+            // Option B: { "output": { "tema_principal": "...", ... } }
+            extractedData = n8nData.output;
+          } else if (typeof n8nData.output === 'string') {
+            // Option A: { "output": "texto con toda la info" }
+            extractedData = { tema_principal: n8nData.output };
+          }
+        } else {
+          // Direct fields at root level
+          extractedData = n8nData;
+        }
+
+        const hasData = extractedData.tema_principal || extractedData.infancia_vida_privada ||
+                        extractedData.carrera_profesional || extractedData.datos_curiosos;
 
         if (hasData) {
-          console.log('n8n returned inline data, saving to database...');
+          console.log('Data found, saving to database...');
 
           const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
           const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -90,10 +108,10 @@ serve(async (req) => {
             n8n_updated_at: new Date().toISOString(),
           };
 
-          if (n8nData.tema_principal !== undefined) updateData.tema_principal = n8nData.tema_principal;
-          if (n8nData.infancia_vida_privada !== undefined) updateData.infancia_vida_privada = n8nData.infancia_vida_privada;
-          if (n8nData.carrera_profesional !== undefined) updateData.carrera_profesional = n8nData.carrera_profesional;
-          if (n8nData.datos_curiosos !== undefined) updateData.datos_curiosos = n8nData.datos_curiosos;
+          if (extractedData.tema_principal !== undefined) updateData.tema_principal = extractedData.tema_principal;
+          if (extractedData.infancia_vida_privada !== undefined) updateData.infancia_vida_privada = extractedData.infancia_vida_privada;
+          if (extractedData.carrera_profesional !== undefined) updateData.carrera_profesional = extractedData.carrera_profesional;
+          if (extractedData.datos_curiosos !== undefined) updateData.datos_curiosos = extractedData.datos_curiosos;
 
           const { error } = await supabase
             .from('guests')
@@ -104,12 +122,15 @@ serve(async (req) => {
             console.error('Database update error:', error);
           } else {
             dataSaved = true;
-            console.log('Guest data saved from n8n response');
+            savedData = updateData;
+            console.log('Guest data saved successfully');
           }
+        } else {
+          console.log('No relevant data fields found in n8n response');
         }
       }
     } catch (parseErr) {
-      console.log('Could not parse n8n response as JSON, waiting for callback instead');
+      console.log('Could not parse n8n response as JSON:', parseErr);
     }
 
     return new Response(
@@ -117,6 +138,7 @@ serve(async (req) => {
         success: true, 
         message: dataSaved ? 'Data saved from n8n response' : 'Scraping workflow triggered',
         data_saved: dataSaved,
+        saved_data: savedData,
         guest_id: payload.guest_id 
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

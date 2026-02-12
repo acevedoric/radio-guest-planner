@@ -179,16 +179,19 @@ export const GuestInfoModules = ({ guest, editMode, onGuestUpdate }: GuestInfoMo
     return (guest[key] as string) || "";
   };
 
+  const [aiLoading, setAiLoading] = useState(false);
+
   const handleTriggerAI = async (moduleKey: string) => {
     if (!guest.id || !guest.name) {
       toast({ title: "Error", description: "El invitado debe tener nombre para buscar información", variant: "destructive" });
       return;
     }
 
+    setAiLoading(true);
     try {
-      toast({ title: "Buscando...", description: `Solicitando información para ${MODULES.find(m => m.key === moduleKey)?.title}` });
+      toast({ title: "Buscando...", description: `Solicitando información con IA...` });
       
-      const { error } = await supabase.functions.invoke('trigger-n8n-scraping', {
+      const { data, error } = await supabase.functions.invoke('trigger-n8n-scraping', {
         body: {
           guest_id: guest.id,
           name: guest.name,
@@ -198,10 +201,27 @@ export const GuestInfoModules = ({ guest, editMode, onGuestUpdate }: GuestInfoMo
 
       if (error) throw error;
       
-      toast({ title: "Solicitud enviada", description: "La información se actualizará automáticamente cuando esté lista" });
+      if (data?.data_saved) {
+        // Re-fetch updated guest from DB
+        const { data: updatedGuest, error: fetchError } = await supabase
+          .from("guests")
+          .select("tema_principal, infancia_vida_privada, carrera_profesional, datos_curiosos, n8n_updated_at")
+          .eq("id", guest.id)
+          .single();
+
+        if (!fetchError && updatedGuest) {
+          onGuestUpdate?.(updatedGuest);
+          setEditingContent({});
+          toast({ title: "✅ Información actualizada", description: "Los datos de IA se cargaron correctamente" });
+        }
+      } else {
+        toast({ title: "Solicitud enviada", description: "La información se actualizará cuando esté lista" });
+      }
     } catch (error) {
       console.error("Error triggering AI:", error);
       toast({ title: "Error", description: "No se pudo solicitar la información", variant: "destructive" });
+    } finally {
+      setAiLoading(false);
     }
   };
 
@@ -245,10 +265,15 @@ export const GuestInfoModules = ({ guest, editMode, onGuestUpdate }: GuestInfoMo
                 e.stopPropagation();
                 handleTriggerAI(module.key);
               }}
+              disabled={aiLoading}
               title="Generar con IA"
               className="h-10 w-10 p-0 hover:bg-primary/10"
             >
-              <Sparkles className="h-4 w-4 text-primary" />
+              {aiLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+              ) : (
+                <Sparkles className="h-4 w-4 text-primary" />
+              )}
             </Button>
           </div>
           
