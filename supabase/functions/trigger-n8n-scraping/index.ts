@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.76.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,7 +13,6 @@ interface TriggerPayload {
 }
 
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -39,11 +39,9 @@ serve(async (req) => {
 
     console.log(`Triggering n8n scraping for guest: ${payload.name} (${payload.position})`);
 
-    // Build callback URL for n8n to send data back
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const callbackUrl = `${supabaseUrl}/functions/v1/n8n-guest-info`;
 
-    // Send webhook to n8n
     const n8nPayload = {
       guest_id: payload.guest_id,
       name: payload.name,
@@ -56,9 +54,7 @@ serve(async (req) => {
 
     const n8nResponse = await fetch(n8nWebhookUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(n8nPayload),
     });
 
@@ -71,12 +67,56 @@ serve(async (req) => {
       );
     }
 
-    console.log('Successfully triggered n8n scraping workflow');
+    // Read n8n response body to check for inline data
+    let dataSaved = false;
+    try {
+      const responseText = await n8nResponse.text();
+      console.log(`n8n response body: ${responseText}`);
+
+      if (responseText) {
+        const n8nData = JSON.parse(responseText);
+
+        // Check if response contains any of the 4 info fields
+        const hasData = n8nData.tema_principal || n8nData.infancia_vida_privada ||
+                        n8nData.carrera_profesional || n8nData.datos_curiosos;
+
+        if (hasData) {
+          console.log('n8n returned inline data, saving to database...');
+
+          const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+          const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+          const updateData: Record<string, string> = {
+            n8n_updated_at: new Date().toISOString(),
+          };
+
+          if (n8nData.tema_principal !== undefined) updateData.tema_principal = n8nData.tema_principal;
+          if (n8nData.infancia_vida_privada !== undefined) updateData.infancia_vida_privada = n8nData.infancia_vida_privada;
+          if (n8nData.carrera_profesional !== undefined) updateData.carrera_profesional = n8nData.carrera_profesional;
+          if (n8nData.datos_curiosos !== undefined) updateData.datos_curiosos = n8nData.datos_curiosos;
+
+          const { error } = await supabase
+            .from('guests')
+            .update(updateData)
+            .eq('id', payload.guest_id);
+
+          if (error) {
+            console.error('Database update error:', error);
+          } else {
+            dataSaved = true;
+            console.log('Guest data saved from n8n response');
+          }
+        }
+      }
+    } catch (parseErr) {
+      console.log('Could not parse n8n response as JSON, waiting for callback instead');
+    }
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'Scraping workflow triggered',
+        message: dataSaved ? 'Data saved from n8n response' : 'Scraping workflow triggered',
+        data_saved: dataSaved,
         guest_id: payload.guest_id 
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
