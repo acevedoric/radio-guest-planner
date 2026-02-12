@@ -1,39 +1,60 @@
 
 
-## Plan: Leer respuesta directa del webhook de n8n
+## Plan: Soportar respuesta de n8n con campo "output"
 
-### Problema
+### Problema detectado
 
-La funcion `trigger-n8n-scraping` envia correctamente la solicitud a n8n y recibe una respuesta exitosa (200), pero **descarta el body de la respuesta**. Tu workflow de n8n devuelve los datos de scraping directamente en la respuesta HTTP (webhook response), no hace un POST separado al callback.
+El log muestra que n8n devuelve un body vacio o con una estructura diferente a la esperada. La expresion de n8n `{{ $item("0").$node["Respond to Webhook"].json["output"] }}` sugiere que los datos vienen envueltos en un campo `output`.
+
+Posibles estructuras de respuesta de n8n:
+
+```text
+Opcion A: { "output": "texto con toda la info" }
+Opcion B: { "output": { "tema_principal": "...", ... } }
+Opcion C: Body completamente vacio (nodo Respond to Webhook no configurado)
+```
 
 ### Solucion
 
-Modificar `trigger-n8n-scraping` para que:
-1. Lea el body de la respuesta de n8n
-2. Si contiene datos de los 4 bloques, los guarde directamente en la base de datos
-3. Si no contiene datos, mantenga el comportamiento actual (esperar callback)
+Modificar `trigger-n8n-scraping` para manejar multiples estructuras de respuesta:
+
+1. Si la respuesta tiene los 4 campos directamente -> guardarlos (ya implementado)
+2. Si la respuesta tiene un campo `output` que es un objeto con los 4 campos -> extraerlos y guardarlos
+3. Si `output` es un string -> guardarlo en `tema_principal` como texto general
+4. Agregar logs detallados para diagnosticar la estructura exacta
+
+Ademas, modificar `GuestInfoModules` para que al presionar el boton de IA:
+- Espere la respuesta del edge function
+- Si `data_saved: true`, re-consulte el guest actualizado de la BD y actualice la UI inmediatamente via `onGuestUpdate`
 
 ### Cambios
 
 | Archivo | Accion |
 |---------|--------|
-| `supabase/functions/trigger-n8n-scraping/index.ts` | Modificar - Leer respuesta de n8n y guardar datos en la BD |
+| `supabase/functions/trigger-n8n-scraping/index.ts` | Soportar campo `output` en la respuesta de n8n |
+| `src/components/GuestInfoModules.tsx` | Refrescar datos del guest tras respuesta exitosa del edge function |
 
-### Detalles Tecnicos
+### Detalles tecnicos
 
-Despues de recibir la respuesta exitosa de n8n:
-
+**Edge function** - Parseo flexible:
 ```text
-1. Parsear el body de la respuesta como JSON
-2. Verificar si contiene campos: tema_principal, infancia_vida_privada,
-   carrera_profesional, datos_curiosos
-3. Si tiene al menos un campo, hacer UPDATE en la tabla guests
-   con los datos recibidos + n8n_updated_at = now()
-4. Retornar exito indicando si los datos fueron guardados
+1. Leer responseText de n8n
+2. Parsear como JSON
+3. Si tiene campo "output":
+   a. Si output es objeto -> buscar los 4 campos dentro
+   b. Si output es string -> guardar como tema_principal
+4. Si no tiene "output" -> buscar los 4 campos en raiz (actual)
+5. Guardar en BD con n8n_updated_at
+6. Retornar los datos guardados en la respuesta del edge function
 ```
 
-Esto usa `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` que ya estan disponibles como variables de entorno en las edge functions.
+**Frontend** - Actualizacion inmediata:
+```text
+1. handleTriggerAI llama al edge function
+2. Lee la respuesta con { data_saved, guest_id }
+3. Si data_saved es true:
+   - Hace SELECT del guest actualizado
+   - Llama onGuestUpdate con los nuevos valores
+   - Los modulos se actualizan sin recargar pagina
+```
 
-### Resultado esperado
-
-Al presionar el boton de IA, la informacion de n8n se guardara inmediatamente en los 4 bloques sin necesidad de que n8n llame a un callback separado.
