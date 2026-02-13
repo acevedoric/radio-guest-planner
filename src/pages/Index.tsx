@@ -120,11 +120,6 @@ const Index = () => {
         console.error(error);
       } else {
         toast.success("Invitado actualizado");
-        
-        // Trigger n8n scraping if HORA 1 guest has name and position updated
-        if (timeSlot === 1 && guestData.name && guestData.position) {
-          triggerN8nScraping(guest.id, guestData.name, guestData.position);
-        }
       }
     } else {
       const { data, error } = await supabase.from('guests').insert([guestData]).select().single();
@@ -133,11 +128,6 @@ const Index = () => {
         console.error(error);
       } else {
         toast.success("Invitado creado");
-        
-        // Trigger n8n scraping for new HORA 1 guest with name and position
-        if (data && timeSlot === 1 && guestData.name && guestData.position) {
-          triggerN8nScraping(data.id, guestData.name, guestData.position);
-        }
       }
     }
     setNewGuestSlot(null);
@@ -382,6 +372,13 @@ const Index = () => {
             selectedDay={selectedDay}
             onDayChange={setSelectedDay}
             editMode={editMode}
+            onGuestUpdate={(updatedGuest) => {
+              if (updatedGuest.id) {
+                setGuests(prev => prev.map(g => 
+                  g.id === updatedGuest.id ? { ...g, ...updatedGuest } : g
+                ));
+              }
+            }}
           />
         )}
 
