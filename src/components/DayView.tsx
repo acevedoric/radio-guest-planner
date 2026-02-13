@@ -17,6 +17,7 @@ interface DayViewProps {
   selectedDay: string;
   onDayChange: (day: string) => void;
   editMode: boolean;
+  onGuestUpdate?: (updatedGuest: Partial<Guest> & { id?: string }) => void;
 }
 
 const DAYS = [
@@ -40,7 +41,7 @@ const statusConfig = {
   proposed: { label: "PROPUESTO", className: "bg-blue-500 text-white" },
 };
 
-export const DayView = ({ guests, onGuestClick, onAddGuest, selectedDay, onDayChange, editMode }: DayViewProps) => {
+export const DayView = ({ guests, onGuestClick, onAddGuest, selectedDay, onDayChange, editMode, onGuestUpdate }: DayViewProps) => {
   const getGuestForSlot = (slot: number) => {
     return guests.find(g => g.day_of_week === selectedDay && g.time_slot === slot);
   };
@@ -172,7 +173,7 @@ export const DayView = ({ guests, onGuestClick, onAddGuest, selectedDay, onDayCh
                       guest={guest}
                       editMode={editMode}
                       onGuestUpdate={(updates) => {
-                        console.log("Guest updated:", updates);
+                        onGuestUpdate?.({ ...updates, id: guest.id });
                       }}
                     />
                   )}
