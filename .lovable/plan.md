@@ -1,75 +1,64 @@
 
 
-## Plan: Corregir flujo de IA y display de datos n8n
+## Plan: Corregir parseo de respuesta n8n (array) y separar contenido en 4 bloques
 
-### Problema 1: Auto-trigger innecesario
-Al guardar o crear un invitado en Hora 1, el sistema llama automaticamente al webhook de n8n, gastando tokens sin que el usuario lo solicite.
+### Problema detectado
 
-**Solucion**: Eliminar las llamadas automaticas a `triggerN8nScraping` en `Index.tsx` (lineas 124-127 y 137-140). Solo se disparara manualmente con el boton de Sparkles.
-
-### Problema 2: n8n devuelve body vacio
-El test del webhook confirma que n8n responde 200 pero **sin datos en el body**. El log dice: `n8n raw response:` (vacio).
-
-**Esto requiere accion tuya en n8n**: En tu workflow, el nodo "Respond to Webhook" debe estar configurado para devolver los datos. Por ejemplo, en el campo "Response Body" del nodo, usa la expresion que mencionaste para que devuelva un JSON con los 4 campos.
-
-No hay cambio de codigo necesario aqui - el edge function ya soporta el campo `output`.
-
-### Problema 3: La UI no se actualiza tras recibir datos
-En `DayView.tsx`, el callback `onGuestUpdate` solo hace `console.log`. Cuando el edge function devuelve datos exitosamente, la UI no se refresca.
-
-**Solucion**: Modificar `DayView.tsx` para que `onGuestUpdate` actualice el estado local del guest, forzando un re-render con los nuevos datos.
-
-### Cambios
-
-| Archivo | Accion |
-|---------|--------|
-| `src/pages/Index.tsx` | Eliminar auto-trigger de n8n al crear/actualizar guest (lineas 124-127 y 137-140) |
-| `src/components/DayView.tsx` | Actualizar `onGuestUpdate` para refrescar el estado del guest en la UI |
-
-### Accion requerida en n8n (fuera de Lovable)
-
-Tu nodo "Respond to Webhook" debe devolver un JSON como este:
+n8n con "All Incoming Items" devuelve un **array** en lugar de un objeto:
 
 ```text
-{
-  "output": {
-    "tema_principal": "...",
-    "infancia_vida_privada": "...",
-    "carrera_profesional": "...",
-    "datos_curiosos": "..."
-  }
-}
+Respuesta actual:  [{"output": "texto largo con toda la info..."}]
+Esperado por el codigo: {"output": "texto largo..."}
 ```
 
-O si usas la expresion que mencionaste, asegurate de que el nodo "Respond to Webhook" tenga configurado el Response Body con los datos del scraping.
+El edge function hace `n8nData.output` pero `n8nData` es un array, asi que `output` es `undefined` y no guarda nada.
+
+Ademas, el campo `output` es un **string largo** con las 4 secciones mezcladas en texto. Para que se muestre correctamente en los 4 bloques, hay que parsear el texto y separar las secciones.
+
+### Solucion
+
+**Archivo: `supabase/functions/trigger-n8n-scraping/index.ts`**
+
+1. Si el JSON parseado es un array, usar el primer elemento: `n8nData = n8nData[0]`
+2. Cuando `output` es un string largo, parsearlo buscando los encabezados de seccion que usa el AI Agent:
+   - "1. Evento Actual de Coyuntura" o similar -> `tema_principal`
+   - "2. Infancia y Vida Personal" -> `infancia_vida_privada`
+   - "3. Carrera Artistica o Profesional" -> `carrera_profesional`
+   - "4. Datos Curiosos" -> `datos_curiosos`
+3. Si no se detectan secciones, guardar todo el texto en `tema_principal` como fallback
+
+No se necesitan cambios en el frontend: `GuestInfoModules` y `DayView` ya tienen el flujo correcto para re-consultar y mostrar los datos.
 
 ### Detalles tecnicos
 
-**Index.tsx** - Eliminar auto-trigger:
+**Edge function** - Cambios en el parseo:
+
 ```text
-- Eliminar lineas 124-127 (trigger al actualizar guest)
-- Eliminar lineas 137-140 (trigger al crear guest)
-- Mantener la funcion triggerN8nScraping por si se necesita en otro contexto
-  (o eliminarla si ya no se usa en ningun otro lugar)
+1. Despues de JSON.parse(responseText):
+   - Si Array.isArray(n8nData) -> n8nData = n8nData[0]
+
+2. Cuando output es string, nueva funcion parseOutputSections(text):
+   - Usar regex para encontrar secciones numeradas (1., 2., 3., 4.)
+   - Extraer contenido entre cada encabezado
+   - Retornar objeto con los 4 campos
+
+3. Fallback: si el regex no encuentra secciones,
+   guardar todo en tema_principal
 ```
 
-**DayView.tsx** - Refrescar UI:
+Flujo completo validado:
 ```text
-- Cambiar onGuestUpdate de console.log a una funcion que:
-  1. Reciba el Partial<Guest> con los datos actualizados
-  2. Llame a una prop o callback que actualice el guest en el array
-     de guests del componente padre (Index.tsx)
-  3. El re-render mostrara los datos en los 4 bloques
+n8n retorna [{"output": "texto..."}]
+  -> Edge function parsea array[0].output
+  -> Separa texto en 4 secciones via regex
+  -> Guarda en BD con supabase service role
+  -> Retorna data_saved: true
+  -> GuestInfoModules re-fetch guest
+  -> onGuestUpdate propaga a DayView -> Index
+  -> Los 4 bloques muestran la info
 ```
 
-Flujo de propagacion:
-```text
-GuestInfoModules (handleTriggerAI)
-  -> Edge Function devuelve data_saved: true
-  -> Re-fetch guest de BD
-  -> onGuestUpdate(updatedGuest)
-  -> DayView recibe actualizacion
-  -> Actualiza guests[] en Index.tsx
-  -> Re-render con datos en los 4 modulos
-```
+| Archivo | Accion |
+|---------|--------|
+| `supabase/functions/trigger-n8n-scraping/index.ts` | Soportar array, parsear string en 4 secciones |
 
