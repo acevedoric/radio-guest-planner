@@ -12,6 +12,43 @@ interface TriggerPayload {
   position: string;
 }
 
+function parseOutputSections(text: string): Record<string, string> {
+  const sections: Record<string, string> = {};
+  
+  // Match numbered sections: "1.", "2.", "3.", "4." with various header texts
+  const sectionRegex = /(?:^|\n)\s*(\d)\.\s*\*{0,2}([^*\n]+?)\*{0,2}\s*\n/gi;
+  const matches: { index: number; num: string }[] = [];
+  let match;
+  
+  while ((match = sectionRegex.exec(text)) !== null) {
+    matches.push({ index: match.index, num: match[1] });
+  }
+  
+  if (matches.length === 0) {
+    // Fallback: everything goes to tema_principal
+    return { tema_principal: text.trim() };
+  }
+  
+  const fieldMap: Record<string, string> = {
+    '1': 'tema_principal',
+    '2': 'infancia_vida_privada',
+    '3': 'carrera_profesional',
+    '4': 'datos_curiosos',
+  };
+  
+  for (let i = 0; i < matches.length; i++) {
+    const start = text.indexOf('\n', matches[i].index + 1);
+    const end = i + 1 < matches.length ? matches[i + 1].index : text.length;
+    const content = text.slice(start, end).trim();
+    const field = fieldMap[matches[i].num];
+    if (field && content) {
+      sections[field] = content;
+    }
+  }
+  
+  return Object.keys(sections).length > 0 ? sections : { tema_principal: text.trim() };
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -74,7 +111,14 @@ serve(async (req) => {
       console.log(`n8n raw response: ${responseText}`);
 
       if (responseText) {
-        const n8nData = JSON.parse(responseText);
+        let n8nData = JSON.parse(responseText);
+        
+        // Support array response from n8n "All Incoming Items"
+        if (Array.isArray(n8nData)) {
+          console.log(`n8n returned array with ${n8nData.length} items, using first`);
+          n8nData = n8nData[0] || {};
+        }
+        
         console.log(`n8n parsed response keys: ${Object.keys(n8nData).join(', ')}`);
 
         // Extract data - support multiple response structures
@@ -84,14 +128,14 @@ serve(async (req) => {
           console.log(`Found "output" field, type: ${typeof n8nData.output}`);
           
           if (typeof n8nData.output === 'object' && n8nData.output !== null) {
-            // Option B: { "output": { "tema_principal": "...", ... } }
             extractedData = n8nData.output;
           } else if (typeof n8nData.output === 'string') {
-            // Option A: { "output": "texto con toda la info" }
-            extractedData = { tema_principal: n8nData.output };
+            // Parse sections from AI Agent's text output
+            console.log(`Parsing sections from output string (${n8nData.output.length} chars)`);
+            extractedData = parseOutputSections(n8nData.output);
+            console.log(`Parsed sections: ${Object.keys(extractedData).join(', ')}`);
           }
         } else {
-          // Direct fields at root level
           extractedData = n8nData;
         }
 
