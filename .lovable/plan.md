@@ -1,64 +1,61 @@
 
 
-## Plan: Corregir parseo de respuesta n8n (array) y separar contenido en 4 bloques
+## Plan: Corregir 3 problemas en vista DIA
 
-### Problema detectado
+### Problema 1: Pop-up se abre con cada accion
 
-n8n con "All Incoming Items" devuelve un **array** en lugar de un objeto:
-
+La Card completa tiene un `onClick` en la linea 113 de `DayView.tsx`:
 ```text
-Respuesta actual:  [{"output": "texto largo con toda la info..."}]
-Esperado por el codigo: {"output": "texto largo..."}
+onClick={() => editMode && (guest ? onGuestClick(guest) : onAddGuest(selectedDay, slot))}
 ```
+Cualquier clic dentro de la tarjeta (checkboxes, botones de IA, modulos colapsables) hace "bubble up" y abre el modal de edicion.
 
-El edge function hace `n8nData.output` pero `n8nData` es un array, asi que `output` es `undefined` y no guarda nada.
+**Solucion**: Quitar el `onClick` de la Card y agregar un boton explicito "Editar" en el header de la tarjeta, o mover el onClick solo al area del nombre del invitado. Tambien agregar `e.stopPropagation()` en los checkboxes y otros elementos interactivos.
 
-Ademas, el campo `output` es un **string largo** con las 4 secciones mezcladas en texto. Para que se muestre correctamente en los 4 bloques, hay que parsear el texto y separar las secciones.
+### Problema 2: Toda la info va a TEMA PRINCIPAL en vez de separarse en 4 bloques
 
-### Solucion
+Los logs confirman: `Parsed sections: tema_principal` -- el regex solo encuentra 1 seccion.
 
-**Archivo: `supabase/functions/trigger-n8n-scraping/index.ts`**
+La razon: n8n devuelve headers con formato `### COYUNTURA ###`, `### INFANCIA ###`, `### CARRERA ###`, `### CURIOSIDADES ###` pero el regex actual busca secciones numeradas tipo `1.`, `2.`, `3.`, `4.`.
 
-1. Si el JSON parseado es un array, usar el primer elemento: `n8nData = n8nData[0]`
-2. Cuando `output` es un string largo, parsearlo buscando los encabezados de seccion que usa el AI Agent:
-   - "1. Evento Actual de Coyuntura" o similar -> `tema_principal`
-   - "2. Infancia y Vida Personal" -> `infancia_vida_privada`
-   - "3. Carrera Artistica o Profesional" -> `carrera_profesional`
-   - "4. Datos Curiosos" -> `datos_curiosos`
-3. Si no se detectan secciones, guardar todo el texto en `tema_principal` como fallback
+**Solucion**: Actualizar `parseOutputSections()` en la Edge Function para detectar AMBOS formatos:
+- Numerados: `1. Titulo`, `2. Titulo`...
+- Con hashtags: `### COYUNTURA ###`, `### INFANCIA ###`...
 
-No se necesitan cambios en el frontend: `GuestInfoModules` y `DayView` ya tienen el flujo correcto para re-consultar y mostrar los datos.
+Mapeo de keywords:
+- COYUNTURA -> `tema_principal`
+- INFANCIA -> `infancia_vida_privada`
+- CARRERA -> `carrera_profesional`
+- CURIOSIDADES / CURIOSOS -> `datos_curiosos`
+
+### Problema 3: Texto con ** no se muestra en negrilla
+
+Actualmente `GuestInfoModules` muestra el contenido con `whitespace-pre-wrap` como texto plano. El markdown `**texto**` no se renderiza.
+
+**Solucion**: Crear una funcion que convierta `**texto**` a elementos `<strong>` de React (sin usar dangerouslySetInnerHTML) y aplicarla al mostrar el contenido de cada modulo.
+
+---
 
 ### Detalles tecnicos
 
-**Edge function** - Cambios en el parseo:
-
-```text
-1. Despues de JSON.parse(responseText):
-   - Si Array.isArray(n8nData) -> n8nData = n8nData[0]
-
-2. Cuando output es string, nueva funcion parseOutputSections(text):
-   - Usar regex para encontrar secciones numeradas (1., 2., 3., 4.)
-   - Extraer contenido entre cada encabezado
-   - Retornar objeto con los 4 campos
-
-3. Fallback: si el regex no encuentra secciones,
-   guardar todo en tema_principal
-```
-
-Flujo completo validado:
-```text
-n8n retorna [{"output": "texto..."}]
-  -> Edge function parsea array[0].output
-  -> Separa texto en 4 secciones via regex
-  -> Guarda en BD con supabase service role
-  -> Retorna data_saved: true
-  -> GuestInfoModules re-fetch guest
-  -> onGuestUpdate propaga a DayView -> Index
-  -> Los 4 bloques muestran la info
-```
-
-| Archivo | Accion |
+| Archivo | Cambio |
 |---------|--------|
-| `supabase/functions/trigger-n8n-scraping/index.ts` | Soportar array, parsear string en 4 secciones |
+| `supabase/functions/trigger-n8n-scraping/index.ts` | Actualizar `parseOutputSections()` para soportar headers `### KEYWORD ###` ademas de numerados |
+| `src/components/DayView.tsx` | Quitar onClick de la Card, agregar boton/area especifica para abrir modal, stopPropagation en checkboxes |
+| `src/components/GuestInfoModules.tsx` | Renderizar `**texto**` como negrilla usando React elements |
+
+### Flujo corregido del parseo:
+
+```text
+n8n response: {"output": "### COYUNTURA ###\n...\n### INFANCIA ###\n...\n### CARRERA ###\n...\n### CURIOSIDADES ###\n..."}
+
+parseOutputSections() detecta ### KEYWORD ###
+  -> COYUNTURA -> tema_principal
+  -> INFANCIA -> infancia_vida_privada  
+  -> CARRERA -> carrera_profesional
+  -> CURIOSIDADES -> datos_curiosos
+
+Cada campo se guarda por separado en la BD
+Frontend muestra cada campo en su modulo correspondiente con negrillas
+```
 
