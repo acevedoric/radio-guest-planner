@@ -14,39 +14,71 @@ interface TriggerPayload {
 
 function parseOutputSections(text: string): Record<string, string> {
   const sections: Record<string, string> = {};
-  
-  // Match numbered sections: "1.", "2.", "3.", "4." with various header texts
-  const sectionRegex = /(?:^|\n)\s*(\d)\.\s*\*{0,2}([^*\n]+?)\*{0,2}\s*\n/gi;
-  const matches: { index: number; num: string }[] = [];
-  let match;
-  
-  while ((match = sectionRegex.exec(text)) !== null) {
-    matches.push({ index: match.index, num: match[1] });
-  }
-  
-  if (matches.length === 0) {
-    // Fallback: everything goes to tema_principal
-    return { tema_principal: text.trim() };
-  }
-  
-  const fieldMap: Record<string, string> = {
-    '1': 'tema_principal',
-    '2': 'infancia_vida_privada',
-    '3': 'carrera_profesional',
-    '4': 'datos_curiosos',
+
+  // Keyword -> field mapping
+  const keywordMap: Record<string, string> = {
+    'coyuntura': 'tema_principal',
+    'tema': 'tema_principal',
+    'infancia': 'infancia_vida_privada',
+    'carrera': 'carrera_profesional',
+    'curiosidades': 'datos_curiosos',
+    'curiosos': 'datos_curiosos',
   };
-  
-  for (let i = 0; i < matches.length; i++) {
-    const start = text.indexOf('\n', matches[i].index + 1);
-    const end = i + 1 < matches.length ? matches[i + 1].index : text.length;
-    const content = text.slice(start, end).trim();
-    const field = fieldMap[matches[i].num];
-    if (field && content) {
-      sections[field] = content;
+
+  // Try ### KEYWORD ### format first
+  const hashRegex = /(?:^|\n)\s*#{1,4}\s*([^#\n]+?)\s*#{0,4}\s*\n/gi;
+  const hashMatches: { index: number; keyword: string; matchEnd: number }[] = [];
+  let match;
+
+  while ((match = hashRegex.exec(text)) !== null) {
+    const keyword = match[1].trim().toLowerCase();
+    const field = Object.entries(keywordMap).find(([k]) => keyword.includes(k));
+    if (field) {
+      hashMatches.push({ index: match.index, keyword: field[1], matchEnd: match.index + match[0].length });
     }
   }
-  
-  return Object.keys(sections).length > 0 ? sections : { tema_principal: text.trim() };
+
+  if (hashMatches.length > 0) {
+    for (let i = 0; i < hashMatches.length; i++) {
+      const start = hashMatches[i].matchEnd;
+      const end = i + 1 < hashMatches.length ? hashMatches[i + 1].index : text.length;
+      const content = text.slice(start, end).trim();
+      if (content) {
+        sections[hashMatches[i].keyword] = content;
+      }
+    }
+    if (Object.keys(sections).length > 0) return sections;
+  }
+
+  // Fallback: numbered sections "1.", "2.", etc.
+  const numRegex = /(?:^|\n)\s*(\d)\.\s*\*{0,2}([^*\n]+?)\*{0,2}\s*\n/gi;
+  const numMatches: { index: number; num: string }[] = [];
+
+  while ((match = numRegex.exec(text)) !== null) {
+    numMatches.push({ index: match.index, num: match[1] });
+  }
+
+  if (numMatches.length > 0) {
+    const fieldMap: Record<string, string> = {
+      '1': 'tema_principal',
+      '2': 'infancia_vida_privada',
+      '3': 'carrera_profesional',
+      '4': 'datos_curiosos',
+    };
+
+    for (let i = 0; i < numMatches.length; i++) {
+      const start = text.indexOf('\n', numMatches[i].index + 1);
+      const end = i + 1 < numMatches.length ? numMatches[i + 1].index : text.length;
+      const content = text.slice(start, end).trim();
+      const field = fieldMap[numMatches[i].num];
+      if (field && content) {
+        sections[field] = content;
+      }
+    }
+    if (Object.keys(sections).length > 0) return sections;
+  }
+
+  return { tema_principal: text.trim() };
 }
 
 serve(async (req) => {

@@ -110,16 +110,30 @@ export const DayView = ({ guests, onGuestClick, onAddGuest, selectedDay, onDayCh
               } ${
                 guest ? "bg-card" : "border-dashed hover:border-primary"
               }`}
-              onClick={() => editMode && (guest ? onGuestClick(guest) : onAddGuest(selectedDay, slot))}
+              onClick={() => !guest && editMode && onAddGuest(selectedDay, slot)}
             >
               {guest ? (
                 <div className="space-y-4">
                   {/* Header with time and status */}
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-semibold text-primary">{label}</h3>
-                    <Badge className={statusConfig[guest.recording_status].className}>
-                      {statusConfig[guest.recording_status].label}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge className={statusConfig[guest.recording_status].className}>
+                        {statusConfig[guest.recording_status].label}
+                      </Badge>
+                      {editMode && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onGuestClick(guest);
+                          }}
+                        >
+                          Editar
+                        </Button>
+                      )}
+                    </div>
                   </div>
 
                   {/* Guest name and position */}
@@ -210,11 +224,12 @@ export const DayView = ({ guests, onGuestClick, onAddGuest, selectedDay, onDayCh
                     <div className="text-xs text-muted-foreground font-semibold mb-2">Estado de Confirmación</div>
                     <div className="flex flex-col gap-2">
                       <div className="flex items-center space-x-2">
-                        <Checkbox
+                      <Checkbox
                           id={`proposed-${guest.id}`}
                           checked={guest.recording_status === 'proposed'}
                           onCheckedChange={(checked) => handleCheckboxChange(guest, 'proposed', checked as boolean)}
                           disabled={!editMode}
+                          onClick={(e) => e.stopPropagation()}
                         />
                         <label
                           htmlFor={`proposed-${guest.id}`}
@@ -224,11 +239,12 @@ export const DayView = ({ guests, onGuestClick, onAddGuest, selectedDay, onDayCh
                         </label>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <Checkbox
+                      <Checkbox
                           id={`blu-${guest.id}`}
                           checked={guest.confirmed_blu || false}
                           onCheckedChange={(checked) => handleCheckboxChange(guest, 'blu', checked as boolean)}
                           disabled={!editMode}
+                          onClick={(e) => e.stopPropagation()}
                         />
                         <label
                           htmlFor={`blu-${guest.id}`}
@@ -238,11 +254,12 @@ export const DayView = ({ guests, onGuestClick, onAddGuest, selectedDay, onDayCh
                         </label>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <Checkbox
+                      <Checkbox
                           id={`pr-${guest.id}`}
                           checked={guest.confirmed_pr || false}
                           onCheckedChange={(checked) => handleCheckboxChange(guest, 'pr', checked as boolean)}
                           disabled={!editMode}
+                          onClick={(e) => e.stopPropagation()}
                         />
                         <label
                           htmlFor={`pr-${guest.id}`}

@@ -7,6 +7,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Guest } from "@/types/guest";
 import { cn } from "@/lib/utils";
+import React from "react";
+
+/** Converts **bold** markdown to <strong> React elements */
+function renderBoldMarkdown(text: string): React.ReactNode[] {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={i}>{part.slice(2, -2)}</strong>;
+    }
+    return <React.Fragment key={i}>{part}</React.Fragment>;
+  });
+}
 
 interface GuestInfoModulesProps {
   guest: Guest;
@@ -290,7 +302,9 @@ export const GuestInfoModules = ({ guest, editMode, onGuestUpdate }: GuestInfoMo
               </div>
             ) : (
               <div className="text-sm text-muted-foreground whitespace-pre-wrap">
-                {getContent(module.key) || (
+                {getContent(module.key) ? (
+                  renderBoldMarkdown(getContent(module.key))
+                ) : (
                   <span className="italic">Sin información disponible</span>
                 )}
               </div>
