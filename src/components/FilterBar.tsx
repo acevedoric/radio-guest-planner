@@ -1,10 +1,12 @@
+import { useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Search, ChevronLeft, ChevronRight, Lock, Unlock } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, Lock, Unlock, Loader2, CalendarDays } from "lucide-react";
 import { addWeeks, subWeeks, addMonths, subMonths, addDays, subDays, format } from "date-fns";
 import { es } from "date-fns/locale";
+import { Guest } from "@/types/guest";
 
 interface FilterBarProps {
   searchQuery: string;
@@ -21,7 +23,11 @@ interface FilterBarProps {
   onViewModeChange: (mode: "day" | "week" | "month") => void;
   editMode: boolean;
   onEditModeChange: (mode: boolean) => void;
+  globalSearchResults: Guest[];
+  isSearching: boolean;
+  onGlobalResultClick: (guest: Guest) => void;
 }
+
 
 export const FilterBar = ({
   searchQuery,
@@ -38,7 +44,11 @@ export const FilterBar = ({
   onViewModeChange,
   editMode,
   onEditModeChange,
+  globalSearchResults,
+  isSearching,
+  onGlobalResultClick,
 }: FilterBarProps) => {
+  const searchRef = useRef<HTMLDivElement>(null);
   const calculateDayDate = () => {
     const dayIndex = {
       monday: 0,
@@ -205,14 +215,56 @@ export const FilterBar = ({
 
       {/* Search and Filter */}
       <div className="flex gap-2 w-full">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <div className="relative flex-1" ref={searchRef}>
+          {isSearching ? (
+            <Loader2 className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground animate-spin" />
+          ) : (
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          )}
           <Input
             placeholder="Buscar por nombre o tema..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             className="pl-10"
           />
+
+          {/* Dropdown resultados globales */}
+          {searchQuery.length >= 3 && (
+            <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-popover border border-border rounded-md shadow-lg overflow-hidden">
+              {globalSearchResults.length === 0 && !isSearching && (
+                <div className="px-4 py-3 text-sm text-muted-foreground text-center">
+                  No se encontraron invitados
+                </div>
+              )}
+              {globalSearchResults.map((guest) => {
+                const weekDate = new Date(guest.week_date + 'T12:00:00');
+                const dateLabel = format(weekDate, "d 'de' MMMM yyyy", { locale: es });
+                const dayLabels: Record<string, string> = {
+                  monday: "Lun",
+                  tuesday: "Mar",
+                  wednesday: "Mié",
+                  thursday: "Jue",
+                };
+                return (
+                  <button
+                    key={guest.id}
+                    type="button"
+                    className="w-full text-left px-4 py-3 hover:bg-accent transition-colors border-b border-border last:border-0 flex items-start gap-3"
+                    onClick={() => onGlobalResultClick(guest)}
+                  >
+                    <CalendarDays className="w-4 h-4 mt-0.5 text-primary shrink-0" />
+                    <div className="min-w-0">
+                      <div className="font-medium text-sm truncate">{guest.name}</div>
+                      <div className="text-xs text-muted-foreground truncate">{guest.topic}</div>
+                      <div className="text-xs text-primary mt-0.5">
+                        {dayLabels[guest.day_of_week] || guest.day_of_week} · {dateLabel} · Bloque {guest.time_slot}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         <Select value={statusFilter} onValueChange={onStatusFilterChange}>
