@@ -1,44 +1,57 @@
 
-## Problema: confirm() bloqueado en iframe
+## Dos correcciones: Eliminación y Búsqueda
 
-La función `handleDelete` en `GuestDetailModal.tsx` (línea 100) usa:
-```
-if (confirm("¿Estás seguro de eliminar este invitado?")) {
-```
+### Problema 1: La eliminación borra de la BD pero la pantalla no se actualiza
 
-`window.confirm()` está **bloqueado por los navegadores modernos dentro de iframes**, por lo que siempre retorna `false` sin mostrar ningún dialogo. El usuario hace clic en "Eliminar", no pasa nada visible, y el invitado no se borra.
+El flujo actual es:
+- `handleDeleteGuest` en `Index.tsx` ejecuta el DELETE en la base de datos
+- Muestra el toast "Invitado eliminado" (correcto)
+- NO actualiza el estado local `guests` ni llama `fetchGuests()`
+- La suscripción en tiempo real (realtime) debería disparar `fetchGuests()` automáticamente, pero es poco confiable y tiene un problema adicional: `fetchGuests` dentro del callback de realtime usa la versión "capturada" de `viewMode`/`selectedWeek` en el momento en que se creó la suscripción (closure stale), no la versión actual
 
-La autenticación también muestra un error de token expirado en los logs, pero ese no es el problema principal aquí.
+Solución: Después de un DELETE exitoso, eliminar el invitado del estado local de forma inmediata con `setGuests(prev => prev.filter(g => g.id !== guestId))`. Esto garantiza que la pantalla se actualice al instante, sin depender del realtime.
 
-## Solución
+### Problema 2: La búsqueda no encuentra invitados de otras semanas
 
-Reemplazar `confirm()` por un `AlertDialog` de Radix UI (ya instalado) que funciona correctamente dentro del iframe y en cualquier contexto.
+El buscador filtra `filteredGuests` que viene de `guests`, y `guests` solo contiene los invitados de la semana/mes visible actualmente. Si un invitado está en otra semana, no está en memoria y el filtro nunca lo encontrará.
 
-## Detalles técnicos
+Solución: Cuando el usuario escribe en el buscador, hacer una consulta separada a la base de datos que busque en TODOS los registros (sin filtro de semana), y mostrar los resultados en un panel de búsqueda global debajo del input. Los resultados mostrarán el nombre, tema y fecha del invitado, con la posibilidad de hacer clic para navegar a esa semana/día.
 
-**Archivo: `src/components/GuestDetailModal.tsx`**
+---
 
-1. Importar `AlertDialog`, `AlertDialogAction`, `AlertDialogCancel`, `AlertDialogContent`, `AlertDialogDescription`, `AlertDialogFooter`, `AlertDialogHeader`, `AlertDialogTitle`, `AlertDialogTrigger` desde `@/components/ui/alert-dialog`.
-2. Reemplazar el botón "Eliminar" con un `AlertDialog` que envuelve el trigger y muestra un diálogo de confirmación propio de React.
-3. El diálogo mostrará:
-   - Título: "¿Eliminar invitado?"
-   - Descripción: "Esta acción no se puede deshacer. El invitado sera eliminado permanentemente de la base de datos."
-   - Botón "Cancelar" y botón "Eliminar" (destructivo)
+### Detalles técnicos
 
-El flujo correcto quedaria:
+**Archivo: `src/pages/Index.tsx`**
 
-```
-Clic en "Eliminar"
-  -> Se abre AlertDialog (React, funciona en iframe)
-  -> Usuario confirma
-  -> onDelete(guest.id) se ejecuta
-  -> Supabase DELETE en la tabla guests
-  -> Toast de confirmacion
-  -> Modal se cierra
-```
+1. En `handleDeleteGuest`, después del `toast.success`, agregar:
+   ```
+   setGuests(prev => prev.filter(g => g.id !== guestId));
+   ```
+   Esto actualiza la lista local inmediatamente.
+
+2. Agregar un nuevo estado `globalSearchResults` y `isSearching`.
+
+3. Crear una función `searchAllGuests(query)` que cuando `searchQuery` tenga 3 o más caracteres, busque en la base de datos sin filtro de semana:
+   ```
+   supabase.from('guests').select('*')
+     .or(`name.ilike.%${query}%,topic.ilike.%${query}%`)
+     .limit(20)
+   ```
+
+4. Mostrar los resultados globales en un `Popover` o dropdown debajo del input de búsqueda, con nombre + tema + semana de cada invitado encontrado. Al hacer clic en uno, navegar a esa semana/día y abrir el modal.
+
+**Archivo: `src/components/FilterBar.tsx`**
+
+Adaptar el input de búsqueda para:
+- Recibir una prop `onGlobalSearch` que se llame cuando el texto cambia
+- Mostrar un listado de resultados globales debajo del input cuando hay resultados (`globalSearchResults`)
+- Permitir hacer clic en un resultado para navegar a él
+
+---
+
+### Tabla de cambios
 
 | Archivo | Cambio |
 |---------|--------|
-| `src/components/GuestDetailModal.tsx` | Reemplazar confirm() con AlertDialog de Radix UI |
-
-No se requieren cambios en la base de datos ni en otros archivos. La RLS ya permite borrar a usuarios con rol admin, y `handleDeleteGuest` en `Index.tsx` ya funciona correctamente.
+| `src/pages/Index.tsx` | Fix eliminación: `setGuests` inmediato tras DELETE. Agregar búsqueda global con query a BD |
+| `src/components/FilterBar.tsx` | Panel de resultados de búsqueda global debajo del input |
