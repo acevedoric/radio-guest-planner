@@ -1,61 +1,44 @@
 
+## Problema: confirm() bloqueado en iframe
 
-## Plan: Corregir 3 problemas en vista DIA
-
-### Problema 1: Pop-up se abre con cada accion
-
-La Card completa tiene un `onClick` en la linea 113 de `DayView.tsx`:
-```text
-onClick={() => editMode && (guest ? onGuestClick(guest) : onAddGuest(selectedDay, slot))}
+La función `handleDelete` en `GuestDetailModal.tsx` (línea 100) usa:
 ```
-Cualquier clic dentro de la tarjeta (checkboxes, botones de IA, modulos colapsables) hace "bubble up" y abre el modal de edicion.
+if (confirm("¿Estás seguro de eliminar este invitado?")) {
+```
 
-**Solucion**: Quitar el `onClick` de la Card y agregar un boton explicito "Editar" en el header de la tarjeta, o mover el onClick solo al area del nombre del invitado. Tambien agregar `e.stopPropagation()` en los checkboxes y otros elementos interactivos.
+`window.confirm()` está **bloqueado por los navegadores modernos dentro de iframes**, por lo que siempre retorna `false` sin mostrar ningún dialogo. El usuario hace clic en "Eliminar", no pasa nada visible, y el invitado no se borra.
 
-### Problema 2: Toda la info va a TEMA PRINCIPAL en vez de separarse en 4 bloques
+La autenticación también muestra un error de token expirado en los logs, pero ese no es el problema principal aquí.
 
-Los logs confirman: `Parsed sections: tema_principal` -- el regex solo encuentra 1 seccion.
+## Solución
 
-La razon: n8n devuelve headers con formato `### COYUNTURA ###`, `### INFANCIA ###`, `### CARRERA ###`, `### CURIOSIDADES ###` pero el regex actual busca secciones numeradas tipo `1.`, `2.`, `3.`, `4.`.
+Reemplazar `confirm()` por un `AlertDialog` de Radix UI (ya instalado) que funciona correctamente dentro del iframe y en cualquier contexto.
 
-**Solucion**: Actualizar `parseOutputSections()` en la Edge Function para detectar AMBOS formatos:
-- Numerados: `1. Titulo`, `2. Titulo`...
-- Con hashtags: `### COYUNTURA ###`, `### INFANCIA ###`...
+## Detalles técnicos
 
-Mapeo de keywords:
-- COYUNTURA -> `tema_principal`
-- INFANCIA -> `infancia_vida_privada`
-- CARRERA -> `carrera_profesional`
-- CURIOSIDADES / CURIOSOS -> `datos_curiosos`
+**Archivo: `src/components/GuestDetailModal.tsx`**
 
-### Problema 3: Texto con ** no se muestra en negrilla
+1. Importar `AlertDialog`, `AlertDialogAction`, `AlertDialogCancel`, `AlertDialogContent`, `AlertDialogDescription`, `AlertDialogFooter`, `AlertDialogHeader`, `AlertDialogTitle`, `AlertDialogTrigger` desde `@/components/ui/alert-dialog`.
+2. Reemplazar el botón "Eliminar" con un `AlertDialog` que envuelve el trigger y muestra un diálogo de confirmación propio de React.
+3. El diálogo mostrará:
+   - Título: "¿Eliminar invitado?"
+   - Descripción: "Esta acción no se puede deshacer. El invitado sera eliminado permanentemente de la base de datos."
+   - Botón "Cancelar" y botón "Eliminar" (destructivo)
 
-Actualmente `GuestInfoModules` muestra el contenido con `whitespace-pre-wrap` como texto plano. El markdown `**texto**` no se renderiza.
+El flujo correcto quedaria:
 
-**Solucion**: Crear una funcion que convierta `**texto**` a elementos `<strong>` de React (sin usar dangerouslySetInnerHTML) y aplicarla al mostrar el contenido de cada modulo.
-
----
-
-### Detalles tecnicos
+```
+Clic en "Eliminar"
+  -> Se abre AlertDialog (React, funciona en iframe)
+  -> Usuario confirma
+  -> onDelete(guest.id) se ejecuta
+  -> Supabase DELETE en la tabla guests
+  -> Toast de confirmacion
+  -> Modal se cierra
+```
 
 | Archivo | Cambio |
 |---------|--------|
-| `supabase/functions/trigger-n8n-scraping/index.ts` | Actualizar `parseOutputSections()` para soportar headers `### KEYWORD ###` ademas de numerados |
-| `src/components/DayView.tsx` | Quitar onClick de la Card, agregar boton/area especifica para abrir modal, stopPropagation en checkboxes |
-| `src/components/GuestInfoModules.tsx` | Renderizar `**texto**` como negrilla usando React elements |
+| `src/components/GuestDetailModal.tsx` | Reemplazar confirm() con AlertDialog de Radix UI |
 
-### Flujo corregido del parseo:
-
-```text
-n8n response: {"output": "### COYUNTURA ###\n...\n### INFANCIA ###\n...\n### CARRERA ###\n...\n### CURIOSIDADES ###\n..."}
-
-parseOutputSections() detecta ### KEYWORD ###
-  -> COYUNTURA -> tema_principal
-  -> INFANCIA -> infancia_vida_privada  
-  -> CARRERA -> carrera_profesional
-  -> CURIOSIDADES -> datos_curiosos
-
-Cada campo se guarda por separado en la BD
-Frontend muestra cada campo en su modulo correspondiente con negrillas
-```
-
+No se requieren cambios en la base de datos ni en otros archivos. La RLS ya permite borrar a usuarios con rol admin, y `handleDeleteGuest` en `Index.tsx` ya funciona correctamente.
