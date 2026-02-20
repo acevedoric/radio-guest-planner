@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Navigate } from "react-router-dom";
 import { startOfWeek, startOfMonth, addDays, addWeeks, endOfMonth, format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -27,6 +27,8 @@ const Index = () => {
   const [selectedMonth, setSelectedMonth] = useState(startOfMonth(new Date()));
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [globalSearchResults, setGlobalSearchResults] = useState<Guest[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
   const [selectedGuest, setSelectedGuest] = useState<Guest | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newGuestSlot, setNewGuestSlot] = useState<{
@@ -153,14 +155,13 @@ const Index = () => {
     }
   };
   const handleDeleteGuest = async (guestId: string) => {
-    const {
-      error
-    } = await supabase.from('guests').delete().eq('id', guestId);
+    const { error } = await supabase.from('guests').delete().eq('id', guestId);
     if (error) {
       toast.error("Error al eliminar invitado");
       console.error(error);
     } else {
       toast.success("Invitado eliminado");
+      setGuests(prev => prev.filter(g => g.id !== guestId));
     }
   };
 
@@ -252,6 +253,50 @@ const Index = () => {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     toast.success("Sesión cerrada");
+  };
+
+  const searchAllGuests = useCallback(async (query: string) => {
+    if (query.length < 3) {
+      setGlobalSearchResults([]);
+      return;
+    }
+    setIsSearching(true);
+    const { data, error } = await supabase
+      .from('guests')
+      .select('*')
+      .or(`name.ilike.%${query}%,topic.ilike.%${query}%`)
+      .limit(20);
+    setIsSearching(false);
+    if (!error && data) {
+      setGlobalSearchResults(data as Guest[]);
+    }
+  }, []);
+
+  const handleGlobalResultClick = (guest: Guest) => {
+    // Navegar a la semana/día del invitado
+    const weekDate = new Date(guest.week_date + 'T12:00:00');
+    const weekStart = startOfWeek(weekDate, { weekStartsOn: 1 });
+    setSelectedWeek(weekStart);
+
+    const dayMap: Record<string, string> = {
+      monday: "monday",
+      tuesday: "tuesday",
+      wednesday: "wednesday",
+      thursday: "thursday",
+    };
+    if (dayMap[guest.day_of_week]) {
+      setSelectedDay(guest.day_of_week);
+    }
+    setViewMode("day");
+
+    // Abrir el modal con ese invitado
+    setSelectedGuest(guest);
+    setNewGuestSlot(null);
+    setIsModalOpen(true);
+
+    // Limpiar la búsqueda
+    setSearchQuery("");
+    setGlobalSearchResults([]);
   };
 
   const getNextWorkDay = () => {
@@ -349,7 +394,10 @@ const Index = () => {
       <main className="container mx-auto px-4 py-8 space-y-6">
         <FilterBar 
           searchQuery={searchQuery} 
-          onSearchChange={setSearchQuery} 
+          onSearchChange={(value) => {
+            setSearchQuery(value);
+            searchAllGuests(value);
+          }} 
           statusFilter={statusFilter} 
           onStatusFilterChange={setStatusFilter} 
           selectedWeek={selectedWeek} 
@@ -362,6 +410,9 @@ const Index = () => {
           onViewModeChange={setViewMode}
           editMode={editMode}
           onEditModeChange={setEditMode}
+          globalSearchResults={globalSearchResults}
+          isSearching={isSearching}
+          onGlobalResultClick={handleGlobalResultClick}
         />
 
         {viewMode === "day" && (
