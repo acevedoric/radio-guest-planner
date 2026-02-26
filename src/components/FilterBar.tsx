@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -49,6 +50,7 @@ export const FilterBar = ({
   onGlobalResultClick,
 }: FilterBarProps) => {
   const searchRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
   const calculateDayDate = () => {
     const dayIndex = {
       monday: 0,
@@ -222,7 +224,7 @@ export const FilterBar = ({
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           )}
           <Input
-            placeholder="Buscar por nombre o tema..."
+            placeholder="Buscar por nombre, cargo, tema..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             className="pl-10"
@@ -236,7 +238,7 @@ export const FilterBar = ({
                   No se encontraron invitados
                 </div>
               )}
-              {globalSearchResults.map((guest) => {
+              {globalSearchResults.slice(0, 5).map((guest) => {
                 const weekDate = new Date(guest.week_date + 'T12:00:00');
                 const dateLabel = format(weekDate, "d 'de' MMMM yyyy", { locale: es });
                 const dayLabels: Record<string, string> = {
@@ -254,7 +256,10 @@ export const FilterBar = ({
                   >
                     <CalendarDays className="w-4 h-4 mt-0.5 text-primary shrink-0" />
                     <div className="min-w-0">
-                      <div className="font-medium text-sm truncate">{guest.name}</div>
+                      <div className="font-medium text-sm truncate">
+                        {guest.name}
+                        {guest.position && <span className="text-muted-foreground font-normal"> · {guest.position}</span>}
+                      </div>
                       <div className="text-xs text-muted-foreground truncate">{guest.topic}</div>
                       <div className="text-xs text-primary mt-0.5">
                         {dayLabels[guest.day_of_week] || guest.day_of_week} · {dateLabel} · Bloque {guest.time_slot}
@@ -263,6 +268,17 @@ export const FilterBar = ({
                   </button>
                 );
               })}
+              {globalSearchResults.length > 0 && (
+                <button
+                  type="button"
+                  className="w-full text-center px-4 py-2.5 text-sm font-medium text-primary hover:bg-accent transition-colors border-t border-border"
+                  onClick={() => {
+                    navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
+                  }}
+                >
+                  Ver todos los resultados →
+                </button>
+              )}
             </div>
           )}
         </div>
