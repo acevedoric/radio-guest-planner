@@ -264,7 +264,7 @@ const Index = () => {
     const { data, error } = await supabase
       .from('guests')
       .select('*')
-      .or(`name.ilike.%${query}%,topic.ilike.%${query}%`)
+      .or(`name.ilike.%${query}%,topic.ilike.%${query}%,position.ilike.%${query}%,notes.ilike.%${query}%,program_type.ilike.%${query}%`)
       .limit(20);
     setIsSearching(false);
     if (!error && data) {
