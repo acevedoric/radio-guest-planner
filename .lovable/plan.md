@@ -1,57 +1,53 @@
 
-## Dos correcciones: Eliminación y Búsqueda
 
-### Problema 1: La eliminación borra de la BD pero la pantalla no se actualiza
+## Mejorar la Busqueda Global
 
-El flujo actual es:
-- `handleDeleteGuest` en `Index.tsx` ejecuta el DELETE en la base de datos
-- Muestra el toast "Invitado eliminado" (correcto)
-- NO actualiza el estado local `guests` ni llama `fetchGuests()`
-- La suscripción en tiempo real (realtime) debería disparar `fetchGuests()` automáticamente, pero es poco confiable y tiene un problema adicional: `fetchGuests` dentro del callback de realtime usa la versión "capturada" de `viewMode`/`selectedWeek` en el momento en que se creó la suscripción (closure stale), no la versión actual
+### Problema identificado
 
-Solución: Después de un DELETE exitoso, eliminar el invitado del estado local de forma inmediata con `setGuests(prev => prev.filter(g => g.id !== guestId))`. Esto garantiza que la pantalla se actualice al instante, sin depender del realtime.
+La busqueda actual solo busca en los campos **nombre** y **tema** del invitado. Si buscas "ACTOR", no encuentra a nadie porque el cargo/posicion ("Actor", "Actriz") no esta incluido en la consulta. Tampoco busca en notas ni otros campos relevantes.
 
-### Problema 2: La búsqueda no encuentra invitados de otras semanas
+Ademas, los resultados se muestran en un pequeno dropdown que no permite ver bien la informacion. El usuario necesita una pagina de resultados con resumen.
 
-El buscador filtra `filteredGuests` que viene de `guests`, y `guests` solo contiene los invitados de la semana/mes visible actualmente. Si un invitado está en otra semana, no está en memoria y el filtro nunca lo encontrará.
+### Solucion
 
-Solución: Cuando el usuario escribe en el buscador, hacer una consulta separada a la base de datos que busque en TODOS los registros (sin filtro de semana), y mostrar los resultados en un panel de búsqueda global debajo del input. Los resultados mostrarán el nombre, tema y fecha del invitado, con la posibilidad de hacer clic para navegar a esa semana/día.
+1. **Ampliar la busqueda** para incluir los campos: `name`, `topic`, `position`, `notes` y `program_type`
+2. **Crear una pagina de resultados de busqueda** (`/search`) que muestre una lista completa con:
+   - Nombre del invitado
+   - Cargo/posicion
+   - Tema
+   - Fecha programada (semana + dia)
+   - Estado de grabacion
+   - Posibilidad de hacer clic para navegar al dia del invitado
 
----
+3. **Mantener el dropdown** para resultados rapidos (maximo 5), con un enlace "Ver todos los resultados" que lleve a la pagina completa
 
-### Detalles técnicos
-
-**Archivo: `src/pages/Index.tsx`**
-
-1. En `handleDeleteGuest`, después del `toast.success`, agregar:
-   ```
-   setGuests(prev => prev.filter(g => g.id !== guestId));
-   ```
-   Esto actualiza la lista local inmediatamente.
-
-2. Agregar un nuevo estado `globalSearchResults` y `isSearching`.
-
-3. Crear una función `searchAllGuests(query)` que cuando `searchQuery` tenga 3 o más caracteres, busque en la base de datos sin filtro de semana:
-   ```
-   supabase.from('guests').select('*')
-     .or(`name.ilike.%${query}%,topic.ilike.%${query}%`)
-     .limit(20)
-   ```
-
-4. Mostrar los resultados globales en un `Popover` o dropdown debajo del input de búsqueda, con nombre + tema + semana de cada invitado encontrado. Al hacer clic en uno, navegar a esa semana/día y abrir el modal.
-
-**Archivo: `src/components/FilterBar.tsx`**
-
-Adaptar el input de búsqueda para:
-- Recibir una prop `onGlobalSearch` que se llame cuando el texto cambia
-- Mostrar un listado de resultados globales debajo del input cuando hay resultados (`globalSearchResults`)
-- Permitir hacer clic en un resultado para navegar a él
-
----
-
-### Tabla de cambios
+### Detalles tecnicos
 
 | Archivo | Cambio |
 |---------|--------|
-| `src/pages/Index.tsx` | Fix eliminación: `setGuests` inmediato tras DELETE. Agregar búsqueda global con query a BD |
-| `src/components/FilterBar.tsx` | Panel de resultados de búsqueda global debajo del input |
+| `src/pages/SearchResults.tsx` | Nueva pagina con lista de resultados, fecha, posicion y resumen |
+| `src/pages/Index.tsx` | Ampliar query de busqueda para incluir `position`, `notes`. Agregar navegacion a pagina de resultados |
+| `src/components/FilterBar.tsx` | Agregar boton "Ver todos" en el dropdown cuando hay resultados. Mostrar posicion en cada resultado |
+| `src/App.tsx` | Agregar ruta `/search` |
+
+### Pagina de resultados
+
+La pagina mostrara:
+- Titulo con el termino buscado y cantidad de resultados
+- Lista de tarjetas con: nombre, posicion, tema, fecha (dia + semana), estado
+- Cada tarjeta es clickeable y navega al dia correspondiente del invitado
+- Boton para volver al calendario
+
+### Query mejorada
+
+La consulta pasara de:
+```
+.or(`name.ilike.%query%,topic.ilike.%query%`)
+```
+A:
+```
+.or(`name.ilike.%query%,topic.ilike.%query%,position.ilike.%query%,notes.ilike.%query%,program_type.ilike.%query%`)
+```
+
+Esto permitira encontrar invitados buscando por cargo ("actor", "cantante", "comediante"), por tema, por nombre o por notas.
+
