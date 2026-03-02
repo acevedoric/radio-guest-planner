@@ -111,9 +111,60 @@ const Index = () => {
       day_of_week: newGuestSlot?.day || guest.day_of_week,
       time_slot: newGuestSlot?.slot || guest.time_slot
     };
-    
-    const isNewGuest = !guest.id;
-    const timeSlot = guestData.time_slot;
+
+    // Si el estado es "postponed" y hay scheduled_date, mover al nuevo día
+    if (guestData.recording_status === "postponed" && guestData.scheduled_date) {
+      const scheduledDate = new Date(guestData.scheduled_date + 'T12:00:00');
+      const dayOfWeekNum = scheduledDate.getDay(); // 0=Dom, 1=Lun, ... 4=Jue
+
+      const dayMap: Record<number, string> = {
+        1: "monday",
+        2: "tuesday",
+        3: "wednesday",
+        4: "thursday"
+      };
+
+      if (!dayMap[dayOfWeekNum]) {
+        toast.error("La fecha seleccionada no cae en un día laboral (Lunes a Jueves)");
+        return;
+      }
+
+      const newDayOfWeek = dayMap[dayOfWeekNum];
+      const newWeekDate = startOfWeek(scheduledDate, { weekStartsOn: 1 });
+      const newWeekDateStr = newWeekDate.toISOString().split('T')[0];
+
+      // Verificar disponibilidad del slot
+      let conflictQuery = supabase
+        .from('guests')
+        .select('id, name')
+        .eq('week_date', newWeekDateStr)
+        .eq('day_of_week', newDayOfWeek)
+        .eq('time_slot', guestData.time_slot);
+
+      if (guest.id) {
+        conflictQuery = conflictQuery.neq('id', guest.id);
+      }
+
+      const { data: conflicts, error: conflictError } = await conflictQuery;
+
+      if (conflictError) {
+        toast.error("Error al verificar disponibilidad");
+        console.error(conflictError);
+        return;
+      }
+
+      if (conflicts && conflicts.length > 0) {
+        const dayNames: Record<string, string> = {
+          monday: "Lunes", tuesday: "Martes", wednesday: "Miércoles", thursday: "Jueves"
+        };
+        toast.error(`El slot ${guestData.time_slot} del ${dayNames[newDayOfWeek]} ya está ocupado por "${conflicts[0].name}"`);
+        return;
+      }
+
+      // Mover el invitado al nuevo día/semana
+      guestData.day_of_week = newDayOfWeek;
+      guestData.week_date = newWeekDateStr;
+    }
     
     if (guest.id) {
       const { error } = await supabase.from('guests').update(guestData).eq('id', guest.id);
@@ -121,7 +172,7 @@ const Index = () => {
         toast.error("Error al actualizar invitado");
         console.error(error);
       } else {
-        toast.success("Invitado actualizado");
+        toast.success("Invitado actualizado y movido");
       }
     } else {
       const { data, error } = await supabase.from('guests').insert([guestData]).select().single();
