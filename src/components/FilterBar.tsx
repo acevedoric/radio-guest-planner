@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Search, ChevronLeft, ChevronRight, Lock, Unlock, Loader2, CalendarDays } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, Lock, Unlock, Loader2, CalendarDays, User, Phone } from "lucide-react";
 import { addWeeks, subWeeks, addMonths, subMonths, addDays, subDays, format } from "date-fns";
 import { es } from "date-fns/locale";
 import { Guest } from "@/types/guest";
@@ -24,7 +24,7 @@ interface FilterBarProps {
   onViewModeChange: (mode: "day" | "week" | "month") => void;
   editMode: boolean;
   onEditModeChange: (mode: boolean) => void;
-  globalSearchResults: Guest[];
+  globalSearchResults: { guests: Guest[]; press: Guest[] };
   isSearching: boolean;
   onGlobalResultClick: (guest: Guest) => void;
 }
@@ -51,6 +51,7 @@ export const FilterBar = ({
 }: FilterBarProps) => {
   const searchRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+
   const calculateDayDate = () => {
     const dayIndex = {
       monday: 0,
@@ -65,29 +66,12 @@ export const FilterBar = ({
     if (viewMode === "day") {
       const currentDate = calculateDayDate();
       let prevDate = subDays(currentDate, 1);
-      
-      // Skip weekend days
-      if (prevDate.getDay() === 0) { // Sunday
-        prevDate = subDays(prevDate, 2); // Go to Friday, then will go to Thursday
-      }
-      if (prevDate.getDay() === 5) { // Friday
-        prevDate = subDays(prevDate, 1); // Go to Thursday
-      }
-      if (prevDate.getDay() === 6) { // Saturday
-        prevDate = subDays(prevDate, 2); // Go to Thursday
-      }
-      
-      // Update week if needed
+      if (prevDate.getDay() === 0) prevDate = subDays(prevDate, 2);
+      if (prevDate.getDay() === 5) prevDate = subDays(prevDate, 1);
+      if (prevDate.getDay() === 6) prevDate = subDays(prevDate, 2);
       const newWeekStart = addDays(prevDate, -(prevDate.getDay() - 1));
       onWeekChange(newWeekStart);
-      
-      // Set the day
-      const dayMap: Record<number, string> = {
-        1: "monday",
-        2: "tuesday",
-        3: "wednesday",
-        4: "thursday"
-      };
+      const dayMap: Record<number, string> = { 1: "monday", 2: "tuesday", 3: "wednesday", 4: "thursday" };
       onDayChange(dayMap[prevDate.getDay()]);
       onViewModeChange("day");
     } else if (viewMode === "week") {
@@ -101,29 +85,12 @@ export const FilterBar = ({
     if (viewMode === "day") {
       const currentDate = calculateDayDate();
       let nextDate = addDays(currentDate, 1);
-      
-      // Skip weekend days
-      if (nextDate.getDay() === 5) { // Friday
-        nextDate = addDays(nextDate, 3); // Go to Monday
-      }
-      if (nextDate.getDay() === 6) { // Saturday
-        nextDate = addDays(nextDate, 2); // Go to Monday
-      }
-      if (nextDate.getDay() === 0) { // Sunday
-        nextDate = addDays(nextDate, 1); // Go to Monday
-      }
-      
-      // Update week if needed
+      if (nextDate.getDay() === 5) nextDate = addDays(nextDate, 3);
+      if (nextDate.getDay() === 6) nextDate = addDays(nextDate, 2);
+      if (nextDate.getDay() === 0) nextDate = addDays(nextDate, 1);
       const newWeekStart = addDays(nextDate, -(nextDate.getDay() - 1));
       onWeekChange(newWeekStart);
-      
-      // Set the day
-      const dayMap: Record<number, string> = {
-        1: "monday",
-        2: "tuesday",
-        3: "wednesday",
-        4: "thursday"
-      };
+      const dayMap: Record<number, string> = { 1: "monday", 2: "tuesday", 3: "wednesday", 4: "thursday" };
       onDayChange(dayMap[nextDate.getDay()]);
       onViewModeChange("day");
     } else if (viewMode === "week") {
@@ -146,16 +113,21 @@ export const FilterBar = ({
     return "";
   };
 
+  const dayLabels: Record<string, string> = {
+    monday: "Lun",
+    tuesday: "Mar",
+    wednesday: "Mié",
+    thursday: "Jue",
+  };
+
+  const hasResults = globalSearchResults.guests.length > 0 || globalSearchResults.press.length > 0;
+
   return (
     <div className="space-y-4">
       {/* Navigation and View Selector */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={handlePrevious}
-          >
+          <Button variant="outline" size="icon" onClick={handlePrevious}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
           
@@ -170,44 +142,22 @@ export const FilterBar = ({
             </span>
           </div>
           
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={handleNext}
-          >
+          <Button variant="outline" size="icon" onClick={handleNext}>
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
 
         {/* View Mode Selector */}
         <div className="flex gap-2 items-center">
-          <Button
-            variant={viewMode === "day" ? "default" : "outline"}
-            onClick={() => onViewModeChange("day")}
-          >
-            Día
-          </Button>
-          <Button
-            variant={viewMode === "week" ? "default" : "outline"}
-            onClick={() => onViewModeChange("week")}
-          >
-            Semana
-          </Button>
-          <Button
-            variant={viewMode === "month" ? "default" : "outline"}
-            onClick={() => onViewModeChange("month")}
-          >
-            Mes
-          </Button>
+          <Button variant={viewMode === "day" ? "default" : "outline"} onClick={() => onViewModeChange("day")}>Día</Button>
+          <Button variant={viewMode === "week" ? "default" : "outline"} onClick={() => onViewModeChange("week")}>Semana</Button>
+          <Button variant={viewMode === "month" ? "default" : "outline"} onClick={() => onViewModeChange("month")}>Mes</Button>
           
           <div className="h-6 w-px bg-border mx-2" />
           
           <div className="flex items-center gap-2">
             {editMode ? <Unlock className="h-4 w-4 text-primary" /> : <Lock className="h-4 w-4 text-muted-foreground" />}
-            <Switch 
-              checked={editMode} 
-              onCheckedChange={onEditModeChange}
-            />
+            <Switch checked={editMode} onCheckedChange={onEditModeChange} />
             <span className="text-sm font-medium whitespace-nowrap">
               {editMode ? "Editar" : "Presentar"}
             </span>
@@ -224,7 +174,7 @@ export const FilterBar = ({
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           )}
           <Input
-            placeholder="Buscar por nombre, cargo, tema..."
+            placeholder="Buscar invitados, temas, prensa..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             className="pl-10"
@@ -232,43 +182,86 @@ export const FilterBar = ({
 
           {/* Dropdown resultados globales */}
           {searchQuery.length >= 3 && (
-            <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-popover border border-border rounded-md shadow-lg overflow-hidden">
-              {globalSearchResults.length === 0 && !isSearching && (
+            <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-popover border border-border rounded-md shadow-lg overflow-hidden max-h-[420px] overflow-y-auto">
+              {!hasResults && !isSearching && (
                 <div className="px-4 py-3 text-sm text-muted-foreground text-center">
-                  No se encontraron invitados
+                  No se encontraron resultados
                 </div>
               )}
-              {globalSearchResults.slice(0, 5).map((guest) => {
-                const weekDate = new Date(guest.week_date + 'T12:00:00');
-                const dateLabel = format(weekDate, "d 'de' MMMM yyyy", { locale: es });
-                const dayLabels: Record<string, string> = {
-                  monday: "Lun",
-                  tuesday: "Mar",
-                  wednesday: "Mié",
-                  thursday: "Jue",
-                };
-                return (
-                  <button
-                    key={guest.id}
-                    type="button"
-                    className="w-full text-left px-4 py-3 hover:bg-accent transition-colors border-b border-border last:border-0 flex items-start gap-3"
-                    onClick={() => onGlobalResultClick(guest)}
-                  >
-                    <CalendarDays className="w-4 h-4 mt-0.5 text-primary shrink-0" />
-                    <div className="min-w-0">
-                      <div className="font-medium text-sm truncate">
-                        {guest.name}
-                        {guest.position && <span className="text-muted-foreground font-normal"> · {guest.position}</span>}
-                      </div>
-                      <div className="text-xs text-muted-foreground truncate">{guest.topic}</div>
-                      <div className="text-xs text-primary mt-0.5">
-                        {dayLabels[guest.day_of_week] || guest.day_of_week} · {dateLabel} · Bloque {guest.time_slot}
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-              {globalSearchResults.length > 0 && (
+
+              {/* Sección INVITADOS */}
+              {globalSearchResults.guests.length > 0 && (
+                <>
+                  <div className="px-4 py-2 bg-muted/50 border-b border-border flex items-center gap-2">
+                    <User className="w-3.5 h-3.5 text-primary" />
+                    <span className="text-xs font-semibold uppercase tracking-wide text-primary">Invitados</span>
+                    <span className="text-xs text-muted-foreground">({globalSearchResults.guests.length})</span>
+                  </div>
+                  {globalSearchResults.guests.slice(0, 4).map((guest) => {
+                    const weekDate = new Date(guest.week_date + 'T12:00:00');
+                    const dateLabel = format(weekDate, "d 'de' MMMM yyyy", { locale: es });
+                    return (
+                      <button
+                        key={guest.id}
+                        type="button"
+                        className="w-full text-left px-4 py-3 hover:bg-accent transition-colors border-b border-border last:border-0 flex items-start gap-3"
+                        onClick={() => onGlobalResultClick(guest)}
+                      >
+                        <CalendarDays className="w-4 h-4 mt-0.5 text-primary shrink-0" />
+                        <div className="min-w-0">
+                          <div className="font-medium text-sm truncate">
+                            {guest.name}
+                            {guest.position && <span className="text-muted-foreground font-normal"> · {guest.position}</span>}
+                          </div>
+                          <div className="text-xs text-muted-foreground truncate">{guest.topic}</div>
+                          <div className="text-xs text-primary mt-0.5">
+                            {dayLabels[guest.day_of_week] || guest.day_of_week} · {dateLabel} · Bloque {guest.time_slot}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </>
+              )}
+
+              {/* Sección PRENSA */}
+              {globalSearchResults.press.length > 0 && (
+                <>
+                  <div className="px-4 py-2 bg-muted/50 border-b border-border flex items-center gap-2">
+                    <Phone className="w-3.5 h-3.5 text-primary" />
+                    <span className="text-xs font-semibold uppercase tracking-wide text-primary">Prensa</span>
+                    <span className="text-xs text-muted-foreground">({globalSearchResults.press.length})</span>
+                  </div>
+                  {globalSearchResults.press.slice(0, 4).map((guest) => {
+                    const weekDate = new Date(guest.week_date + 'T12:00:00');
+                    const dateLabel = format(weekDate, "d 'de' MMMM yyyy", { locale: es });
+                    return (
+                      <button
+                        key={`press-${guest.id}`}
+                        type="button"
+                        className="w-full text-left px-4 py-3 hover:bg-accent transition-colors border-b border-border last:border-0 flex items-start gap-3"
+                        onClick={() => onGlobalResultClick(guest)}
+                      >
+                        <Phone className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
+                        <div className="min-w-0">
+                          <div className="font-medium text-sm truncate">
+                            {guest.press_contact || "Sin contacto"}
+                            {guest.press_phone && <span className="text-muted-foreground font-normal"> · {guest.press_phone}</span>}
+                          </div>
+                          <div className="text-xs text-muted-foreground truncate">
+                            Invitado: {guest.name}
+                          </div>
+                          <div className="text-xs text-primary mt-0.5">
+                            {dayLabels[guest.day_of_week] || guest.day_of_week} · {dateLabel}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </>
+              )}
+
+              {hasResults && (
                 <button
                   type="button"
                   className="w-full text-center px-4 py-2.5 text-sm font-medium text-primary hover:bg-accent transition-colors border-t border-border"

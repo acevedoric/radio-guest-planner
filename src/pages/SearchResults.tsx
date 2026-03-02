@@ -7,7 +7,8 @@ import type { Session } from "@supabase/supabase-js";
 import { Guest } from "@/types/guest";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, CalendarDays, Loader2, Search } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { ArrowLeft, CalendarDays, Loader2, Search, User, Phone } from "lucide-react";
 import logo from "@/assets/bla-bla-blu-logo.png";
 
 const statusLabels: Record<string, string> = {
@@ -41,7 +42,8 @@ const SearchResults = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const query = searchParams.get("q") || "";
-  const [results, setResults] = useState<Guest[]>([]);
+  const [guestResults, setGuestResults] = useState<Guest[]>([]);
+  const [pressResults, setPressResults] = useState<Guest[]>([]);
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState<Session | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -55,25 +57,34 @@ const SearchResults = () => {
 
   useEffect(() => {
     if (!session || !query || query.length < 2) {
-      setResults([]);
+      setGuestResults([]);
+      setPressResults([]);
       setLoading(false);
       return;
     }
 
     const fetchResults = async () => {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("guests")
-        .select("*")
-        .or(
-          `name.ilike.%${query}%,topic.ilike.%${query}%,position.ilike.%${query}%,notes.ilike.%${query}%,program_type.ilike.%${query}%`
-        )
-        .order("week_date", { ascending: false })
-        .limit(100);
 
-      if (!error && data) {
-        setResults(data as Guest[]);
-      }
+      const [guestsRes, pressRes] = await Promise.all([
+        supabase
+          .from("guests")
+          .select("*")
+          .or(
+            `name.ilike.%${query}%,topic.ilike.%${query}%,position.ilike.%${query}%,notes.ilike.%${query}%,program_type.ilike.%${query}%,tema_principal.ilike.%${query}%`
+          )
+          .order("week_date", { ascending: false })
+          .limit(100),
+        supabase
+          .from("guests")
+          .select("*")
+          .or(`press_contact.ilike.%${query}%,press_phone.ilike.%${query}%`)
+          .order("week_date", { ascending: false })
+          .limit(100),
+      ]);
+
+      if (!guestsRes.error && guestsRes.data) setGuestResults(guestsRes.data as Guest[]);
+      if (!pressRes.error && pressRes.data) setPressResults(pressRes.data as Guest[]);
       setLoading(false);
     };
 
@@ -81,7 +92,6 @@ const SearchResults = () => {
   }, [query, session]);
 
   const handleGuestClick = (guest: Guest) => {
-    // Navigate to Index with params to open this guest
     const params = new URLSearchParams({
       guestWeek: guest.week_date,
       guestDay: guest.day_of_week,
@@ -101,6 +111,8 @@ const SearchResults = () => {
   if (!session) {
     return <Navigate to="/auth" />;
   }
+
+  const totalResults = guestResults.length + pressResults.length;
 
   return (
     <div className="min-h-screen bg-background">
@@ -124,7 +136,7 @@ const SearchResults = () => {
           </h1>
           {!loading && (
             <Badge variant="secondary" className="text-sm">
-              {results.length} resultado{results.length !== 1 ? "s" : ""}
+              {totalResults} resultado{totalResults !== 1 ? "s" : ""}
             </Badge>
           )}
         </div>
@@ -134,56 +146,108 @@ const SearchResults = () => {
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             <span className="ml-2 text-muted-foreground">Buscando...</span>
           </div>
-        ) : results.length === 0 ? (
+        ) : totalResults === 0 ? (
           <div className="text-center py-16 text-muted-foreground">
             <Search className="h-12 w-12 mx-auto mb-4 opacity-30" />
-            <p className="text-lg">No se encontraron invitados para "{query}"</p>
+            <p className="text-lg">No se encontraron resultados para "{query}"</p>
             <p className="text-sm mt-2">Intenta con otro término de búsqueda</p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {results.map((guest) => {
-              const weekDate = new Date(guest.week_date + "T12:00:00");
-              const dateLabel = format(weekDate, "d 'de' MMMM yyyy", { locale: es });
+          <Tabs defaultValue="guests">
+            <TabsList className="mb-4">
+              <TabsTrigger value="guests" className="gap-2">
+                <User className="h-4 w-4" />
+                Invitados ({guestResults.length})
+              </TabsTrigger>
+              <TabsTrigger value="press" className="gap-2">
+                <Phone className="h-4 w-4" />
+                Prensa ({pressResults.length})
+              </TabsTrigger>
+            </TabsList>
 
-              return (
-                <button
-                  key={guest.id}
-                  onClick={() => handleGuestClick(guest)}
-                  className="w-full text-left p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors flex items-start gap-4"
-                >
-                  <CalendarDays className="h-5 w-5 text-primary mt-0.5 shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold text-base">{guest.name}</span>
-                      {guest.position && (
-                        <span className="text-sm text-muted-foreground">· {guest.position}</span>
-                      )}
-                      <Badge
-                        variant="outline"
-                        className={`text-xs ${statusColors[guest.recording_status] || ""}`}
+            <TabsContent value="guests">
+              {guestResults.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  No se encontraron invitados
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {guestResults.map((guest) => {
+                    const weekDate = new Date(guest.week_date + "T12:00:00");
+                    const dateLabel = format(weekDate, "d 'de' MMMM yyyy", { locale: es });
+                    return (
+                      <button
+                        key={guest.id}
+                        onClick={() => handleGuestClick(guest)}
+                        className="w-full text-left p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors flex items-start gap-4"
                       >
-                        {statusLabels[guest.recording_status] || guest.recording_status}
-                      </Badge>
-                    </div>
-                    {guest.topic && (
-                      <p className="text-sm text-muted-foreground mt-1 truncate">
-                        Tema: {guest.topic}
-                      </p>
-                    )}
-                    <div className="text-xs text-primary mt-1">
-                      {dayLabels[guest.day_of_week] || guest.day_of_week} · Semana del {dateLabel} · Bloque {guest.time_slot}
-                    </div>
-                    {guest.notes && (
-                      <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
-                        📝 {guest.notes}
-                      </p>
-                    )}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+                        <CalendarDays className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-semibold text-base">{guest.name}</span>
+                            {guest.position && (
+                              <span className="text-sm text-muted-foreground">· {guest.position}</span>
+                            )}
+                            <Badge variant="outline" className={`text-xs ${statusColors[guest.recording_status] || ""}`}>
+                              {statusLabels[guest.recording_status] || guest.recording_status}
+                            </Badge>
+                          </div>
+                          {guest.topic && (
+                            <p className="text-sm text-muted-foreground mt-1 truncate">Tema: {guest.topic}</p>
+                          )}
+                          <div className="text-xs text-primary mt-1">
+                            {dayLabels[guest.day_of_week] || guest.day_of_week} · Semana del {dateLabel} · Bloque {guest.time_slot}
+                          </div>
+                          {guest.notes && (
+                            <p className="text-xs text-muted-foreground mt-1 line-clamp-1">📝 {guest.notes}</p>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="press">
+              {pressResults.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  No se encontraron contactos de prensa
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {pressResults.map((guest) => {
+                    const weekDate = new Date(guest.week_date + "T12:00:00");
+                    const dateLabel = format(weekDate, "d 'de' MMMM yyyy", { locale: es });
+                    return (
+                      <button
+                        key={`press-${guest.id}`}
+                        onClick={() => handleGuestClick(guest)}
+                        className="w-full text-left p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors flex items-start gap-4"
+                      >
+                        <Phone className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-semibold text-base">{guest.press_contact || "Sin contacto"}</span>
+                            {guest.press_phone && (
+                              <span className="text-sm text-muted-foreground">· {guest.press_phone}</span>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Invitado: <span className="font-medium text-foreground">{guest.name}</span>
+                            {guest.position && ` · ${guest.position}`}
+                          </p>
+                          <div className="text-xs text-primary mt-1">
+                            {dayLabels[guest.day_of_week] || guest.day_of_week} · Semana del {dateLabel} · Bloque {guest.time_slot}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
         )}
       </main>
     </div>
