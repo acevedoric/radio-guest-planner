@@ -120,7 +120,7 @@ export const FilterBar = ({
     thursday: "Jue",
   };
 
-  const hasResults = globalSearchResults.guests.length > 0 || globalSearchResults.press.length > 0;
+  const hasResults = (globalSearchResults?.guests?.length || 0) > 0 || (globalSearchResults?.press?.length || 0) > 0;
 
   return (
     <div className="space-y-4">
