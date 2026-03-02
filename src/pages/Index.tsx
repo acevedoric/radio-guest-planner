@@ -27,7 +27,7 @@ const Index = () => {
   const [selectedMonth, setSelectedMonth] = useState(startOfMonth(new Date()));
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [globalSearchResults, setGlobalSearchResults] = useState<Guest[]>([]);
+  const [globalSearchResults, setGlobalSearchResults] = useState<{ guests: Guest[]; press: Guest[] }>({ guests: [], press: [] });
   const [isSearching, setIsSearching] = useState(false);
   const [selectedGuest, setSelectedGuest] = useState<Guest | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -308,19 +308,29 @@ const Index = () => {
 
   const searchAllGuests = useCallback(async (query: string) => {
     if (query.length < 3) {
-      setGlobalSearchResults([]);
+      setGlobalSearchResults({ guests: [], press: [] });
       return;
     }
     setIsSearching(true);
-    const { data, error } = await supabase
-      .from('guests')
-      .select('*')
-      .or(`name.ilike.%${query}%,topic.ilike.%${query}%,position.ilike.%${query}%,notes.ilike.%${query}%,program_type.ilike.%${query}%`)
-      .limit(20);
+
+    const [guestsRes, pressRes] = await Promise.all([
+      supabase
+        .from('guests')
+        .select('*')
+        .or(`name.ilike.%${query}%,topic.ilike.%${query}%,position.ilike.%${query}%,notes.ilike.%${query}%,program_type.ilike.%${query}%,tema_principal.ilike.%${query}%`)
+        .limit(20),
+      supabase
+        .from('guests')
+        .select('*')
+        .or(`press_contact.ilike.%${query}%,press_phone.ilike.%${query}%`)
+        .limit(20),
+    ]);
+
     setIsSearching(false);
-    if (!error && data) {
-      setGlobalSearchResults(data as Guest[]);
-    }
+    setGlobalSearchResults({
+      guests: (guestsRes.data || []) as Guest[],
+      press: (pressRes.data || []) as Guest[],
+    });
   }, []);
 
   const handleGlobalResultClick = (guest: Guest) => {
@@ -347,7 +357,7 @@ const Index = () => {
 
     // Limpiar la búsqueda
     setSearchQuery("");
-    setGlobalSearchResults([]);
+    setGlobalSearchResults({ guests: [], press: [] });
   };
 
   const getNextWorkDay = () => {
