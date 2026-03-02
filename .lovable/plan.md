@@ -1,29 +1,46 @@
 
 
-## Mover invitado al cambiar estado a "Aplazado"
+## Mejorar Busqueda: Separar en categorias INVITADOS y PRENSA
 
-### Comportamiento actual
-Cuando se cambia el estado a "APLAZADO" y se selecciona una nueva fecha (`scheduled_date`), el invitado se guarda pero permanece en su dia y slot original. La fecha de aplazamiento queda como un campo informativo sin efecto real.
+### Problema
+La busqueda actual no incluye los campos `press_contact` ni `press_phone`, y muestra todos los resultados mezclados sin distincion entre datos del invitado y datos de prensa.
 
-### Comportamiento deseado
-Al guardar un invitado con estado "APLAZADO" y una `scheduled_date` seleccionada:
-1. Calcular el nuevo `day_of_week` y `week_date` basado en la fecha seleccionada
-2. Verificar que el slot del invitado en ese nuevo dia no este ocupado por otro invitado
-3. Si esta libre: mover el invitado automaticamente (actualizar `day_of_week` y `week_date`)
-4. Si esta ocupado: mostrar una alerta y no guardar, para que el usuario decida
+### Solucion
+
+Separar la busqueda en dos categorias con tabs/secciones en el dropdown y en la pagina de resultados:
+
+**1. INVITADOS** - Busca en: `name`, `topic`, `position`, `notes`, `program_type`, `tema_principal`
+**2. PRENSA** - Busca en: `press_contact`, `press_phone`
 
 ### Cambios
 
 | Archivo | Cambio |
 |---------|--------|
-| `src/pages/Index.tsx` | En `handleSaveGuest`, detectar cuando el estado es "postponed" con `scheduled_date`. Calcular el nuevo dia/semana, verificar disponibilidad del slot en la BD, y mover o alertar |
+| `src/pages/Index.tsx` | En `searchAllGuests`, ejecutar dos queries separadas: una para invitados y otra para prensa. Devolver ambos conjuntos al FilterBar |
+| `src/components/FilterBar.tsx` | Mostrar el dropdown con dos secciones: "Invitados" y "Prensa". Cada seccion muestra sus resultados con formato distinto (invitados muestra nombre+tema, prensa muestra jefe de prensa+telefono+nombre del invitado asociado) |
+| `src/pages/SearchResults.tsx` | Agregar tabs "Invitados" / "Prensa" con queries separadas. En prensa mostrar contacto, telefono y el invitado al que pertenece |
 
-### Logica en `handleSaveGuest`
+### Detalle tecnico
 
-Cuando `recording_status === "postponed"` y hay `scheduled_date`:
-1. Convertir `scheduled_date` a `day_of_week` (monday-thursday) y `week_date` (lunes de esa semana)
-2. Validar que la fecha caiga en dia laboral (Lun-Jue). Si no, alertar
-3. Consultar la BD: `SELECT * FROM guests WHERE week_date = X AND day_of_week = Y AND time_slot = Z AND id != guestId`
-4. Si hay conflicto: `toast.error("El slot X del [dia] ya esta ocupado por [nombre]")` y no guardar
-5. Si esta libre: actualizar `day_of_week`, `week_date` con los nuevos valores y guardar normalmente
+**Query INVITADOS:**
+```
+.or(`name.ilike.%q%,topic.ilike.%q%,position.ilike.%q%,program_type.ilike.%q%,tema_principal.ilike.%q%`)
+```
+
+**Query PRENSA:**
+```
+.or(`press_contact.ilike.%q%,press_phone.ilike.%q%`)
+```
+
+**Estado en Index.tsx:**
+- `globalSearchResults` pasa a ser un objeto `{ guests: Guest[], press: Guest[] }`
+
+**Dropdown en FilterBar:**
+- Seccion "INVITADOS" con icono de persona: nombre, posicion, tema, fecha
+- Seccion "PRENSA" con icono de telefono: nombre del contacto de prensa, telefono, y debajo el nombre del invitado asociado
+- Boton "Ver todos los resultados" al final
+
+**Pagina SearchResults:**
+- Dos tabs: "Invitados" y "Prensa"
+- Tab Prensa muestra tarjetas con: nombre del jefe de prensa, telefono, y el invitado/fecha asociados
 
