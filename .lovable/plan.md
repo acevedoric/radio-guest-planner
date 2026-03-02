@@ -1,53 +1,29 @@
 
 
-## Mejorar la Busqueda Global
+## Mover invitado al cambiar estado a "Aplazado"
 
-### Problema identificado
+### Comportamiento actual
+Cuando se cambia el estado a "APLAZADO" y se selecciona una nueva fecha (`scheduled_date`), el invitado se guarda pero permanece en su dia y slot original. La fecha de aplazamiento queda como un campo informativo sin efecto real.
 
-La busqueda actual solo busca en los campos **nombre** y **tema** del invitado. Si buscas "ACTOR", no encuentra a nadie porque el cargo/posicion ("Actor", "Actriz") no esta incluido en la consulta. Tampoco busca en notas ni otros campos relevantes.
+### Comportamiento deseado
+Al guardar un invitado con estado "APLAZADO" y una `scheduled_date` seleccionada:
+1. Calcular el nuevo `day_of_week` y `week_date` basado en la fecha seleccionada
+2. Verificar que el slot del invitado en ese nuevo dia no este ocupado por otro invitado
+3. Si esta libre: mover el invitado automaticamente (actualizar `day_of_week` y `week_date`)
+4. Si esta ocupado: mostrar una alerta y no guardar, para que el usuario decida
 
-Ademas, los resultados se muestran en un pequeno dropdown que no permite ver bien la informacion. El usuario necesita una pagina de resultados con resumen.
-
-### Solucion
-
-1. **Ampliar la busqueda** para incluir los campos: `name`, `topic`, `position`, `notes` y `program_type`
-2. **Crear una pagina de resultados de busqueda** (`/search`) que muestre una lista completa con:
-   - Nombre del invitado
-   - Cargo/posicion
-   - Tema
-   - Fecha programada (semana + dia)
-   - Estado de grabacion
-   - Posibilidad de hacer clic para navegar al dia del invitado
-
-3. **Mantener el dropdown** para resultados rapidos (maximo 5), con un enlace "Ver todos los resultados" que lleve a la pagina completa
-
-### Detalles tecnicos
+### Cambios
 
 | Archivo | Cambio |
 |---------|--------|
-| `src/pages/SearchResults.tsx` | Nueva pagina con lista de resultados, fecha, posicion y resumen |
-| `src/pages/Index.tsx` | Ampliar query de busqueda para incluir `position`, `notes`. Agregar navegacion a pagina de resultados |
-| `src/components/FilterBar.tsx` | Agregar boton "Ver todos" en el dropdown cuando hay resultados. Mostrar posicion en cada resultado |
-| `src/App.tsx` | Agregar ruta `/search` |
+| `src/pages/Index.tsx` | En `handleSaveGuest`, detectar cuando el estado es "postponed" con `scheduled_date`. Calcular el nuevo dia/semana, verificar disponibilidad del slot en la BD, y mover o alertar |
 
-### Pagina de resultados
+### Logica en `handleSaveGuest`
 
-La pagina mostrara:
-- Titulo con el termino buscado y cantidad de resultados
-- Lista de tarjetas con: nombre, posicion, tema, fecha (dia + semana), estado
-- Cada tarjeta es clickeable y navega al dia correspondiente del invitado
-- Boton para volver al calendario
-
-### Query mejorada
-
-La consulta pasara de:
-```
-.or(`name.ilike.%query%,topic.ilike.%query%`)
-```
-A:
-```
-.or(`name.ilike.%query%,topic.ilike.%query%,position.ilike.%query%,notes.ilike.%query%,program_type.ilike.%query%`)
-```
-
-Esto permitira encontrar invitados buscando por cargo ("actor", "cantante", "comediante"), por tema, por nombre o por notas.
+Cuando `recording_status === "postponed"` y hay `scheduled_date`:
+1. Convertir `scheduled_date` a `day_of_week` (monday-thursday) y `week_date` (lunes de esa semana)
+2. Validar que la fecha caiga en dia laboral (Lun-Jue). Si no, alertar
+3. Consultar la BD: `SELECT * FROM guests WHERE week_date = X AND day_of_week = Y AND time_slot = Z AND id != guestId`
+4. Si hay conflicto: `toast.error("El slot X del [dia] ya esta ocupado por [nombre]")` y no guardar
+5. Si esta libre: actualizar `day_of_week`, `week_date` con los nuevos valores y guardar normalmente
 
