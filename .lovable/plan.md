@@ -1,46 +1,46 @@
 
 
-## Mejorar Busqueda: Separar en categorias INVITADOS y PRENSA
+## Corregir eliminacion de invitado para que se refleje en todas las vistas
 
 ### Problema
-La busqueda actual no incluye los campos `press_contact` ni `press_phone`, y muestra todos los resultados mezclados sin distincion entre datos del invitado y datos de prensa.
+Cuando eliminas un invitado desde el modal, `handleDeleteGuest` actualiza el estado local con `setGuests(prev => prev.filter(...))`, pero al cambiar de vista (dia → semana → mes), el efecto que depende de `viewMode` ejecuta `fetchGuests()` que deberia traer datos frescos. Sin embargo, el modal no se cierra automaticamente al eliminar, y `handleDelete` en el modal llama `onClose()` antes de que la eliminacion en la BD se complete. Ademas, no se fuerza un `fetchGuests()` despues de eliminar exitosamente.
 
 ### Solucion
 
-Separar la busqueda en dos categorias con tabs/secciones en el dropdown y en la pagina de resultados:
-
-**1. INVITADOS** - Busca en: `name`, `topic`, `position`, `notes`, `program_type`, `tema_principal`
-**2. PRENSA** - Busca en: `press_contact`, `press_phone`
-
-### Cambios
+Dos cambios simples:
 
 | Archivo | Cambio |
 |---------|--------|
-| `src/pages/Index.tsx` | En `searchAllGuests`, ejecutar dos queries separadas: una para invitados y otra para prensa. Devolver ambos conjuntos al FilterBar |
-| `src/components/FilterBar.tsx` | Mostrar el dropdown con dos secciones: "Invitados" y "Prensa". Cada seccion muestra sus resultados con formato distinto (invitados muestra nombre+tema, prensa muestra jefe de prensa+telefono+nombre del invitado asociado) |
-| `src/pages/SearchResults.tsx` | Agregar tabs "Invitados" / "Prensa" con queries separadas. En prensa mostrar contacto, telefono y el invitado al que pertenece |
+| `src/pages/Index.tsx` | En `handleDeleteGuest`: despues de eliminar exitosamente, llamar `fetchGuests()`, cerrar el modal (`setIsModalOpen(false)`, `setSelectedGuest(null)`) |
+| `src/components/GuestDetailModal.tsx` | En `handleDelete`: NO llamar `onClose()` aqui (dejar que el padre cierre el modal despues de la eliminacion) |
 
-### Detalle tecnico
+### Detalle
 
-**Query INVITADOS:**
+**Index.tsx - `handleDeleteGuest`:**
+```typescript
+const handleDeleteGuest = async (guestId: string) => {
+  const { error } = await supabase.from('guests').delete().eq('id', guestId);
+  if (error) {
+    toast.error("Error al eliminar invitado");
+  } else {
+    toast.success("Invitado eliminado");
+    setIsModalOpen(false);
+    setSelectedGuest(null);
+    setNewGuestSlot(null);
+    await fetchGuests(); // Recargar datos frescos de la BD
+  }
+};
 ```
-.or(`name.ilike.%q%,topic.ilike.%q%,position.ilike.%q%,program_type.ilike.%q%,tema_principal.ilike.%q%`)
+
+**GuestDetailModal.tsx - `handleDelete`:**
+```typescript
+const handleDelete = () => {
+  if (guest?.id && onDelete) {
+    onDelete(guest.id);
+    // No llamar onClose() aqui - el padre lo maneja
+  }
+};
 ```
 
-**Query PRENSA:**
-```
-.or(`press_contact.ilike.%q%,press_phone.ilike.%q%`)
-```
-
-**Estado en Index.tsx:**
-- `globalSearchResults` pasa a ser un objeto `{ guests: Guest[], press: Guest[] }`
-
-**Dropdown en FilterBar:**
-- Seccion "INVITADOS" con icono de persona: nombre, posicion, tema, fecha
-- Seccion "PRENSA" con icono de telefono: nombre del contacto de prensa, telefono, y debajo el nombre del invitado asociado
-- Boton "Ver todos los resultados" al final
-
-**Pagina SearchResults:**
-- Dos tabs: "Invitados" y "Prensa"
-- Tab Prensa muestra tarjetas con: nombre del jefe de prensa, telefono, y el invitado/fecha asociados
+Esto garantiza que al eliminar, los datos se recargan desde la BD y el estado local se sincroniza correctamente para cualquier vista.
 
