@@ -99,7 +99,6 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
   const handleDelete = () => {
     if (guest?.id && onDelete) {
       onDelete(guest.id);
-      onClose();
     }
   };
 
