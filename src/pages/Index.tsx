@@ -206,15 +206,36 @@ const Index = () => {
     }
   };
   const handleDeleteGuest = async (guestId: string) => {
+    const guestToDelete = guests.find((g) => g.id === guestId);
+
     const { error } = await supabase.from('guests').delete().eq('id', guestId);
     if (error) {
       toast.error("Error al eliminar invitado");
       console.error(error);
     } else {
-      toast.success("Invitado eliminado");
+      setGuests((prev) => prev.filter((g) => g.id !== guestId));
       setIsModalOpen(false);
       setSelectedGuest(null);
       setNewGuestSlot(null);
+
+      if (guestToDelete) {
+        const hasAnotherGuestInSameSlot = guests.some(
+          (g) =>
+            g.id !== guestId &&
+            g.week_date === guestToDelete.week_date &&
+            g.day_of_week === guestToDelete.day_of_week &&
+            g.time_slot === guestToDelete.time_slot
+        );
+
+        if (hasAnotherGuestInSameSlot) {
+          toast.warning("Se eliminó el registro, pero existe otro invitado en ese mismo bloque.");
+        } else {
+          toast.success("Invitado eliminado");
+        }
+      } else {
+        toast.success("Invitado eliminado");
+      }
+
       await fetchGuests();
     }
   };
