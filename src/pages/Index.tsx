@@ -212,7 +212,10 @@ const Index = () => {
       console.error(error);
     } else {
       toast.success("Invitado eliminado");
-      setGuests(prev => prev.filter(g => g.id !== guestId));
+      setIsModalOpen(false);
+      setSelectedGuest(null);
+      setNewGuestSlot(null);
+      await fetchGuests();
     }
   };
 
