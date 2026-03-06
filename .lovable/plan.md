@@ -1,43 +1,46 @@
 
 
-## Correccion: El invitado no se elimina porque la politica de seguridad lo impide
+## Mejorar Busqueda: Separar en categorias INVITADOS y PRENSA
 
-### Causa raiz
-
-La politica de eliminacion (RLS) en la tabla `guests` solo permite borrar a usuarios con rol `admin`. Tu usuario tiene rol `producer`. Cuando intentas eliminar, la base de datos no devuelve un error explicito -- simplemente no borra nada. Por eso ves el mensaje "Invitado eliminado" pero el registro sigue ahi.
+### Problema
+La busqueda actual no incluye los campos `press_contact` ni `press_phone`, y muestra todos los resultados mezclados sin distincion entre datos del invitado y datos de prensa.
 
 ### Solucion
 
-Dos cambios:
+Separar la busqueda en dos categorias con tabs/secciones en el dropdown y en la pagina de resultados:
 
-| Cambio | Detalle |
-|--------|---------|
-| **Actualizar politica RLS** | Permitir que `producer` tambien pueda eliminar invitados (igual que ya puede crear y editar) |
-| **Validar eliminacion en codigo** | Verificar que realmente se elimino el registro, y mostrar error si no |
+**1. INVITADOS** - Busca en: `name`, `topic`, `position`, `notes`, `program_type`, `tema_principal`
+**2. PRENSA** - Busca en: `press_contact`, `press_phone`
+
+### Cambios
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/pages/Index.tsx` | En `searchAllGuests`, ejecutar dos queries separadas: una para invitados y otra para prensa. Devolver ambos conjuntos al FilterBar |
+| `src/components/FilterBar.tsx` | Mostrar el dropdown con dos secciones: "Invitados" y "Prensa". Cada seccion muestra sus resultados con formato distinto (invitados muestra nombre+tema, prensa muestra jefe de prensa+telefono+nombre del invitado asociado) |
+| `src/pages/SearchResults.tsx` | Agregar tabs "Invitados" / "Prensa" con queries separadas. En prensa mostrar contacto, telefono y el invitado al que pertenece |
 
 ### Detalle tecnico
 
-**1. Migracion SQL:** Reemplazar la politica restrictiva de DELETE para incluir productores:
-
-```sql
-DROP POLICY "Admins can delete guests" ON public.guests;
-CREATE POLICY "Producers and admins can delete guests" 
-  ON public.guests FOR DELETE TO authenticated
-  USING (has_role(auth.uid(), 'producer'::app_role) OR has_role(auth.uid(), 'admin'::app_role));
+**Query INVITADOS:**
+```
+.or(`name.ilike.%q%,topic.ilike.%q%,position.ilike.%q%,program_type.ilike.%q%,tema_principal.ilike.%q%`)
 ```
 
-**2. En `src/pages/Index.tsx`:** Agregar validacion post-delete usando `.select()` para confirmar que el registro fue eliminado:
-
-```typescript
-const { error, count } = await supabase
-  .from('guests')
-  .delete({ count: 'exact' })
-  .eq('id', guestId);
-
-if (error || count === 0) {
-  toast.error("No se pudo eliminar el invitado");
-} else {
-  // proceder con exito...
-}
+**Query PRENSA:**
 ```
+.or(`press_contact.ilike.%q%,press_phone.ilike.%q%`)
+```
+
+**Estado en Index.tsx:**
+- `globalSearchResults` pasa a ser un objeto `{ guests: Guest[], press: Guest[] }`
+
+**Dropdown en FilterBar:**
+- Seccion "INVITADOS" con icono de persona: nombre, posicion, tema, fecha
+- Seccion "PRENSA" con icono de telefono: nombre del contacto de prensa, telefono, y debajo el nombre del invitado asociado
+- Boton "Ver todos los resultados" al final
+
+**Pagina SearchResults:**
+- Dos tabs: "Invitados" y "Prensa"
+- Tab Prensa muestra tarjetas con: nombre del jefe de prensa, telefono, y el invitado/fecha asociados
 

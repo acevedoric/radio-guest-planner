@@ -208,10 +208,10 @@ const Index = () => {
   const handleDeleteGuest = async (guestId: string) => {
     const guestToDelete = guests.find((g) => g.id === guestId);
 
-    const { error } = await supabase.from('guests').delete().eq('id', guestId);
-    if (error) {
-      toast.error("Error al eliminar invitado");
-      console.error(error);
+    const { error, count } = await supabase.from('guests').delete({ count: 'exact' }).eq('id', guestId);
+    if (error || count === 0) {
+      toast.error("No se pudo eliminar el invitado (verifica permisos)");
+      console.error('Delete failed:', error, 'count:', count);
     } else {
       setGuests((prev) => prev.filter((g) => g.id !== guestId));
       setIsModalOpen(false);
