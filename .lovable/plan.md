@@ -1,46 +1,45 @@
 
 
-## Mejorar Busqueda: Separar en categorias INVITADOS y PRENSA
+## Plan: Importar invitados confirmados desde el Excel
 
-### Problema
-La busqueda actual no incluye los campos `press_contact` ni `press_phone`, y muestra todos los resultados mezclados sin distincion entre datos del invitado y datos de prensa.
+### Resumen
 
-### Solucion
+Crearé una función backend temporal que contiene todos los invitados parseados del Excel y los inserta en la base de datos. Después de ejecutarla, se puede eliminar.
 
-Separar la busqueda en dos categorias con tabs/secciones en el dropdown y en la pagina de resultados:
+### Datos identificados
 
-**1. INVITADOS** - Busca en: `name`, `topic`, `position`, `notes`, `program_type`, `tema_principal`
-**2. PRENSA** - Busca en: `press_contact`, `press_phone`
+Del Excel se extraen aproximadamente **120+ invitados confirmados** distribuidos así:
 
-### Cambios
+| Mes | Semanas | Entradas con invitado |
+|-----|---------|----------------------|
+| Enero 2026 | 12, 19, 26 | ~18 |
+| Febrero 2026 | 2, 9, 16, 23 | ~48 |
+| Marzo 2026 | 2, 9, 16, 23, 30 | ~50 |
+| Abril 2026 | 6, 13, 20, 27 | ~15 |
+| Mayo 2026 | 4-25 | ~5 |
+
+### Reglas de mapeo
+
+| Excel | Campo en BD |
+|-------|-------------|
+| Slot 1/2 (VIVO) | `recording_status = 'live'` |
+| Slot 3 (GRABADO) | `recording_status = 'recorded'` |
+| "Invitado: [nombre], [cargo]" | `name`, `position` |
+| "Tema: [texto]" | `topic` |
+| "Contacto: [tel]" | `phone` |
+| "Grabación: [fecha] [hora]" | `scheduled_date`, `scheduled_time` |
+| Prefijos como "Jueves de comedia a domicilio" | `program_type` |
+| Entradas vacías / "NO HAY PROGRAMA" | Se omiten |
+
+### Implementación
+
+1. **Crear edge function `import-excel-guests`** con todos los datos parseados como JSON hardcoded
+2. **Ejecutar la función** una sola vez para insertar todos los registros
+3. La función verificará duplicados por `week_date + day_of_week + time_slot + name` antes de insertar
+
+### Archivos
 
 | Archivo | Cambio |
 |---------|--------|
-| `src/pages/Index.tsx` | En `searchAllGuests`, ejecutar dos queries separadas: una para invitados y otra para prensa. Devolver ambos conjuntos al FilterBar |
-| `src/components/FilterBar.tsx` | Mostrar el dropdown con dos secciones: "Invitados" y "Prensa". Cada seccion muestra sus resultados con formato distinto (invitados muestra nombre+tema, prensa muestra jefe de prensa+telefono+nombre del invitado asociado) |
-| `src/pages/SearchResults.tsx` | Agregar tabs "Invitados" / "Prensa" con queries separadas. En prensa mostrar contacto, telefono y el invitado al que pertenece |
-
-### Detalle tecnico
-
-**Query INVITADOS:**
-```
-.or(`name.ilike.%q%,topic.ilike.%q%,position.ilike.%q%,program_type.ilike.%q%,tema_principal.ilike.%q%`)
-```
-
-**Query PRENSA:**
-```
-.or(`press_contact.ilike.%q%,press_phone.ilike.%q%`)
-```
-
-**Estado en Index.tsx:**
-- `globalSearchResults` pasa a ser un objeto `{ guests: Guest[], press: Guest[] }`
-
-**Dropdown en FilterBar:**
-- Seccion "INVITADOS" con icono de persona: nombre, posicion, tema, fecha
-- Seccion "PRENSA" con icono de telefono: nombre del contacto de prensa, telefono, y debajo el nombre del invitado asociado
-- Boton "Ver todos los resultados" al final
-
-**Pagina SearchResults:**
-- Dos tabs: "Invitados" y "Prensa"
-- Tab Prensa muestra tarjetas con: nombre del jefe de prensa, telefono, y el invitado/fecha asociados
+| `supabase/functions/import-excel-guests/index.ts` | Nueva función con datos parseados y lógica de inserción |
 
