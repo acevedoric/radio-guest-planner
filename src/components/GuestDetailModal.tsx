@@ -199,20 +199,35 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
           {(formData.recording_status === "to_record" || 
             formData.recording_status === "postponed" || 
             formData.recording_status === "proposed") && (
-            <div className="space-y-2">
-              <Label htmlFor="scheduled_date">
-                {formData.recording_status === "to_record" && "Fecha para Grabar"}
-                {formData.recording_status === "postponed" && "Fecha de Aplazamiento"}
-                {formData.recording_status === "proposed" && "Fecha Propuesta"}
-              </Label>
-              <Input
-                id="scheduled_date"
-                type="date"
-                value={formData.scheduled_date || ""}
-                onChange={(e) => setFormData({ ...formData, scheduled_date: e.target.value })}
-                disabled={readOnly}
-                className="w-full"
-              />
+            <div className={formData.recording_status === "to_record" ? "grid grid-cols-2 gap-4" : ""}>
+              <div className="space-y-2">
+                <Label htmlFor="scheduled_date">
+                  {formData.recording_status === "to_record" && "Fecha para Grabar"}
+                  {formData.recording_status === "postponed" && "Fecha de Aplazamiento"}
+                  {formData.recording_status === "proposed" && "Fecha Propuesta"}
+                </Label>
+                <Input
+                  id="scheduled_date"
+                  type="date"
+                  value={formData.scheduled_date || ""}
+                  onChange={(e) => setFormData({ ...formData, scheduled_date: e.target.value })}
+                  disabled={readOnly}
+                  className="w-full"
+                />
+              </div>
+              {formData.recording_status === "to_record" && (
+                <div className="space-y-2">
+                  <Label htmlFor="scheduled_time">Hora</Label>
+                  <Input
+                    id="scheduled_time"
+                    type="time"
+                    value={formData.scheduled_time || ""}
+                    onChange={(e) => setFormData({ ...formData, scheduled_time: e.target.value })}
+                    disabled={readOnly}
+                    className="w-full"
+                  />
+                </div>
+              )}
             </div>
           )}
 
