@@ -157,7 +157,10 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
                     recording_status: value,
                     scheduled_date: (value === "live" || value === "recorded") 
                       ? null 
-                      : formData.scheduled_date
+                      : formData.scheduled_date,
+                    scheduled_time: (value === "live" || value === "recorded")
+                      ? null
+                      : formData.scheduled_time
                   });
                 }}
                 disabled={readOnly}
