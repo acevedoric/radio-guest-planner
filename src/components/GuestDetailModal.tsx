@@ -64,6 +64,7 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
         time_slot: 1,
         week_date: new Date().toISOString().split('T')[0],
         scheduled_date: null,
+        scheduled_time: null,
       });
       setSocialNetworks({ twitter: "", instagram: "" });
       setCustomFields({});
