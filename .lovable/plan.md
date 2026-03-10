@@ -1,37 +1,46 @@
 
 
-## Agregar campo de hora cuando el estado es "A GRABAR"
+## Mejorar Busqueda: Separar en categorias INVITADOS y PRENSA
 
-### Cambios necesarios
+### Problema
+La busqueda actual no incluye los campos `press_contact` ni `press_phone`, y muestra todos los resultados mezclados sin distincion entre datos del invitado y datos de prensa.
 
-**1. Base de datos** -- Agregar columna `scheduled_time` (tipo `time`, nullable) a la tabla `guests`.
+### Solucion
 
-```sql
-ALTER TABLE public.guests ADD COLUMN scheduled_time time WITHOUT TIME ZONE DEFAULT NULL;
+Separar la busqueda en dos categorias con tabs/secciones en el dropdown y en la pagina de resultados:
+
+**1. INVITADOS** - Busca en: `name`, `topic`, `position`, `notes`, `program_type`, `tema_principal`
+**2. PRENSA** - Busca en: `press_contact`, `press_phone`
+
+### Cambios
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/pages/Index.tsx` | En `searchAllGuests`, ejecutar dos queries separadas: una para invitados y otra para prensa. Devolver ambos conjuntos al FilterBar |
+| `src/components/FilterBar.tsx` | Mostrar el dropdown con dos secciones: "Invitados" y "Prensa". Cada seccion muestra sus resultados con formato distinto (invitados muestra nombre+tema, prensa muestra jefe de prensa+telefono+nombre del invitado asociado) |
+| `src/pages/SearchResults.tsx` | Agregar tabs "Invitados" / "Prensa" con queries separadas. En prensa mostrar contacto, telefono y el invitado al que pertenece |
+
+### Detalle tecnico
+
+**Query INVITADOS:**
+```
+.or(`name.ilike.%q%,topic.ilike.%q%,position.ilike.%q%,program_type.ilike.%q%,tema_principal.ilike.%q%`)
 ```
 
-**2. Tipo Guest** (`src/types/guest.ts`) -- Agregar `scheduled_time?: string | null`.
-
-**3. Modal** (`src/components/GuestDetailModal.tsx`):
-- Inicializar `scheduled_time` en el estado del formulario.
-- Cuando `recording_status === "to_record"`, mostrar fecha y hora en la misma linea usando un grid de 2 columnas:
-
+**Query PRENSA:**
 ```
-[ Fecha para Grabar  ] [ Hora  ]
+.or(`press_contact.ilike.%q%,press_phone.ilike.%q%`)
 ```
 
-- Para los otros estados (`postponed`, `proposed`), mantener solo la fecha como esta.
-- Limpiar `scheduled_time` cuando el estado cambie a `live` o `recorded`.
+**Estado en Index.tsx:**
+- `globalSearchResults` pasa a ser un objeto `{ guests: Guest[], press: Guest[] }`
 
-**4. Guardar** -- Incluir `scheduled_time` en el objeto que se pasa a `onSave`.
+**Dropdown en FilterBar:**
+- Seccion "INVITADOS" con icono de persona: nombre, posicion, tema, fecha
+- Seccion "PRENSA" con icono de telefono: nombre del contacto de prensa, telefono, y debajo el nombre del invitado asociado
+- Boton "Ver todos los resultados" al final
 
-Layout del campo condicional cuando es "A GRABAR":
-```text
-┌──────────────────────┬────────────────┐
-│ Fecha para Grabar    │ Hora           │
-│ [____date____]       │ [__time__]     │
-└──────────────────────┴────────────────┘
-```
-
-Ambos inputs en una sola fila con `grid grid-cols-2 gap-4`.
+**Pagina SearchResults:**
+- Dos tabs: "Invitados" y "Prensa"
+- Tab Prensa muestra tarjetas con: nombre del jefe de prensa, telefono, y el invitado/fecha asociados
 

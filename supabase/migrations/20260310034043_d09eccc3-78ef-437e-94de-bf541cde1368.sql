@@ -1,0 +1,1 @@
+ALTER TABLE public.guests ADD COLUMN scheduled_time time WITHOUT TIME ZONE DEFAULT NULL;

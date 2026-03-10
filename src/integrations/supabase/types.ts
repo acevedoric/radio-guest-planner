@@ -35,6 +35,7 @@ export type Database = {
           program_type: string | null
           recording_status: string
           scheduled_date: string | null
+          scheduled_time: string | null
           social_networks: Json | null
           tema_principal: string | null
           tema_principal_documento_nombre: string | null
@@ -64,6 +65,7 @@ export type Database = {
           program_type?: string | null
           recording_status?: string
           scheduled_date?: string | null
+          scheduled_time?: string | null
           social_networks?: Json | null
           tema_principal?: string | null
           tema_principal_documento_nombre?: string | null
@@ -93,6 +95,7 @@ export type Database = {
           program_type?: string | null
           recording_status?: string
           scheduled_date?: string | null
+          scheduled_time?: string | null
           social_networks?: Json | null
           tema_principal?: string | null
           tema_principal_documento_nombre?: string | null
