@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.check-email-exists]
 verify_jwt = false
+
+[functions.import-excel-guests]
+verify_jwt = false
