@@ -516,12 +516,19 @@ const Index = () => {
 
         {viewMode === "day" && (
           <DayView 
-            guests={filteredGuests} 
+            guests={filteredGuests}
+            allGuests={allRecordingGuests}
             onGuestClick={handleGuestClick} 
             onAddGuest={handleAddGuest}
             selectedDay={selectedDay}
             onDayChange={setSelectedDay}
             editMode={editMode}
+            selectedDayDate={(() => {
+              const dayOffsets: Record<string, number> = { monday: 0, tuesday: 1, wednesday: 2, thursday: 3 };
+              const offset = dayOffsets[selectedDay] ?? 0;
+              return format(addDays(selectedWeek, offset), "yyyy-MM-dd");
+            })()}
+            onRecordingGuestClick={handleGlobalResultClick}
             onGuestUpdate={(updatedGuest) => {
               if (updatedGuest.id) {
                 setGuests(prev => prev.map(g => 
@@ -534,18 +541,21 @@ const Index = () => {
 
         {viewMode === "week" && (
           <WeeklyCalendar 
-            guests={filteredGuests} 
+            guests={filteredGuests}
+            allGuests={allRecordingGuests}
             onGuestClick={handleGuestClick} 
             onAddGuest={handleAddGuest} 
             selectedWeek={selectedWeek}
             onMoveGuest={handleMoveGuest}
             editMode={editMode}
+            onRecordingGuestClick={handleGlobalResultClick}
           />
         )}
 
         {viewMode === "month" && (
           <MonthView 
-            guests={filteredGuests} 
+            guests={filteredGuests}
+            allGuests={allRecordingGuests}
             onGuestClick={handleGuestClick}
             selectedMonth={selectedMonth}
             onDayClick={(day) => {
@@ -556,6 +566,7 @@ const Index = () => {
             onAddGuest={handleAddGuest}
             onMoveGuest={handleMoveGuest}
             editMode={editMode}
+            onRecordingGuestClick={handleGlobalResultClick}
           />
         )}
 
