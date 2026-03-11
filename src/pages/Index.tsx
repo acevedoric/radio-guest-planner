@@ -189,12 +189,17 @@ const Index = () => {
     }
     
     if (guest.id) {
+      // Save previous state for undo
+      const previousGuest = guests.find(g => g.id === guest.id);
       const { error } = await supabase.from('guests').update(guestData).eq('id', guest.id);
       if (error) {
         toast.error("Error al actualizar invitado");
         console.error(error);
       } else {
-        toast.success("Invitado actualizado y movido");
+        if (previousGuest) {
+          pushAction({ type: "update", guestId: guest.id, previousData: { ...previousGuest }, newData: { ...guestData } });
+        }
+        toast.success("Invitado actualizado");
       }
     } else {
       const { data, error } = await supabase.from('guests').insert([guestData]).select().single();
@@ -202,6 +207,7 @@ const Index = () => {
         toast.error("Error al crear invitado");
         console.error(error);
       } else {
+        pushAction({ type: "insert", guestId: data.id, previousData: null, newData: { ...guestData } });
         toast.success("Invitado creado");
       }
     }
