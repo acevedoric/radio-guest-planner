@@ -352,7 +352,7 @@ export const GuestInfoModules = ({ guest, editMode, onGuestUpdate }: GuestInfoMo
             ) : (
               <div className="text-sm text-muted-foreground whitespace-pre-wrap">
                 {getContent(module.key) ? (
-                  renderBoldMarkdown(getContent(module.key))
+                  renderMarkdown(getContent(module.key))
                 ) : (
                   <span className="italic">Sin información disponible</span>
                 )}
