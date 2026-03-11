@@ -9,15 +9,64 @@ import { Guest } from "@/types/guest";
 import { cn } from "@/lib/utils";
 import React from "react";
 
-/** Converts **bold** markdown to <strong> React elements */
-function renderBoldMarkdown(text: string): React.ReactNode[] {
-  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+/** Renders inline markdown: **bold** and *italic* */
+function renderInline(text: string, keyPrefix: string = ""): React.ReactNode[] {
+  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
   return parts.map((part, i) => {
     if (part.startsWith('**') && part.endsWith('**')) {
-      return <strong key={i}>{part.slice(2, -2)}</strong>;
+      return <strong key={`${keyPrefix}${i}`}>{part.slice(2, -2)}</strong>;
     }
-    return <React.Fragment key={i}>{part}</React.Fragment>;
+    if (part.startsWith('*') && part.endsWith('*') && part.length > 2) {
+      return <em key={`${keyPrefix}${i}`}>{part.slice(1, -1)}</em>;
+    }
+    return <React.Fragment key={`${keyPrefix}${i}`}>{part}</React.Fragment>;
   });
+}
+
+/** Renders markdown text with headers, bold, italic, and lists */
+function renderMarkdown(text: string): React.ReactNode[] {
+  const lines = text.split('\n');
+  const result: React.ReactNode[] = [];
+  let listItems: React.ReactNode[] = [];
+
+  const flushList = () => {
+    if (listItems.length > 0) {
+      result.push(<ul key={`ul-${result.length}`} className="list-disc pl-5 my-1 space-y-0.5">{listItems}</ul>);
+      listItems = [];
+    }
+  };
+
+  lines.forEach((line, i) => {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      flushList();
+      return;
+    }
+
+    // Headers
+    if (trimmed.startsWith('### ')) {
+      flushList();
+      result.push(<p key={`h3-${i}`} className="font-semibold text-sm mt-2 mb-0.5">{renderInline(trimmed.slice(4), `h3-${i}-`)}</p>);
+      return;
+    }
+    if (trimmed.startsWith('## ')) {
+      flushList();
+      result.push(<p key={`h2-${i}`} className="font-bold text-base mt-2 mb-0.5">{renderInline(trimmed.slice(3), `h2-${i}-`)}</p>);
+      return;
+    }
+
+    // List items
+    if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+      listItems.push(<li key={`li-${i}`}>{renderInline(trimmed.slice(2), `li-${i}-`)}</li>);
+      return;
+    }
+
+    flushList();
+    result.push(<p key={`p-${i}`} className="my-0.5">{renderInline(trimmed, `p-${i}-`)}</p>);
+  });
+
+  flushList();
+  return result;
 }
 
 interface GuestInfoModulesProps {
