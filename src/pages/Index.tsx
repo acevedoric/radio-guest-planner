@@ -58,19 +58,32 @@ const Index = () => {
   useEffect(() => {
     if (session) {
       fetchGuests();
+      fetchAllRecordingGuests();
 
       // Setup realtime subscription
       const channel = supabase.channel('schema-db-changes').on('postgres_changes', {
         event: '*',
         schema: 'public',
         table: 'guests'
-      }, () => fetchGuests()).subscribe();
+      }, () => {
+        fetchGuests();
+        fetchAllRecordingGuests();
+      }).subscribe();
       
       return () => {
         supabase.removeChannel(channel);
       };
     }
   }, [selectedWeek, selectedMonth, viewMode, session]);
+
+  const fetchAllRecordingGuests = async () => {
+    const { data } = await supabase
+      .from('guests')
+      .select('*')
+      .in('recording_status', ['to_record', 'postponed', 'proposed'])
+      .not('scheduled_date', 'is', null);
+    setAllRecordingGuests((data || []) as Guest[]);
+  };
 
   const fetchGuests = async () => {
     let query = supabase.from('guests').select('*');
