@@ -241,6 +241,9 @@ const Index = () => {
       toast.error("No se pudo eliminar el invitado (verifica permisos)");
       console.error('Delete failed:', error, 'count:', count);
     } else {
+      if (guestToDelete) {
+        pushAction({ type: "delete", guestId, previousData: { ...guestToDelete }, newData: null });
+      }
       setGuests((prev) => prev.filter((g) => g.id !== guestId));
       setIsModalOpen(false);
       setSelectedGuest(null);
