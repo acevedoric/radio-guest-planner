@@ -39,6 +39,13 @@ const Index = () => {
   const [editMode, setEditMode] = useState(false);
   const [allRecordingGuests, setAllRecordingGuests] = useState<Guest[]>([]);
   
+  const refreshData = useCallback(() => {
+    fetchGuests();
+    fetchAllRecordingGuests();
+  }, []);
+
+  const { undo, redo, pushAction, canUndo, canRedo } = useUndoRedo(refreshData);
+
   // Check authentication status
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
