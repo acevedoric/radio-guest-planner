@@ -36,6 +36,7 @@ const Index = () => {
     slot: number;
   } | null>(null);
   const [editMode, setEditMode] = useState(false);
+  const [allRecordingGuests, setAllRecordingGuests] = useState<Guest[]>([]);
   
   // Check authentication status
   useEffect(() => {
