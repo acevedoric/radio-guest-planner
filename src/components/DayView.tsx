@@ -12,12 +12,15 @@ import { GuestInfoModules } from "./GuestInfoModules";
 
 interface DayViewProps {
   guests: Guest[];
+  allGuests: Guest[];
   onGuestClick: (guest: Guest) => void;
   onAddGuest: (day: string, slot: number) => void;
   selectedDay: string;
   onDayChange: (day: string) => void;
   editMode: boolean;
   onGuestUpdate?: (updatedGuest: Partial<Guest> & { id?: string }) => void;
+  selectedDayDate?: string;
+  onRecordingGuestClick?: (guest: Guest) => void;
 }
 
 const DAYS = [
@@ -41,12 +44,20 @@ const statusConfig = {
   proposed: { label: "PROPUESTO", className: "bg-blue-500 text-white" },
 };
 
-export const DayView = ({ guests, onGuestClick, onAddGuest, selectedDay, onDayChange, editMode, onGuestUpdate }: DayViewProps) => {
+export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedDay, onDayChange, editMode, onGuestUpdate, selectedDayDate, onRecordingGuestClick }: DayViewProps) => {
   const getGuestForSlot = (slot: number) => {
     return guests.find(g => g.day_of_week === selectedDay && g.time_slot === slot);
   };
 
   const currentDayLabel = DAYS.find(d => d.value === selectedDay)?.label || "Día";
+
+  // Get recordings scheduled for this day
+  const scheduledRecordings = selectedDayDate
+    ? allGuests.filter(g =>
+        g.scheduled_date === selectedDayDate &&
+        (g.recording_status === "to_record" || g.recording_status === "postponed" || g.recording_status === "proposed")
+      )
+    : [];
 
   const handleCheckboxChange = async (guest: Guest, type: 'proposed' | 'blu' | 'pr', checked: boolean) => {
     if (!guest.id) return;
@@ -96,6 +107,25 @@ export const DayView = ({ guests, onGuestClick, onAddGuest, selectedDay, onDayCh
       <div className="text-center">
         <h2 className="text-2xl font-bold text-foreground">{currentDayLabel}</h2>
       </div>
+
+      {/* Recording banner */}
+      {scheduledRecordings.length > 0 && (
+        <div className="space-y-2">
+          {scheduledRecordings.map((g) => (
+            <div
+              key={g.id}
+              className="flex items-center gap-3 px-4 py-2 rounded-lg bg-red-500/10 border border-red-500/20 cursor-pointer hover:bg-red-500/20 transition-all"
+              onClick={() => onRecordingGuestClick?.(g)}
+            >
+              <span className="text-red-600 dark:text-red-400 font-bold text-sm">● REC</span>
+              <span className="text-sm text-foreground font-medium">
+                Grabación programada: {g.name}
+                {g.scheduled_time && ` - ${g.scheduled_time}`}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Time Slots */}
       <div className="space-y-4">
@@ -181,7 +211,7 @@ export const DayView = ({ guests, onGuestClick, onAddGuest, selectedDay, onDayCh
                     )}
                   </div>
 
-                  {/* Módulos de información solo para HORA 1 - debajo de redes sociales */}
+                  {/* Módulos de información solo para HORA 1 */}
                   {slot === 1 && (
                     <GuestInfoModules
                       guest={guest}
@@ -192,7 +222,7 @@ export const DayView = ({ guests, onGuestClick, onAddGuest, selectedDay, onDayCh
                     />
                   )}
 
-                  {/* Additional Info - Prensa (para todas las horas) */}
+                  {/* Additional Info - Prensa */}
                   {(guest.press_contact || guest.press_phone || guest.program_type || guest.notes) && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
                       {guest.press_contact && (
@@ -219,12 +249,12 @@ export const DayView = ({ guests, onGuestClick, onAddGuest, selectedDay, onDayCh
                     </div>
                   )}
 
-                  {/* Checkboxes de confirmación - junto a prensa */}
+                  {/* Checkboxes de confirmación */}
                   <div className="pt-4 border-t space-y-3">
                     <div className="text-xs text-muted-foreground font-semibold mb-2">Estado de Confirmación</div>
                     <div className="flex flex-col gap-2">
                       <div className="flex items-center space-x-2">
-                      <Checkbox
+                        <Checkbox
                           id={`proposed-${guest.id}`}
                           checked={guest.recording_status === 'proposed'}
                           onCheckedChange={(checked) => handleCheckboxChange(guest, 'proposed', checked as boolean)}
@@ -239,7 +269,7 @@ export const DayView = ({ guests, onGuestClick, onAddGuest, selectedDay, onDayCh
                         </label>
                       </div>
                       <div className="flex items-center space-x-2">
-                      <Checkbox
+                        <Checkbox
                           id={`blu-${guest.id}`}
                           checked={guest.confirmed_blu || false}
                           onCheckedChange={(checked) => handleCheckboxChange(guest, 'blu', checked as boolean)}
@@ -254,7 +284,7 @@ export const DayView = ({ guests, onGuestClick, onAddGuest, selectedDay, onDayCh
                         </label>
                       </div>
                       <div className="flex items-center space-x-2">
-                      <Checkbox
+                        <Checkbox
                           id={`pr-${guest.id}`}
                           checked={guest.confirmed_pr || false}
                           onCheckedChange={(checked) => handleCheckboxChange(guest, 'pr', checked as boolean)}

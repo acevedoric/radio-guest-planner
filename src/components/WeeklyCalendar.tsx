@@ -9,21 +9,24 @@ import { useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { format, startOfWeek, addDays } from "date-fns";
 
 interface WeeklyCalendarProps {
   guests: Guest[];
+  allGuests: Guest[];
   onGuestClick: (guest: Guest) => void;
   onAddGuest: (day: string, slot: number) => void;
   selectedWeek: Date;
   onMoveGuest?: (guestId: string, newDay: string, newSlot: number, newWeekDate: string, targetGuestId?: string) => Promise<void>;
   editMode: boolean;
+  onRecordingGuestClick?: (guest: Guest) => void;
 }
 
 const DAYS = [
-  { key: "monday", label: "Lunes" },
-  { key: "tuesday", label: "Martes" },
-  { key: "wednesday", label: "Miércoles" },
-  { key: "thursday", label: "Jueves" },
+  { key: "monday", label: "Lunes", offset: 0 },
+  { key: "tuesday", label: "Martes", offset: 1 },
+  { key: "wednesday", label: "Miércoles", offset: 2 },
+  { key: "thursday", label: "Jueves", offset: 3 },
 ];
 
 const TIME_SLOTS = [
@@ -40,7 +43,7 @@ const statusConfig = {
   proposed: { label: "PROPUESTO", className: "bg-blue-500 text-white" },
 };
 
-export const WeeklyCalendar = ({ guests, onGuestClick, onAddGuest, selectedWeek, onMoveGuest, editMode }: WeeklyCalendarProps) => {
+export const WeeklyCalendar = ({ guests, allGuests, onGuestClick, onAddGuest, selectedWeek, onMoveGuest, editMode, onRecordingGuestClick }: WeeklyCalendarProps) => {
   const [activeGuest, setActiveGuest] = useState<Guest | null>(null);
   
   const sensors = useSensors(
@@ -53,6 +56,15 @@ export const WeeklyCalendar = ({ guests, onGuestClick, onAddGuest, selectedWeek,
 
   const getGuestForSlot = (day: string, slot: number) => {
     return guests.find(g => g.day_of_week === day && g.time_slot === slot);
+  };
+
+  const getRecordingsForDay = (dayOffset: number): Guest[] => {
+    const dayDate = addDays(selectedWeek, dayOffset);
+    const dayStr = format(dayDate, "yyyy-MM-dd");
+    return allGuests.filter(g =>
+      g.scheduled_date === dayStr &&
+      (g.recording_status === "to_record" || g.recording_status === "postponed" || g.recording_status === "proposed")
+    );
   };
 
   const handleDragStart = (event: DragEndEvent) => {
@@ -91,6 +103,32 @@ export const WeeklyCalendar = ({ guests, onGuestClick, onAddGuest, selectedWeek,
           ))}
         </div>
 
+        {/* Recording strips per day */}
+        <div className="grid gap-4 mb-2" style={{ gridTemplateColumns: "150px repeat(4, 1fr)" }}>
+          <div />
+          {DAYS.map(day => {
+            const recordings = getRecordingsForDay(day.offset);
+            if (recordings.length === 0) return <div key={day.key} />;
+            return (
+              <div key={day.key} className="space-y-0.5">
+                {recordings.slice(0, 2).map((g) => (
+                  <div
+                    key={g.id}
+                    className="text-[10px] px-2 py-0.5 rounded bg-red-500/10 text-red-600 dark:text-red-400 truncate cursor-pointer hover:bg-red-500/20 border-l-2 border-red-500"
+                    onClick={() => onRecordingGuestClick?.(g)}
+                    title={`Grabación: ${g.name}`}
+                  >
+                    🔴 Grab: {g.name}
+                  </div>
+                ))}
+                {recordings.length > 2 && (
+                  <div className="text-[10px] text-red-500 px-2">+{recordings.length - 2} más</div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
         {/* Time Slots Grid */}
         {TIME_SLOTS.map(timeSlot => (
           <div key={timeSlot.slot} className="grid gap-4 mb-4" style={{ gridTemplateColumns: "150px repeat(4, 1fr)" }}>
@@ -120,7 +158,7 @@ export const WeeklyCalendar = ({ guests, onGuestClick, onAddGuest, selectedWeek,
           <Card className="p-4 min-h-[140px] shadow-lg cursor-grabbing">
             <div className="space-y-2">
               <div className="flex items-start justify-between gap-2">
-<div>
+                <div>
                   <h4 className="font-semibold text-sm line-clamp-1">{activeGuest.name}</h4>
                   {activeGuest.position && (
                     <span className="text-[10px] text-muted-foreground">({activeGuest.position})</span>
@@ -156,10 +194,9 @@ const GuestSlotCard = ({ day, slot, guest, onGuestClick, onAddGuest, editMode }:
     id: slotId,
   });
 
-  // Always call useDraggable hook (Rules of Hooks - must be called unconditionally)
   const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({
     id: `guest-${guest?.id || `empty-${slotId}`}`,
-    disabled: !guest || !editMode, // Disable dragging when there's no guest or not in edit mode
+    disabled: !guest || !editMode,
   });
 
   const handleCheckboxChange = async (guest: Guest, type: 'proposed' | 'blu' | 'pr', checked: boolean) => {
@@ -207,7 +244,7 @@ const GuestSlotCard = ({ day, slot, guest, onGuestClick, onAddGuest, editMode }:
         >
           <div className="space-y-2">
             <div className="flex items-start justify-between gap-2">
-<div>
+              <div>
                 <h4 className="font-semibold text-sm line-clamp-1">{guest.name}</h4>
                 {guest.position && (
                   <span className="text-[10px] text-muted-foreground">({guest.position})</span>

@@ -1,6 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { Guest } from "@/types/guest";
-import { startOfMonth, endOfMonth, eachDayOfInterval, format, startOfWeek, endOfWeek } from "date-fns";
+import { startOfMonth, endOfMonth, eachDayOfInterval, format, startOfWeek, endOfWeek, isBefore, startOfDay } from "date-fns";
 import { DndContext, DragEndEvent, useDraggable, useDroppable, DragOverlay, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { useState } from "react";
 import { GuestTooltip } from "./GuestTooltip";
@@ -10,6 +10,7 @@ import { toast } from "sonner";
 
 interface MonthViewProps {
   guests: Guest[];
+  allGuests: Guest[];
   onGuestClick: (guest: Guest) => void;
   selectedMonth: Date;
   onDayClick: (day: Date) => void;
@@ -17,9 +18,10 @@ interface MonthViewProps {
   onAddGuest: (day: string, slot: number, weekDate: string) => void;
   onMoveGuest?: (guestId: string, newDay: string, newSlot: number, newWeekDate: string, targetGuestId?: string) => Promise<void>;
   editMode: boolean;
+  onRecordingGuestClick?: (guest: Guest) => void;
 }
 
-export const MonthView = ({ guests, onGuestClick, selectedMonth, onDayClick, onScheduledDateClick, onAddGuest, onMoveGuest, editMode }: MonthViewProps) => {
+export const MonthView = ({ guests, allGuests, onGuestClick, selectedMonth, onDayClick, onScheduledDateClick, onAddGuest, onMoveGuest, editMode, onRecordingGuestClick }: MonthViewProps) => {
   const [activeGuest, setActiveGuest] = useState<Guest | null>(null);
   
   const sensors = useSensors(
@@ -36,6 +38,7 @@ export const MonthView = ({ guests, onGuestClick, selectedMonth, onDayClick, onS
   const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
   
   const calendarDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
+  const today = startOfDay(new Date());
 
   const getGuestForSlot = (day: Date, slot: number): Guest | undefined => {
     const dayOfWeekMap: Record<number, string> = {
@@ -58,73 +61,14 @@ export const MonthView = ({ guests, onGuestClick, selectedMonth, onDayClick, onS
     );
   };
 
-  const getScheduledRecordings = (day: Date): number => {
+  const getScheduledRecordingsForDay = (day: Date): Guest[] => {
     const dayStr = format(day, "yyyy-MM-dd");
-    
-    // Filtrar invitados que tienen scheduled_date igual a este día
-    // Y que estén en estado de grabación pendiente
-    const scheduledGuests = guests.filter(g => 
+    return allGuests.filter(g => 
       g.scheduled_date === dayStr &&
       (g.recording_status === "to_record" || 
        g.recording_status === "postponed" || 
        g.recording_status === "proposed")
     );
-    
-    return scheduledGuests.length;
-  };
-
-  const getScheduledRecordingsUrgency = (day: Date): { count: number; colorClasses: string; urgencyLevel: string } => {
-    const dayStr = format(day, "yyyy-MM-dd");
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Normalizar a medianoche
-    
-    // Calcular la diferencia en días
-    const targetDate = new Date(day);
-    targetDate.setHours(0, 0, 0, 0);
-    const diffInMs = targetDate.getTime() - today.getTime();
-    const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
-    
-    // Filtrar invitados con grabaciones pendientes
-    const scheduledGuests = guests.filter(g => 
-      g.scheduled_date === dayStr &&
-      (g.recording_status === "to_record" || 
-       g.recording_status === "postponed" || 
-       g.recording_status === "proposed")
-    );
-    
-    const count = scheduledGuests.length;
-    
-    if (count === 0) {
-      return { count: 0, colorClasses: "", urgencyLevel: "" };
-    }
-    
-    // Determinar color según urgencia
-    let colorClasses = "";
-    let urgencyLevel = "";
-    
-    if (diffInDays < 0) {
-      // Fecha pasada - GRIS
-      colorClasses = "bg-gray-400 hover:bg-gray-500";
-      urgencyLevel = "Fecha vencida";
-    } else if (diffInDays <= 1) {
-      // Hoy o mañana - ROJO CRÍTICO
-      colorClasses = "bg-red-600 hover:bg-red-700";
-      urgencyLevel = diffInDays === 0 ? "¡HOY!" : "Mañana";
-    } else if (diffInDays <= 5) {
-      // 2-5 días - NARANJA URGENTE
-      colorClasses = "bg-orange-500 hover:bg-orange-600";
-      urgencyLevel = `En ${diffInDays} días`;
-    } else if (diffInDays <= 14) {
-      // 6-14 días - AMARILLO MODERADO
-      colorClasses = "bg-yellow-500 hover:bg-yellow-600";
-      urgencyLevel = `En ${diffInDays} días`;
-    } else {
-      // 15+ días - AZUL PLANIFICADO
-      colorClasses = "bg-blue-500 hover:bg-blue-600";
-      urgencyLevel = `En ${diffInDays} días`;
-    }
-    
-    return { count, colorClasses, urgencyLevel };
   };
 
   const isCurrentMonth = (day: Date) => {
@@ -133,7 +77,11 @@ export const MonthView = ({ guests, onGuestClick, selectedMonth, onDayClick, onS
 
   const isWorkDay = (day: Date) => {
     const dayOfWeek = day.getDay();
-    return dayOfWeek >= 1 && dayOfWeek <= 4; // Monday to Thursday
+    return dayOfWeek >= 1 && dayOfWeek <= 4;
+  };
+
+  const isPastDay = (day: Date) => {
+    return isBefore(startOfDay(day), today);
   };
 
   const getStatusColor = (status: Guest["recording_status"]) => {
@@ -160,19 +108,16 @@ export const MonthView = ({ guests, onGuestClick, selectedMonth, onDayClick, onS
     if (!over || !onMoveGuest) return;
     
     const guestId = active.id.toString().replace('guest-', '');
-    // Formato: slot-YYYY-MM-DD-dayOfWeek-slotNumber
     const parts = over.id.toString().split('-');
-    const newDayOfWeek = parts[4]; // Extraer "monday", "tuesday", etc
-    const newSlot = parseInt(parts[5]); // Extraer el número de slot
+    const newDayOfWeek = parts[4];
+    const newSlot = parseInt(parts[5]);
     
-    // Encontrar el día completo para obtener su week_date
     const targetDay = calendarDays.find(
       d => format(d, "yyyy-MM-dd") === `${parts[1]}-${parts[2]}-${parts[3]}`
     );
     
     if (!targetDay) return;
     
-    // Calcular el week_date correcto para ese día
     const weekStart = startOfWeek(targetDay, { weekStartsOn: 1 });
     const newWeekDate = format(weekStart, "yyyy-MM-dd");
     
@@ -197,12 +142,16 @@ export const MonthView = ({ guests, onGuestClick, selectedMonth, onDayClick, onS
         {calendarDays.filter(day => isWorkDay(day)).map((day, index) => {
           const isInMonth = isCurrentMonth(day);
           const isWork = isWorkDay(day);
+          const past = isPastDay(day);
+          const scheduledRecordings = getScheduledRecordingsForDay(day);
 
           return (
             <Card
               key={index}
               className={`min-h-[140px] p-2 transition-all ${
                 !isInMonth ? "opacity-30 bg-muted/30" : ""
+              } ${
+                past && isInMonth ? "opacity-20" : ""
               } ${
                 isWork && isInMonth ? "cursor-pointer hover:shadow-md hover:border-primary" : ""
               }`}
@@ -213,30 +162,50 @@ export const MonthView = ({ guests, onGuestClick, selectedMonth, onDayClick, onS
               }}
             >
               <div className="space-y-2">
-                {/* Day number and scheduled recordings indicator */}
+                {/* Day number and REC button */}
                 <div className="flex items-center justify-between">
                   <div className="text-sm font-semibold text-foreground">
                     {format(day, "d")}
                   </div>
                   
-                  {/* Indicador de grabaciones pendientes con colores por urgencia */}
-                  {(() => {
-                    const { count, colorClasses, urgencyLevel } = getScheduledRecordingsUrgency(day);
-                    return count > 0 ? (
+                  {/* REC button */}
+                  {scheduledRecordings.length > 0 && (
+                    <div
+                      className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-600 hover:bg-red-700 text-white text-xs font-bold cursor-pointer transition-all hover:scale-105 shadow-sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onScheduledDateClick(day);
+                      }}
+                      title={`${scheduledRecordings.length} grabación(es) pendiente(s)`}
+                    >
+                      <span className="text-[10px]">●</span>
+                      <span>REC</span>
+                      {scheduledRecordings.length > 1 && <span>{scheduledRecordings.length}</span>}
+                    </div>
+                  )}
+                </div>
+
+                {/* Recording strips */}
+                {scheduledRecordings.length > 0 && (
+                  <div className="space-y-0.5">
+                    {scheduledRecordings.slice(0, 2).map((g) => (
                       <div
-                        className={`flex items-center gap-1 px-2 py-0.5 rounded-full ${colorClasses} text-white text-xs font-semibold cursor-pointer transition-all hover:scale-105 shadow-sm`}
+                        key={g.id}
+                        className="text-[9px] px-1 py-0.5 rounded bg-red-500/10 text-red-600 dark:text-red-400 truncate cursor-pointer hover:bg-red-500/20 border-l-2 border-red-500"
                         onClick={(e) => {
                           e.stopPropagation();
-                          onScheduledDateClick(day);
+                          onRecordingGuestClick?.(g);
                         }}
-                        title={`${count} grabación(es) pendiente(s) - ${urgencyLevel}`}
+                        title={`Grabación: ${g.name}`}
                       >
-                        <span>📹</span>
-                        <span>{count}</span>
+                        🔴 {g.name}
                       </div>
-                    ) : null;
-                  })()}
-                </div>
+                    ))}
+                    {scheduledRecordings.length > 2 && (
+                      <div className="text-[9px] text-red-500 px-1">+{scheduledRecordings.length - 2} más</div>
+                    )}
+                  </div>
+                )}
 
                 {/* Always show 3 slots */}
                 <div className="space-y-1">
@@ -327,10 +296,9 @@ const SlotCard = ({ guest, day, slot, onGuestClick, onAddGuest, getStatusColor, 
     id: slotId,
   });
 
-  // Always call useDraggable hook (Rules of Hooks - must be called unconditionally)
   const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({
     id: `guest-${guest?.id || `empty-${slotId}`}`,
-    disabled: !guest || !editMode, // Disable dragging when there's no guest or not in edit mode
+    disabled: !guest || !editMode,
   });
 
   if (guest) {
@@ -349,7 +317,7 @@ const SlotCard = ({ guest, day, slot, onGuestClick, onAddGuest, getStatusColor, 
               onGuestClick(guest);
             }}
           >
-<div className="font-semibold truncate">{guest.name}</div>
+            <div className="font-semibold truncate">{guest.name}</div>
             {guest.position && (
               <div className="text-[10px] text-white/70 truncate">{guest.position}</div>
             )}
