@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Navigate } from "react-router-dom";
 import { startOfWeek, startOfMonth, addDays, addWeeks, endOfMonth, format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -36,6 +36,7 @@ const Index = () => {
     slot: number;
   } | null>(null);
   const [editMode, setEditMode] = useState(false);
+  const [allRecordingGuests, setAllRecordingGuests] = useState<Guest[]>([]);
   
   // Check authentication status
   useEffect(() => {
@@ -57,19 +58,32 @@ const Index = () => {
   useEffect(() => {
     if (session) {
       fetchGuests();
+      fetchAllRecordingGuests();
 
       // Setup realtime subscription
       const channel = supabase.channel('schema-db-changes').on('postgres_changes', {
         event: '*',
         schema: 'public',
         table: 'guests'
-      }, () => fetchGuests()).subscribe();
+      }, () => {
+        fetchGuests();
+        fetchAllRecordingGuests();
+      }).subscribe();
       
       return () => {
         supabase.removeChannel(channel);
       };
     }
   }, [selectedWeek, selectedMonth, viewMode, session]);
+
+  const fetchAllRecordingGuests = async () => {
+    const { data } = await supabase
+      .from('guests')
+      .select('*')
+      .in('recording_status', ['to_record', 'postponed', 'proposed'])
+      .not('scheduled_date', 'is', null);
+    setAllRecordingGuests((data || []) as Guest[]);
+  };
 
   const fetchGuests = async () => {
     let query = supabase.from('guests').select('*');
@@ -502,12 +516,19 @@ const Index = () => {
 
         {viewMode === "day" && (
           <DayView 
-            guests={filteredGuests} 
+            guests={filteredGuests}
+            allGuests={allRecordingGuests}
             onGuestClick={handleGuestClick} 
             onAddGuest={handleAddGuest}
             selectedDay={selectedDay}
             onDayChange={setSelectedDay}
             editMode={editMode}
+            selectedDayDate={(() => {
+              const dayOffsets: Record<string, number> = { monday: 0, tuesday: 1, wednesday: 2, thursday: 3 };
+              const offset = dayOffsets[selectedDay] ?? 0;
+              return format(addDays(selectedWeek, offset), "yyyy-MM-dd");
+            })()}
+            onRecordingGuestClick={handleGlobalResultClick}
             onGuestUpdate={(updatedGuest) => {
               if (updatedGuest.id) {
                 setGuests(prev => prev.map(g => 
@@ -520,18 +541,21 @@ const Index = () => {
 
         {viewMode === "week" && (
           <WeeklyCalendar 
-            guests={filteredGuests} 
+            guests={filteredGuests}
+            allGuests={allRecordingGuests}
             onGuestClick={handleGuestClick} 
             onAddGuest={handleAddGuest} 
             selectedWeek={selectedWeek}
             onMoveGuest={handleMoveGuest}
             editMode={editMode}
+            onRecordingGuestClick={handleGlobalResultClick}
           />
         )}
 
         {viewMode === "month" && (
           <MonthView 
-            guests={filteredGuests} 
+            guests={filteredGuests}
+            allGuests={allRecordingGuests}
             onGuestClick={handleGuestClick}
             selectedMonth={selectedMonth}
             onDayClick={(day) => {
@@ -542,6 +566,7 @@ const Index = () => {
             onAddGuest={handleAddGuest}
             onMoveGuest={handleMoveGuest}
             editMode={editMode}
+            onRecordingGuestClick={handleGlobalResultClick}
           />
         )}
 

@@ -1,41 +1,46 @@
 
 
-## Mejoras visuales: dias pasados, indicador REC, y franja de grabacion
+## Mejorar Busqueda: Separar en categorias INVITADOS y PRENSA
 
-### 3 cambios principales
+### Problema
+La busqueda actual no incluye los campos `press_contact` ni `press_phone`, y muestra todos los resultados mezclados sin distincion entre datos del invitado y datos de prensa.
 
-**1. Transparencia 20% en dias pasados (vista MES)**
+### Solucion
 
-En `MonthView.tsx`, comparar cada dia con `new Date()`. Si el dia ya paso, aplicar `opacity-20` a la Card del dia.
+Separar la busqueda en dos categorias con tabs/secciones en el dropdown y en la pagina de resultados:
 
-**2. Reemplazar icono 📹 por boton rojo "REC"**
+**1. INVITADOS** - Busca en: `name`, `topic`, `position`, `notes`, `program_type`, `tema_principal`
+**2. PRENSA** - Busca en: `press_contact`, `press_phone`
 
-En `MonthView.tsx`, reemplazar el emoji de camara y el badge numerico por un boton estilo:
-```
-[● REC 3]
-```
-- Fondo rojo (`bg-red-600`), texto blanco, con un circulo solido como indicador.
-- Mantener la logica de click que navega a `onScheduledDateClick`.
-- Eliminar el sistema de colores por urgencia (todo rojo uniforme tipo "REC").
-
-**3. Franja de grabacion programada en las 3 vistas**
-
-Para invitados con `recording_status === 'to_record'` y `scheduled_date`, mostrar una franja sutil en el dia donde esta programada la grabacion (no donde se emite).
-
-Logica: recorrer todos los guests, agrupar por `scheduled_date`, y en cada dia que coincida, mostrar una barra con el nombre del invitado.
-
-| Vista | Implementacion |
-|-------|---------------|
-| **MES** | Debajo del numero del dia, si hay grabaciones ese dia, mostrar una franja fina con fondo `bg-red-500/10` y texto rojo con el nombre truncado. Click navega al dia. |
-| **SEMANA** | Encima de los slots del dia correspondiente, una barra horizontal con `bg-red-500/10 border-l-2 border-red-500` mostrando "🔴 Grab: [nombre]". Click abre el modal del invitado. |
-| **DIA** | Banner en la parte superior del dia: "Grabacion programada: [nombre] - [hora]". Click abre el modal. |
-
-### Archivos a modificar
+### Cambios
 
 | Archivo | Cambio |
 |---------|--------|
-| `src/components/MonthView.tsx` | Opacidad dias pasados, boton REC, franja grabacion |
-| `src/components/WeeklyCalendar.tsx` | Franja grabacion en dias con grabaciones programadas |
-| `src/components/DayView.tsx` | Banner de grabacion programada |
-| `src/pages/Index.tsx` | Pasar todos los guests (no solo los de la semana actual) para poder cruzar `scheduled_date` con los dias visibles; agregar callback para navegar al dia de emision del invitado |
+| `src/pages/Index.tsx` | En `searchAllGuests`, ejecutar dos queries separadas: una para invitados y otra para prensa. Devolver ambos conjuntos al FilterBar |
+| `src/components/FilterBar.tsx` | Mostrar el dropdown con dos secciones: "Invitados" y "Prensa". Cada seccion muestra sus resultados con formato distinto (invitados muestra nombre+tema, prensa muestra jefe de prensa+telefono+nombre del invitado asociado) |
+| `src/pages/SearchResults.tsx` | Agregar tabs "Invitados" / "Prensa" con queries separadas. En prensa mostrar contacto, telefono y el invitado al que pertenece |
+
+### Detalle tecnico
+
+**Query INVITADOS:**
+```
+.or(`name.ilike.%q%,topic.ilike.%q%,position.ilike.%q%,program_type.ilike.%q%,tema_principal.ilike.%q%`)
+```
+
+**Query PRENSA:**
+```
+.or(`press_contact.ilike.%q%,press_phone.ilike.%q%`)
+```
+
+**Estado en Index.tsx:**
+- `globalSearchResults` pasa a ser un objeto `{ guests: Guest[], press: Guest[] }`
+
+**Dropdown en FilterBar:**
+- Seccion "INVITADOS" con icono de persona: nombre, posicion, tema, fecha
+- Seccion "PRENSA" con icono de telefono: nombre del contacto de prensa, telefono, y debajo el nombre del invitado asociado
+- Boton "Ver todos los resultados" al final
+
+**Pagina SearchResults:**
+- Dos tabs: "Invitados" y "Prensa"
+- Tab Prensa muestra tarjetas con: nombre del jefe de prensa, telefono, y el invitado/fecha asociados
 
