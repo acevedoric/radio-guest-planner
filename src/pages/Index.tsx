@@ -12,8 +12,9 @@ import { GuestDetailModal } from "@/components/GuestDetailModal";
 import { FilterBar } from "@/components/FilterBar";
 import { Guest } from "@/types/guest";
 import logo from "@/assets/bla-bla-blu-logo.png";
-import { LogOut } from "lucide-react";
+import { LogOut, Undo2, Redo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useUndoRedo } from "@/hooks/useUndoRedo";
 
 const Index = () => {
   const [session, setSession] = useState<Session | null>(null);
@@ -38,6 +39,13 @@ const Index = () => {
   const [editMode, setEditMode] = useState(false);
   const [allRecordingGuests, setAllRecordingGuests] = useState<Guest[]>([]);
   
+  const refreshData = useCallback(() => {
+    fetchGuests();
+    fetchAllRecordingGuests();
+  }, []);
+
+  const { undo, redo, pushAction, canUndo, canRedo } = useUndoRedo(refreshData);
+
   // Check authentication status
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -121,9 +129,9 @@ const Index = () => {
   const handleSaveGuest = async (guest: Guest) => {
     const guestData = {
       ...guest,
-      week_date: selectedWeek.toISOString().split('T')[0],
+      week_date: guest.id ? guest.week_date : selectedWeek.toISOString().split('T')[0],
       day_of_week: newGuestSlot?.day || guest.day_of_week,
-      time_slot: newGuestSlot?.slot || guest.time_slot
+      time_slot: newGuestSlot?.slot ?? guest.time_slot
     };
 
     // Si el estado es "postponed" y hay scheduled_date, mover al nuevo día
@@ -181,12 +189,17 @@ const Index = () => {
     }
     
     if (guest.id) {
+      // Save previous state for undo
+      const previousGuest = guests.find(g => g.id === guest.id);
       const { error } = await supabase.from('guests').update(guestData).eq('id', guest.id);
       if (error) {
         toast.error("Error al actualizar invitado");
         console.error(error);
       } else {
-        toast.success("Invitado actualizado y movido");
+        if (previousGuest) {
+          pushAction({ type: "update", guestId: guest.id, previousData: { ...previousGuest }, newData: { ...guestData } });
+        }
+        toast.success("Invitado actualizado");
       }
     } else {
       const { data, error } = await supabase.from('guests').insert([guestData]).select().single();
@@ -194,6 +207,7 @@ const Index = () => {
         toast.error("Error al crear invitado");
         console.error(error);
       } else {
+        pushAction({ type: "insert", guestId: data.id, previousData: null, newData: { ...guestData } });
         toast.success("Invitado creado");
       }
     }
@@ -227,6 +241,9 @@ const Index = () => {
       toast.error("No se pudo eliminar el invitado (verifica permisos)");
       console.error('Delete failed:', error, 'count:', count);
     } else {
+      if (guestToDelete) {
+        pushAction({ type: "delete", guestId, previousData: { ...guestToDelete }, newData: null });
+      }
       setGuests((prev) => prev.filter((g) => g.id !== guestId));
       setIsModalOpen(false);
       setSelectedGuest(null);
@@ -482,10 +499,18 @@ const Index = () => {
               className="h-12 w-auto cursor-pointer hover:opacity-80 transition-opacity" 
               onClick={handleLogoClick}
             />
-            <Button variant="ghost" size="sm" onClick={handleLogout}>
-              <LogOut className="h-4 w-4 mr-2" />
-              Salir
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="sm" onClick={undo} disabled={!canUndo} title="Deshacer (Ctrl+Z)">
+                <Undo2 className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="sm" onClick={redo} disabled={!canRedo} title="Rehacer (Ctrl+Y)">
+                <Redo2 className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="sm" onClick={handleLogout}>
+                <LogOut className="h-4 w-4 mr-2" />
+                Salir
+              </Button>
+            </div>
           </div>
         </div>
       </header>
