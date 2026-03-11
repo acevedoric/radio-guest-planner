@@ -1,46 +1,44 @@
 
 
-## Mejorar Busqueda: Separar en categorias INVITADOS y PRENSA
+## Plan: Ordenar franjas por hora, corregir bug de invitado desaparecido, y agregar Undo/Redo
 
-### Problema
-La busqueda actual no incluye los campos `press_contact` ni `press_phone`, y muestra todos los resultados mezclados sin distincion entre datos del invitado y datos de prensa.
+### 3 cambios
 
-### Solucion
+**1. Ordenar franjas de grabacion por hora**
 
-Separar la busqueda en dos categorias con tabs/secciones en el dropdown y en la pagina de resultados:
+En `MonthView.tsx`, `WeeklyCalendar.tsx`, y `DayView.tsx`: ordenar `scheduledRecordings` por `scheduled_time` antes de renderizar. Usar `.sort((a, b) => (a.scheduled_time || '').localeCompare(b.scheduled_time || ''))`.
 
-**1. INVITADOS** - Busca en: `name`, `topic`, `position`, `notes`, `program_type`, `tema_principal`
-**2. PRENSA** - Busca en: `press_contact`, `press_phone`
+**2. Bug: invitado desaparece al cambiar estado**
 
-### Cambios
+**Causa raiz**: En `handleSaveGuest` (Index.tsx linea 124), al guardar se sobreescribe `week_date` con `selectedWeek` (la semana que el usuario esta viendo actualmente). Si el usuario navego a otra semana para ver/editar un invitado, al guardar se mueve el invitado a la semana equivocada.
+
+**Solucion**: Usar `guest.week_date` original cuando es una edicion (tiene `id`), y solo usar `selectedWeek` cuando es un invitado nuevo. Cambiar linea 124:
+
+```typescript
+week_date: guest.id ? guest.week_date : selectedWeek.toISOString().split('T')[0],
+```
+
+Igualmente para `day_of_week` y `time_slot`: respetar los valores originales del guest cuando es edicion, a menos que el `newGuestSlot` los override explicitamente.
+
+**3. Undo/Redo en la barra superior**
+
+Implementar un sistema de historial de acciones con deshacer/rehacer:
+
+- Crear un hook `useUndoRedo` que mantenga una pila de acciones (cada accion guarda: tipo, guestId, datos anteriores, datos nuevos)
+- Antes de cada `update`/`delete`/`insert` en la BD, guardar snapshot del estado anterior
+- Botones Undo (⌘Z) y Redo (⌘Y) en el header, al lado del boton "Salir"
+- Undo: restaura el estado anterior del guest en la BD
+- Redo: re-aplica el cambio
+- Maximo 20 acciones en el historial
+- Atajos de teclado: Ctrl+Z / Ctrl+Y
+
+### Archivos a modificar
 
 | Archivo | Cambio |
 |---------|--------|
-| `src/pages/Index.tsx` | En `searchAllGuests`, ejecutar dos queries separadas: una para invitados y otra para prensa. Devolver ambos conjuntos al FilterBar |
-| `src/components/FilterBar.tsx` | Mostrar el dropdown con dos secciones: "Invitados" y "Prensa". Cada seccion muestra sus resultados con formato distinto (invitados muestra nombre+tema, prensa muestra jefe de prensa+telefono+nombre del invitado asociado) |
-| `src/pages/SearchResults.tsx` | Agregar tabs "Invitados" / "Prensa" con queries separadas. En prensa mostrar contacto, telefono y el invitado al que pertenece |
-
-### Detalle tecnico
-
-**Query INVITADOS:**
-```
-.or(`name.ilike.%q%,topic.ilike.%q%,position.ilike.%q%,program_type.ilike.%q%,tema_principal.ilike.%q%`)
-```
-
-**Query PRENSA:**
-```
-.or(`press_contact.ilike.%q%,press_phone.ilike.%q%`)
-```
-
-**Estado en Index.tsx:**
-- `globalSearchResults` pasa a ser un objeto `{ guests: Guest[], press: Guest[] }`
-
-**Dropdown en FilterBar:**
-- Seccion "INVITADOS" con icono de persona: nombre, posicion, tema, fecha
-- Seccion "PRENSA" con icono de telefono: nombre del contacto de prensa, telefono, y debajo el nombre del invitado asociado
-- Boton "Ver todos los resultados" al final
-
-**Pagina SearchResults:**
-- Dos tabs: "Invitados" y "Prensa"
-- Tab Prensa muestra tarjetas con: nombre del jefe de prensa, telefono, y el invitado/fecha asociados
+| `src/components/MonthView.tsx` | Ordenar recordings por hora |
+| `src/components/WeeklyCalendar.tsx` | Ordenar recordings por hora |
+| `src/components/DayView.tsx` | Ordenar recordings por hora |
+| `src/pages/Index.tsx` | Fix bug week_date, integrar undo/redo |
+| `src/hooks/useUndoRedo.ts` | Nuevo hook para historial de acciones |
 
