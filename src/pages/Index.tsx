@@ -12,8 +12,9 @@ import { GuestDetailModal } from "@/components/GuestDetailModal";
 import { FilterBar } from "@/components/FilterBar";
 import { Guest } from "@/types/guest";
 import logo from "@/assets/bla-bla-blu-logo.png";
-import { LogOut } from "lucide-react";
+import { LogOut, Undo2, Redo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useUndoRedo } from "@/hooks/useUndoRedo";
 
 const Index = () => {
   const [session, setSession] = useState<Session | null>(null);
