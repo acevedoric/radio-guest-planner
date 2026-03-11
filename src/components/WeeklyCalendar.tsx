@@ -61,10 +61,12 @@ export const WeeklyCalendar = ({ guests, allGuests, onGuestClick, onAddGuest, se
   const getRecordingsForDay = (dayOffset: number): Guest[] => {
     const dayDate = addDays(selectedWeek, dayOffset);
     const dayStr = format(dayDate, "yyyy-MM-dd");
-    return allGuests.filter(g =>
-      g.scheduled_date === dayStr &&
-      (g.recording_status === "to_record" || g.recording_status === "postponed" || g.recording_status === "proposed")
-    );
+    return allGuests
+      .filter(g =>
+        g.scheduled_date === dayStr &&
+        (g.recording_status === "to_record" || g.recording_status === "postponed" || g.recording_status === "proposed")
+      )
+      .sort((a, b) => (a.scheduled_time || '').localeCompare(b.scheduled_time || ''));
   };
 
   const handleDragStart = (event: DragEndEvent) => {

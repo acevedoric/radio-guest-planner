@@ -63,12 +63,14 @@ export const MonthView = ({ guests, allGuests, onGuestClick, selectedMonth, onDa
 
   const getScheduledRecordingsForDay = (day: Date): Guest[] => {
     const dayStr = format(day, "yyyy-MM-dd");
-    return allGuests.filter(g => 
-      g.scheduled_date === dayStr &&
-      (g.recording_status === "to_record" || 
-       g.recording_status === "postponed" || 
-       g.recording_status === "proposed")
-    );
+    return allGuests
+      .filter(g => 
+        g.scheduled_date === dayStr &&
+        (g.recording_status === "to_record" || 
+         g.recording_status === "postponed" || 
+         g.recording_status === "proposed")
+      )
+      .sort((a, b) => (a.scheduled_time || '').localeCompare(b.scheduled_time || ''));
   };
 
   const isCurrentMonth = (day: Date) => {

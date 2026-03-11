@@ -53,10 +53,12 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
 
   // Get recordings scheduled for this day
   const scheduledRecordings = selectedDayDate
-    ? allGuests.filter(g =>
-        g.scheduled_date === selectedDayDate &&
-        (g.recording_status === "to_record" || g.recording_status === "postponed" || g.recording_status === "proposed")
-      )
+    ? allGuests
+        .filter(g =>
+          g.scheduled_date === selectedDayDate &&
+          (g.recording_status === "to_record" || g.recording_status === "postponed" || g.recording_status === "proposed")
+        )
+        .sort((a, b) => (a.scheduled_time || '').localeCompare(b.scheduled_time || ''))
     : [];
 
   const handleCheckboxChange = async (guest: Guest, type: 'proposed' | 'blu' | 'pr', checked: boolean) => {
