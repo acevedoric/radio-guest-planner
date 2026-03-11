@@ -153,7 +153,7 @@ export const MonthView = ({ guests, allGuests, onGuestClick, selectedMonth, onDa
               className={`min-h-[140px] p-2 transition-all ${
                 !isInMonth ? "opacity-30 bg-muted/30" : ""
               } ${
-                past && isInMonth ? "opacity-20" : ""
+                past && isInMonth ? "opacity-70" : ""
               } ${
                 isWork && isInMonth ? "cursor-pointer hover:shadow-md hover:border-primary" : ""
               }`}
