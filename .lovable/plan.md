@@ -1,46 +1,27 @@
 
 
-## Mejorar Busqueda: Separar en categorias INVITADOS y PRENSA
+## Plan: Corregir inconsistencia de fechas entre vistas
 
-### Problema
-La busqueda actual no incluye los campos `press_contact` ni `press_phone`, y muestra todos los resultados mezclados sin distincion entre datos del invitado y datos de prensa.
+### Causa raíz
 
-### Solucion
+Hay una mezcla de dos métodos para convertir fechas a string:
 
-Separar la busqueda en dos categorias con tabs/secciones en el dropdown y en la pagina de resultados:
+- **MonthView** usa `format(date, "yyyy-MM-dd")` → zona horaria LOCAL
+- **Index.tsx** y **WeeklyCalendar** usan `toISOString().split('T')[0]` → zona horaria UTC
 
-**1. INVITADOS** - Busca en: `name`, `topic`, `position`, `notes`, `program_type`, `tema_principal`
-**2. PRENSA** - Busca en: `press_contact`, `press_phone`
+Cuando el usuario está en una zona horaria con offset positivo (ej: UTC+1), `toISOString()` puede cambiar la fecha al día ANTERIOR. Ejemplo: lunes 30 de marzo 00:00 local (UTC+1) = domingo 29 de marzo 23:00 UTC. Resultado: el `week_date` guardado es "2026-03-29" en vez de "2026-03-30", y el invitado no aparece en la vista MES.
 
-### Cambios
+### Solución
 
-| Archivo | Cambio |
-|---------|--------|
-| `src/pages/Index.tsx` | En `searchAllGuests`, ejecutar dos queries separadas: una para invitados y otra para prensa. Devolver ambos conjuntos al FilterBar |
-| `src/components/FilterBar.tsx` | Mostrar el dropdown con dos secciones: "Invitados" y "Prensa". Cada seccion muestra sus resultados con formato distinto (invitados muestra nombre+tema, prensa muestra jefe de prensa+telefono+nombre del invitado asociado) |
-| `src/pages/SearchResults.tsx` | Agregar tabs "Invitados" / "Prensa" con queries separadas. En prensa mostrar contacto, telefono y el invitado al que pertenece |
+Reemplazar TODOS los `toISOString().split('T')[0]` por `format(date, "yyyy-MM-dd")` de date-fns, que siempre usa la zona horaria local del usuario.
 
-### Detalle tecnico
+### Archivos a modificar
 
-**Query INVITADOS:**
-```
-.or(`name.ilike.%q%,topic.ilike.%q%,position.ilike.%q%,program_type.ilike.%q%,tema_principal.ilike.%q%`)
-```
+| Archivo | Líneas | Cambio |
+|---------|--------|--------|
+| `src/pages/Index.tsx` | 100, 111, 132, 156, 350 | 5 reemplazos de `toISOString().split('T')[0]` → `format(date, "yyyy-MM-dd")` |
+| `src/components/WeeklyCalendar.tsx` | 89 | 1 reemplazo |
+| `src/components/GuestDetailModal.tsx` | 32, 65 | 2 reemplazos (defaults del formulario) |
 
-**Query PRENSA:**
-```
-.or(`press_contact.ilike.%q%,press_phone.ilike.%q%`)
-```
-
-**Estado en Index.tsx:**
-- `globalSearchResults` pasa a ser un objeto `{ guests: Guest[], press: Guest[] }`
-
-**Dropdown en FilterBar:**
-- Seccion "INVITADOS" con icono de persona: nombre, posicion, tema, fecha
-- Seccion "PRENSA" con icono de telefono: nombre del contacto de prensa, telefono, y debajo el nombre del invitado asociado
-- Boton "Ver todos los resultados" al final
-
-**Pagina SearchResults:**
-- Dos tabs: "Invitados" y "Prensa"
-- Tab Prensa muestra tarjetas con: nombre del jefe de prensa, telefono, y el invitado/fecha asociados
+Total: 8 cambios mecánicos, mismo patrón en todos.
 
