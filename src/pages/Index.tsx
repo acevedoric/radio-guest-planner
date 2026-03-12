@@ -153,7 +153,7 @@ const Index = () => {
 
       const newDayOfWeek = dayMap[dayOfWeekNum];
       const newWeekDate = startOfWeek(scheduledDate, { weekStartsOn: 1 });
-      const newWeekDateStr = newWeekDate.toISOString().split('T')[0];
+      const newWeekDateStr = format(newWeekDate, "yyyy-MM-dd");
 
       // Verificar disponibilidad del slot
       let conflictQuery = supabase
