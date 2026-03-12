@@ -129,7 +129,7 @@ const Index = () => {
   const handleSaveGuest = async (guest: Guest) => {
     const guestData = {
       ...guest,
-      week_date: guest.id ? guest.week_date : selectedWeek.toISOString().split('T')[0],
+      week_date: guest.id ? guest.week_date : format(selectedWeek, "yyyy-MM-dd"),
       day_of_week: newGuestSlot?.day || guest.day_of_week,
       time_slot: newGuestSlot?.slot ?? guest.time_slot
     };
