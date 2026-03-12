@@ -347,7 +347,7 @@ const Index = () => {
       recording_status: "proposed",
       day_of_week: day,
       time_slot: slot,
-      week_date: weekDate || selectedWeek.toISOString().split('T')[0]
+      week_date: weekDate || format(selectedWeek, "yyyy-MM-dd")
     });
     setIsModalOpen(true);
   };

@@ -86,7 +86,7 @@ export const WeeklyCalendar = ({ guests, allGuests, onGuestClick, onAddGuest, se
     const newSlot = parseInt(newSlotStr);
     
     const targetGuest = getGuestForSlot(newDay, newSlot);
-    const newWeekDate = selectedWeek.toISOString().split('T')[0];
+    const newWeekDate = format(selectedWeek, "yyyy-MM-dd");
     
     await onMoveGuest(guestId, newDay, newSlot, newWeekDate, targetGuest?.id);
   };
