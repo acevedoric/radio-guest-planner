@@ -108,7 +108,7 @@ const Index = () => {
       const end = startOfWeek(monthEnd, { weekStartsOn: 1 });
       
       while (current <= end) {
-        mondaysInMonth.push(current.toISOString().split('T')[0]);
+        mondaysInMonth.push(format(current, "yyyy-MM-dd"));
         current = addWeeks(current, 1);
       }
       
