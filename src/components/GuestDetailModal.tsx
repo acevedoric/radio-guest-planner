@@ -29,7 +29,7 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
     recording_status: "proposed",
     day_of_week: "monday",
     time_slot: 1,
-    week_date: new Date().toISOString().split('T')[0],
+    week_date: format(new Date(), "yyyy-MM-dd"),
     scheduled_date: null,
     scheduled_time: null,
   });
