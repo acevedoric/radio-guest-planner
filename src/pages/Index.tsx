@@ -584,6 +584,7 @@ const Index = () => {
             onGuestClick={handleGuestClick}
             selectedMonth={selectedMonth}
             onDayClick={(day) => {
+              setSelectedWeek(startOfWeek(day, { weekStartsOn: 1 }));
               setSelectedDay(["monday", "tuesday", "wednesday", "thursday"][day.getDay() - 1]);
               setViewMode("day");
             }}
