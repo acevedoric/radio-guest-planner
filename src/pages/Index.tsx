@@ -97,7 +97,7 @@ const Index = () => {
     let query = supabase.from('guests').select('*');
     
     if (viewMode === "day" || viewMode === "week") {
-      const weekStart = selectedWeek.toISOString().split('T')[0];
+      const weekStart = format(selectedWeek, "yyyy-MM-dd");
       query = query.eq('week_date', weekStart);
     } else if (viewMode === "month") {
       const monthStart = startOfMonth(selectedMonth);
