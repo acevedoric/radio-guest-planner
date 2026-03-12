@@ -97,7 +97,7 @@ const Index = () => {
     let query = supabase.from('guests').select('*');
     
     if (viewMode === "day" || viewMode === "week") {
-      const weekStart = selectedWeek.toISOString().split('T')[0];
+      const weekStart = format(selectedWeek, "yyyy-MM-dd");
       query = query.eq('week_date', weekStart);
     } else if (viewMode === "month") {
       const monthStart = startOfMonth(selectedMonth);
@@ -108,7 +108,7 @@ const Index = () => {
       const end = startOfWeek(monthEnd, { weekStartsOn: 1 });
       
       while (current <= end) {
-        mondaysInMonth.push(current.toISOString().split('T')[0]);
+        mondaysInMonth.push(format(current, "yyyy-MM-dd"));
         current = addWeeks(current, 1);
       }
       
@@ -129,7 +129,7 @@ const Index = () => {
   const handleSaveGuest = async (guest: Guest) => {
     const guestData = {
       ...guest,
-      week_date: guest.id ? guest.week_date : selectedWeek.toISOString().split('T')[0],
+      week_date: guest.id ? guest.week_date : format(selectedWeek, "yyyy-MM-dd"),
       day_of_week: newGuestSlot?.day || guest.day_of_week,
       time_slot: newGuestSlot?.slot ?? guest.time_slot
     };
@@ -153,7 +153,7 @@ const Index = () => {
 
       const newDayOfWeek = dayMap[dayOfWeekNum];
       const newWeekDate = startOfWeek(scheduledDate, { weekStartsOn: 1 });
-      const newWeekDateStr = newWeekDate.toISOString().split('T')[0];
+      const newWeekDateStr = format(newWeekDate, "yyyy-MM-dd");
 
       // Verificar disponibilidad del slot
       let conflictQuery = supabase
@@ -347,7 +347,7 @@ const Index = () => {
       recording_status: "proposed",
       day_of_week: day,
       time_slot: slot,
-      week_date: weekDate || selectedWeek.toISOString().split('T')[0]
+      week_date: weekDate || format(selectedWeek, "yyyy-MM-dd")
     });
     setIsModalOpen(true);
   };

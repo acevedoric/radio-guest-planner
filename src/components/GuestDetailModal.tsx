@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { format } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
@@ -29,7 +30,7 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
     recording_status: "proposed",
     day_of_week: "monday",
     time_slot: 1,
-    week_date: new Date().toISOString().split('T')[0],
+    week_date: format(new Date(), "yyyy-MM-dd"),
     scheduled_date: null,
     scheduled_time: null,
   });
@@ -62,7 +63,7 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
         recording_status: "proposed",
         day_of_week: "monday",
         time_slot: 1,
-        week_date: new Date().toISOString().split('T')[0],
+        week_date: format(new Date(), "yyyy-MM-dd"),
         scheduled_date: null,
         scheduled_time: null,
       });
