@@ -110,6 +110,33 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
         <h2 className="text-2xl font-bold text-foreground">{currentDayLabel}</h2>
       </div>
 
+      {/* TITULARES */}
+      <Card className="p-4 bg-muted/50 border-primary/20">
+        <div className="flex items-center gap-2 mb-3">
+          <Newspaper className="w-5 h-5 text-primary" />
+          <h3 className="text-sm font-bold text-primary uppercase tracking-wider">Titulares</h3>
+        </div>
+        <div className="space-y-2">
+          {TIME_SLOTS.map(({ slot, label }) => {
+            const guest = getGuestForSlot(slot);
+            return (
+              <div key={slot} className="flex items-baseline gap-2 text-sm">
+                <span className="font-semibold text-muted-foreground min-w-[70px]">{label}:</span>
+                {guest ? (
+                  <span className="text-foreground">
+                    <span className="font-medium">{guest.name}</span>
+                    {guest.position && <span className="text-muted-foreground"> ({guest.position})</span>}
+                    {guest.topic && <span className="text-muted-foreground"> — {guest.topic}</span>}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground italic">Sin invitado</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+
       {/* Recording banner */}
       {scheduledRecordings.length > 0 && (
         <div className="space-y-2">
