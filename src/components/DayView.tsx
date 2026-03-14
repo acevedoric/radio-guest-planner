@@ -329,6 +329,90 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
                       </div>
                     </div>
                   </div>
+
+                  {/* Botones de contacto */}
+                  <div className="pt-4 border-t">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Contactar Invitado */}
+                      {(guest.email || guest.phone) && (
+                        <div className="space-y-2">
+                          <span className="text-xs text-muted-foreground font-semibold">Contactar Invitado</span>
+                          <div className="flex gap-2">
+                            {guest.email && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-xs"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  window.location.href = `mailto:${guest.email}`;
+                                }}
+                              >
+                                <Mail className="w-3 h-3 mr-1" />
+                                Enviar Correo
+                              </Button>
+                            )}
+                            {guest.phone && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-xs"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const clean = guest.phone!.replace(/\s|-|\(|\)/g, "");
+                                  window.open(`https://wa.me/${clean}`, "_blank");
+                                }}
+                              >
+                                <MessageCircle className="w-3 h-3 mr-1" />
+                                Enviar WhatsApp
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Contactar PR */}
+                      {(guest.press_contact || guest.press_phone) && (
+                        <div className="space-y-2">
+                          <span className="text-xs text-muted-foreground font-semibold">Contactar PR</span>
+                          <div className="flex gap-2">
+                            {guest.press_contact && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-xs"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  // If press_contact looks like email, use mailto; otherwise just show
+                                  if (guest.press_contact!.includes('@')) {
+                                    window.location.href = `mailto:${guest.press_contact}`;
+                                  }
+                                }}
+                              >
+                                <Mail className="w-3 h-3 mr-1" />
+                                Correo PR
+                              </Button>
+                            )}
+                            {guest.press_phone && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-xs"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const clean = guest.press_phone!.replace(/\s|-|\(|\)/g, "");
+                                  window.open(`https://wa.me/${clean}`, "_blank");
+                                }}
+                              >
+                                <MessageCircle className="w-3 h-3 mr-1" />
+                                WhatsApp PR
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <div className="text-center py-8">
