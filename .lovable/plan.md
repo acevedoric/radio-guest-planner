@@ -1,29 +1,46 @@
 
 
-## Plan: Sección TITULARES + Botones de Contacto (sin n8n)
+## Mejorar Busqueda: Separar en categorias INVITADOS y PRENSA
 
-### 1. Sección TITULARES
-Agregar una card resumen después del header del día y antes del banner de grabaciones, mostrando los 3 slots:
+### Problema
+La busqueda actual no incluye los campos `press_contact` ni `press_phone`, y muestra todos los resultados mezclados sin distincion entre datos del invitado y datos de prensa.
 
-- **1ra hora**: Nombre (Posición) — Tema
-- **2da hora**: Nombre (Posición) — Tema  
-- **3ra hora**: Sin invitado
+### Solucion
 
-Usa un icono de `Newspaper` y estilo compacto con fondo sutil.
+Separar la busqueda en dos categorias con tabs/secciones en el dropdown y en la pagina de resultados:
 
-### 2. Botones ENVIAR CORREO / ENVIAR WHATSAPP
-Al final de cada card de invitado (después de los checkboxes de confirmación), agregar dos grupos:
+**1. INVITADOS** - Busca en: `name`, `topic`, `position`, `notes`, `program_type`, `tema_principal`
+**2. PRENSA** - Busca en: `press_contact`, `press_phone`
 
-- **Contactar Invitado**: botones de correo (si tiene `email`) y WhatsApp (si tiene `phone`)
-- **Contactar PR**: botones de correo y WhatsApp (si tiene `press_contact` / `press_phone`)
+### Cambios
 
-Por ahora, los botones de correo abren `mailto:` y los de WhatsApp abren `https://wa.me/`. Cuando se configure n8n, se reemplazará con la llamada al webhook.
+| Archivo | Cambio |
+|---------|--------|
+| `src/pages/Index.tsx` | En `searchAllGuests`, ejecutar dos queries separadas: una para invitados y otra para prensa. Devolver ambos conjuntos al FilterBar |
+| `src/components/FilterBar.tsx` | Mostrar el dropdown con dos secciones: "Invitados" y "Prensa". Cada seccion muestra sus resultados con formato distinto (invitados muestra nombre+tema, prensa muestra jefe de prensa+telefono+nombre del invitado asociado) |
+| `src/pages/SearchResults.tsx` | Agregar tabs "Invitados" / "Prensa" con queries separadas. En prensa mostrar contacto, telefono y el invitado al que pertenece |
 
-### Archivo a modificar
-- `src/components/DayView.tsx`
+### Detalle tecnico
 
-### Cambios específicos
-1. Importar `Mail`, `MessageCircle`, `Newspaper` de lucide-react
-2. Después del Day Header (línea ~111), insertar la card TITULARES que itera sobre TIME_SLOTS y muestra el resumen
-3. Después de los checkboxes de confirmación (línea ~304), agregar sección de botones de contacto con dos columnas: Invitado y PR
+**Query INVITADOS:**
+```
+.or(`name.ilike.%q%,topic.ilike.%q%,position.ilike.%q%,program_type.ilike.%q%,tema_principal.ilike.%q%`)
+```
+
+**Query PRENSA:**
+```
+.or(`press_contact.ilike.%q%,press_phone.ilike.%q%`)
+```
+
+**Estado en Index.tsx:**
+- `globalSearchResults` pasa a ser un objeto `{ guests: Guest[], press: Guest[] }`
+
+**Dropdown en FilterBar:**
+- Seccion "INVITADOS" con icono de persona: nombre, posicion, tema, fecha
+- Seccion "PRENSA" con icono de telefono: nombre del contacto de prensa, telefono, y debajo el nombre del invitado asociado
+- Boton "Ver todos los resultados" al final
+
+**Pagina SearchResults:**
+- Dos tabs: "Invitados" y "Prensa"
+- Tab Prensa muestra tarjetas con: nombre del jefe de prensa, telefono, y el invitado/fecha asociados
 

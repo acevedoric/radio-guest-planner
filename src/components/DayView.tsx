@@ -1,6 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Globe, User } from "lucide-react";
+import { Globe, User, Newspaper, Mail, MessageCircle } from "lucide-react";
 import { Guest } from "@/types/guest";
 import { Button } from "@/components/ui/button";
 import { ContactLink } from "./ContactLink";
@@ -109,6 +109,33 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
       <div className="text-center">
         <h2 className="text-2xl font-bold text-foreground">{currentDayLabel}</h2>
       </div>
+
+      {/* TITULARES */}
+      <Card className="p-4 bg-muted/50 border-primary/20">
+        <div className="flex items-center gap-2 mb-3">
+          <Newspaper className="w-5 h-5 text-primary" />
+          <h3 className="text-sm font-bold text-primary uppercase tracking-wider">Titulares</h3>
+        </div>
+        <div className="space-y-2">
+          {TIME_SLOTS.map(({ slot, label }) => {
+            const guest = getGuestForSlot(slot);
+            return (
+              <div key={slot} className="flex items-baseline gap-2 text-sm">
+                <span className="font-semibold text-muted-foreground min-w-[70px]">{label}:</span>
+                {guest ? (
+                  <span className="text-foreground">
+                    <span className="font-medium">{guest.name}</span>
+                    {guest.position && <span className="text-muted-foreground"> ({guest.position})</span>}
+                    {guest.topic && <span className="text-muted-foreground"> — {guest.topic}</span>}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground italic">Sin invitado</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </Card>
 
       {/* Recording banner */}
       {scheduledRecordings.length > 0 && (
@@ -300,6 +327,90 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
                           CONFIRMADO PR
                         </label>
                       </div>
+                    </div>
+                  </div>
+
+                  {/* Botones de contacto */}
+                  <div className="pt-4 border-t">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Contactar Invitado */}
+                      {(guest.email || guest.phone) && (
+                        <div className="space-y-2">
+                          <span className="text-xs text-muted-foreground font-semibold">Contactar Invitado</span>
+                          <div className="flex gap-2">
+                            {guest.email && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-xs"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  window.location.href = `mailto:${guest.email}`;
+                                }}
+                              >
+                                <Mail className="w-3 h-3 mr-1" />
+                                Enviar Correo
+                              </Button>
+                            )}
+                            {guest.phone && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-xs"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const clean = guest.phone!.replace(/\s|-|\(|\)/g, "");
+                                  window.open(`https://wa.me/${clean}`, "_blank");
+                                }}
+                              >
+                                <MessageCircle className="w-3 h-3 mr-1" />
+                                Enviar WhatsApp
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Contactar PR */}
+                      {(guest.press_contact || guest.press_phone) && (
+                        <div className="space-y-2">
+                          <span className="text-xs text-muted-foreground font-semibold">Contactar PR</span>
+                          <div className="flex gap-2">
+                            {guest.press_contact && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-xs"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  // If press_contact looks like email, use mailto; otherwise just show
+                                  if (guest.press_contact!.includes('@')) {
+                                    window.location.href = `mailto:${guest.press_contact}`;
+                                  }
+                                }}
+                              >
+                                <Mail className="w-3 h-3 mr-1" />
+                                Correo PR
+                              </Button>
+                            )}
+                            {guest.press_phone && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-xs"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const clean = guest.press_phone!.replace(/\s|-|\(|\)/g, "");
+                                  window.open(`https://wa.me/${clean}`, "_blank");
+                                }}
+                              >
+                                <MessageCircle className="w-3 h-3 mr-1" />
+                                WhatsApp PR
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
