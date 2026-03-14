@@ -1,6 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Globe, User } from "lucide-react";
+import { Globe, User, Newspaper, Mail, MessageCircle } from "lucide-react";
 import { Guest } from "@/types/guest";
 import { Button } from "@/components/ui/button";
 import { ContactLink } from "./ContactLink";
