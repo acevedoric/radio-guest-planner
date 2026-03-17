@@ -252,7 +252,7 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
                   )}
 
                   {/* Additional Info - Prensa */}
-                  {(guest.press_contact || guest.press_phone || guest.program_type || guest.notes) && (
+                  {(guest.press_contact || guest.press_phone || guest.press_email || guest.program_type || guest.notes) && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
                       {guest.press_contact && (
                         <div>
@@ -262,6 +262,9 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
                       )}
                       {guest.press_phone && (
                         <ContactLink type="phone" value={guest.press_phone} label="Tel. Prensa" />
+                      )}
+                      {guest.press_email && (
+                        <ContactLink type="email" value={guest.press_email} label="Correo Prensa" />
                       )}
                       {guest.program_type && (
                         <div>
