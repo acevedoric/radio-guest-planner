@@ -343,20 +343,38 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="press_phone">Número de Prensa</Label>
-            {readOnly && formData.press_phone ? (
-              <ContactLink type="phone" value={formData.press_phone} />
-            ) : (
-              <Input
-                id="press_phone"
-                type="tel"
-                value={formData.press_phone || ""}
-                onChange={(e) => setFormData({ ...formData, press_phone: e.target.value })}
-                placeholder="+57 1 234 5678"
-                disabled={readOnly}
-              />
-            )}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="press_phone">Teléfono de Prensa</Label>
+              {readOnly && formData.press_phone ? (
+                <ContactLink type="phone" value={formData.press_phone} />
+              ) : (
+                <Input
+                  id="press_phone"
+                  type="tel"
+                  value={formData.press_phone || ""}
+                  onChange={(e) => setFormData({ ...formData, press_phone: e.target.value })}
+                  placeholder="+57 1 234 5678"
+                  disabled={readOnly}
+                />
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="press_email">Correo de Prensa</Label>
+              {readOnly && formData.press_email ? (
+                <ContactLink type="email" value={formData.press_email} />
+              ) : (
+                <Input
+                  id="press_email"
+                  type="email"
+                  value={formData.press_email || ""}
+                  onChange={(e) => setFormData({ ...formData, press_email: e.target.value })}
+                  placeholder="prensa@ejemplo.com"
+                  disabled={readOnly}
+                />
+              )}
+            </div>
           </div>
 
           <div className="space-y-2">
