@@ -1,24 +1,46 @@
 
 
-## Plan: Corregir reubicación de invitados al cambiar fecha
+## Mejorar Busqueda: Separar en categorias INVITADOS y PRENSA
 
-### Diagnóstico
-Revisé la base de datos y encontré el caso exacto: **Felipe Peláez** tiene `recording_status: proposed` (azul), `scheduled_date: 2026-04-15`, pero `week_date: 2026-03-23`. El invitado sigue apareciendo en la semana del 23 de marzo porque la lógica de reubicación en `handleSaveGuest` solo se activa cuando el estado es `"postponed"`, pero NO para `"proposed"` ni `"to_record"`.
+### Problema
+La busqueda actual no incluye los campos `press_contact` ni `press_phone`, y muestra todos los resultados mezclados sin distincion entre datos del invitado y datos de prensa.
 
-### Solución
-Extender la lógica de reubicación en `src/pages/Index.tsx` (`handleSaveGuest`) para que se active con **cualquier estado que muestre el campo `scheduled_date`**: `postponed`, `proposed` y `to_record`.
+### Solucion
 
-### Cambio en código
+Separar la busqueda en dos categorias con tabs/secciones en el dropdown y en la pagina de resultados:
 
-**`src/pages/Index.tsx`** — Línea 138, cambiar:
-```typescript
-// ANTES:
-if (guestData.recording_status === "postponed" && guestData.scheduled_date) {
+**1. INVITADOS** - Busca en: `name`, `topic`, `position`, `notes`, `program_type`, `tema_principal`
+**2. PRENSA** - Busca en: `press_contact`, `press_phone`
 
-// DESPUÉS:
-const statusesWithRelocation = ["postponed", "proposed", "to_record"];
-if (statusesWithRelocation.includes(guestData.recording_status) && guestData.scheduled_date) {
+### Cambios
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/pages/Index.tsx` | En `searchAllGuests`, ejecutar dos queries separadas: una para invitados y otra para prensa. Devolver ambos conjuntos al FilterBar |
+| `src/components/FilterBar.tsx` | Mostrar el dropdown con dos secciones: "Invitados" y "Prensa". Cada seccion muestra sus resultados con formato distinto (invitados muestra nombre+tema, prensa muestra jefe de prensa+telefono+nombre del invitado asociado) |
+| `src/pages/SearchResults.tsx` | Agregar tabs "Invitados" / "Prensa" con queries separadas. En prensa mostrar contacto, telefono y el invitado al que pertenece |
+
+### Detalle tecnico
+
+**Query INVITADOS:**
+```
+.or(`name.ilike.%q%,topic.ilike.%q%,position.ilike.%q%,program_type.ilike.%q%,tema_principal.ilike.%q%`)
 ```
 
-El resto de la lógica (calcular nueva semana, día, verificar conflictos) permanece igual. Esto hará que al establecer una `scheduled_date` en cualquiera de esos estados, el invitado se mueva automáticamente a la fecha correcta y libere el slot original.
+**Query PRENSA:**
+```
+.or(`press_contact.ilike.%q%,press_phone.ilike.%q%`)
+```
+
+**Estado en Index.tsx:**
+- `globalSearchResults` pasa a ser un objeto `{ guests: Guest[], press: Guest[] }`
+
+**Dropdown en FilterBar:**
+- Seccion "INVITADOS" con icono de persona: nombre, posicion, tema, fecha
+- Seccion "PRENSA" con icono de telefono: nombre del contacto de prensa, telefono, y debajo el nombre del invitado asociado
+- Boton "Ver todos los resultados" al final
+
+**Pagina SearchResults:**
+- Dos tabs: "Invitados" y "Prensa"
+- Tab Prensa muestra tarjetas con: nombre del jefe de prensa, telefono, y el invitado/fecha asociados
 
