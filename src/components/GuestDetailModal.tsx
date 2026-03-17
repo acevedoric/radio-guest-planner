@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { Guest } from "@/types/guest";
 import { ContactLink } from "./ContactLink";
 import { SocialNetworkLink, getSocialPlatformOptions } from "./SocialNetworkLink";
+import { supabase } from "@/integrations/supabase/client";
 
 interface GuestDetailModalProps {
   guest: Guest | null;
