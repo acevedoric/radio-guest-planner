@@ -252,7 +252,7 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
                   )}
 
                   {/* Additional Info - Prensa */}
-                  {(guest.press_contact || guest.press_phone || guest.program_type || guest.notes) && (
+                  {(guest.press_contact || guest.press_phone || guest.press_email || guest.program_type || guest.notes) && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
                       {guest.press_contact && (
                         <div>
@@ -262,6 +262,9 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
                       )}
                       {guest.press_phone && (
                         <ContactLink type="phone" value={guest.press_phone} label="Tel. Prensa" />
+                      )}
+                      {guest.press_email && (
+                        <ContactLink type="email" value={guest.press_email} label="Correo Prensa" />
                       )}
                       {guest.program_type && (
                         <div>
@@ -280,7 +283,14 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
 
                   {/* Checkboxes de confirmación */}
                   <div className="pt-4 border-t space-y-3">
-                    <div className="text-xs text-muted-foreground font-semibold mb-2">Estado de Confirmación</div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-xs text-muted-foreground font-semibold">Estado de Confirmación</span>
+                      {guest.proposed_by && (
+                        <span className="text-xs text-muted-foreground" title={`Propuesto por: ${guest.proposed_by}`}>
+                          · 📋 {guest.proposed_by}
+                        </span>
+                      )}
+                    </div>
                     <div className="flex flex-col gap-2">
                       <div className="flex items-center space-x-2">
                         <Checkbox
@@ -372,21 +382,18 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
                       )}
 
                       {/* Contactar PR */}
-                      {(guest.press_contact || guest.press_phone) && (
+                      {(guest.press_contact || guest.press_phone || guest.press_email) && (
                         <div className="space-y-2">
                           <span className="text-xs text-muted-foreground font-semibold">Contactar PR</span>
                           <div className="flex gap-2">
-                            {guest.press_contact && (
+                            {guest.press_email && (
                               <Button
                                 variant="outline"
                                 size="sm"
                                 className="text-xs"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  // If press_contact looks like email, use mailto; otherwise just show
-                                  if (guest.press_contact!.includes('@')) {
-                                    window.location.href = `mailto:${guest.press_contact}`;
-                                  }
+                                  window.location.href = `mailto:${guest.press_email}`;
                                 }}
                               >
                                 <Mail className="w-3 h-3 mr-1" />

@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { Guest } from "@/types/guest";
 import { ContactLink } from "./ContactLink";
 import { SocialNetworkLink, getSocialPlatformOptions } from "./SocialNetworkLink";
+import { supabase } from "@/integrations/supabase/client";
 
 interface GuestDetailModalProps {
   guest: Guest | null;
@@ -72,7 +73,7 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
     }
   }, [guest]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!formData.name.trim() || !formData.topic.trim()) {
@@ -91,11 +92,21 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
       Object.entries(allSocialNetworks).filter(([_, value]) => value.trim() !== "")
     );
 
-    onSave({
+    // Auto-set proposed_by for new guests
+    let finalData = {
       ...formData,
       social_networks: Object.keys(cleanedSocialNetworks).length > 0 ? cleanedSocialNetworks : null,
       email: null
-    });
+    };
+
+    if (!formData.id && !formData.proposed_by) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        finalData.proposed_by = user.email || user.id;
+      }
+    }
+
+    onSave(finalData);
     onClose();
   };
 
@@ -343,20 +354,38 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="press_phone">Número de Prensa</Label>
-            {readOnly && formData.press_phone ? (
-              <ContactLink type="phone" value={formData.press_phone} />
-            ) : (
-              <Input
-                id="press_phone"
-                type="tel"
-                value={formData.press_phone || ""}
-                onChange={(e) => setFormData({ ...formData, press_phone: e.target.value })}
-                placeholder="+57 1 234 5678"
-                disabled={readOnly}
-              />
-            )}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="press_phone">Teléfono de Prensa</Label>
+              {readOnly && formData.press_phone ? (
+                <ContactLink type="phone" value={formData.press_phone} />
+              ) : (
+                <Input
+                  id="press_phone"
+                  type="tel"
+                  value={formData.press_phone || ""}
+                  onChange={(e) => setFormData({ ...formData, press_phone: e.target.value })}
+                  placeholder="+57 1 234 5678"
+                  disabled={readOnly}
+                />
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="press_email">Correo de Prensa</Label>
+              {readOnly && formData.press_email ? (
+                <ContactLink type="email" value={formData.press_email} />
+              ) : (
+                <Input
+                  id="press_email"
+                  type="email"
+                  value={formData.press_email || ""}
+                  onChange={(e) => setFormData({ ...formData, press_email: e.target.value })}
+                  placeholder="prensa@ejemplo.com"
+                  disabled={readOnly}
+                />
+              )}
+            </div>
           </div>
 
           <div className="space-y-2">

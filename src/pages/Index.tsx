@@ -377,7 +377,7 @@ const Index = () => {
       supabase
         .from('guests')
         .select('*')
-        .or(`press_contact.ilike.%${query}%,press_phone.ilike.%${query}%`)
+        .or(`press_contact.ilike.%${query}%,press_phone.ilike.%${query}%,press_email.ilike.%${query}%`)
         .limit(20),
     ]);
 

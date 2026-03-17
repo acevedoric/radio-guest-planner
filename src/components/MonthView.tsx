@@ -344,6 +344,11 @@ const SlotCard = ({ guest, day, slot, onGuestClick, onAddGuest, getStatusColor, 
             
             {/* Checkboxes de confirmación */}
             <div className="mt-2 pt-2 border-t border-white/20 space-y-1" onClick={(e) => e.stopPropagation()}>
+              {guest.proposed_by && (
+                <div className="text-[8px] text-white/60 truncate mb-1" title={`Propuesto por: ${guest.proposed_by}`}>
+                  📋 {guest.proposed_by}
+                </div>
+              )}
               <div className="flex items-center space-x-1">
                 <Checkbox
                   id={`proposed-${guest.id}-${slot}`}

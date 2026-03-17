@@ -269,6 +269,11 @@ const GuestSlotCard = ({ day, slot, guest, onGuestClick, onAddGuest, editMode }:
             </div>
             {/* Checkboxes de confirmación */}
             <div className="pt-2 border-t border-muted space-y-1" onClick={(e) => e.stopPropagation()}>
+              {guest.proposed_by && (
+                <div className="text-[9px] text-muted-foreground truncate mb-1" title={`Propuesto por: ${guest.proposed_by}`}>
+                  📋 {guest.proposed_by}
+                </div>
+              )}
               <div className="flex items-center space-x-1">
                 <Checkbox
                   id={`proposed-week-${guest.id}-${slot}`}
