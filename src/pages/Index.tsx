@@ -135,7 +135,8 @@ const Index = () => {
     };
 
     // Si el estado es "postponed" y hay scheduled_date, mover al nuevo día
-    if (guestData.recording_status === "postponed" && guestData.scheduled_date) {
+    const statusesWithRelocation = ["postponed", "proposed", "to_record"];
+    if (statusesWithRelocation.includes(guestData.recording_status) && guestData.scheduled_date) {
       const scheduledDate = new Date(guestData.scheduled_date + 'T12:00:00');
       const dayOfWeekNum = scheduledDate.getDay(); // 0=Dom, 1=Lun, ... 4=Jue
 
