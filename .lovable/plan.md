@@ -1,46 +1,24 @@
 
 
-## Mejorar Busqueda: Separar en categorias INVITADOS y PRENSA
+## Plan: Agregar correo de prensa y registro de quién propone
 
-### Problema
-La busqueda actual no incluye los campos `press_contact` ni `press_phone`, y muestra todos los resultados mezclados sin distincion entre datos del invitado y datos de prensa.
+### Cambios necesarios
 
-### Solucion
+**1. Migración de base de datos**
+- Agregar columna `press_email` (text, nullable) a la tabla `guests` para almacenar el correo del contacto de prensa/manager.
+- Agregar columna `proposed_by` (text, nullable) a la tabla `guests` para registrar quién hizo la propuesta (nombre o email del usuario logueado).
 
-Separar la busqueda en dos categorias con tabs/secciones en el dropdown y en la pagina de resultados:
+**2. Tipo Guest (`src/types/guest.ts`)**
+- Agregar `press_email?: string | null` y `proposed_by?: string | null`.
 
-**1. INVITADOS** - Busca en: `name`, `topic`, `position`, `notes`, `program_type`, `tema_principal`
-**2. PRENSA** - Busca en: `press_contact`, `press_phone`
+**3. Modal de detalle (`src/components/GuestDetailModal.tsx`)**
+- En la sección de Contacto de Prensa, reorganizar para poner nombre, teléfono y correo en una fila. Agregar campo `press_email` con placeholder de email, con enlace clickeable `mailto:` en modo lectura.
+- Al guardar un nuevo invitado (sin `id`), registrar automáticamente el usuario logueado en `proposed_by`.
 
-### Cambios
+**4. Vistas de calendario (WeeklyCalendar, MonthView, DayView)**
+- Junto a los checkboxes de confirmación (CONF. BLU / CONF. PR), mostrar quién propuso el invitado (`proposed_by`) como texto pequeño.
+- En la sección de "Contactar PR" del DayView, incluir botón de email si `press_email` existe.
 
-| Archivo | Cambio |
-|---------|--------|
-| `src/pages/Index.tsx` | En `searchAllGuests`, ejecutar dos queries separadas: una para invitados y otra para prensa. Devolver ambos conjuntos al FilterBar |
-| `src/components/FilterBar.tsx` | Mostrar el dropdown con dos secciones: "Invitados" y "Prensa". Cada seccion muestra sus resultados con formato distinto (invitados muestra nombre+tema, prensa muestra jefe de prensa+telefono+nombre del invitado asociado) |
-| `src/pages/SearchResults.tsx` | Agregar tabs "Invitados" / "Prensa" con queries separadas. En prensa mostrar contacto, telefono y el invitado al que pertenece |
-
-### Detalle tecnico
-
-**Query INVITADOS:**
-```
-.or(`name.ilike.%q%,topic.ilike.%q%,position.ilike.%q%,program_type.ilike.%q%,tema_principal.ilike.%q%`)
-```
-
-**Query PRENSA:**
-```
-.or(`press_contact.ilike.%q%,press_phone.ilike.%q%`)
-```
-
-**Estado en Index.tsx:**
-- `globalSearchResults` pasa a ser un objeto `{ guests: Guest[], press: Guest[] }`
-
-**Dropdown en FilterBar:**
-- Seccion "INVITADOS" con icono de persona: nombre, posicion, tema, fecha
-- Seccion "PRENSA" con icono de telefono: nombre del contacto de prensa, telefono, y debajo el nombre del invitado asociado
-- Boton "Ver todos los resultados" al final
-
-**Pagina SearchResults:**
-- Dos tabs: "Invitados" y "Prensa"
-- Tab Prensa muestra tarjetas con: nombre del jefe de prensa, telefono, y el invitado/fecha asociados
+**5. Búsqueda (`Index.tsx`, `SearchResults.tsx`, `FilterBar.tsx`)**
+- Incluir `press_email` en los filtros de búsqueda de prensa existentes.
 
