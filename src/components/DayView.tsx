@@ -280,7 +280,14 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
 
                   {/* Checkboxes de confirmación */}
                   <div className="pt-4 border-t space-y-3">
-                    <div className="text-xs text-muted-foreground font-semibold mb-2">Estado de Confirmación</div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-xs text-muted-foreground font-semibold">Estado de Confirmación</span>
+                      {guest.proposed_by && (
+                        <span className="text-xs text-muted-foreground" title={`Propuesto por: ${guest.proposed_by}`}>
+                          · 📋 {guest.proposed_by}
+                        </span>
+                      )}
+                    </div>
                     <div className="flex flex-col gap-2">
                       <div className="flex items-center space-x-2">
                         <Checkbox
