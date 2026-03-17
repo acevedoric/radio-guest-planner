@@ -92,11 +92,21 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
       Object.entries(allSocialNetworks).filter(([_, value]) => value.trim() !== "")
     );
 
-    onSave({
+    // Auto-set proposed_by for new guests
+    let finalData = {
       ...formData,
       social_networks: Object.keys(cleanedSocialNetworks).length > 0 ? cleanedSocialNetworks : null,
       email: null
-    });
+    };
+
+    if (!formData.id && !formData.proposed_by) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        finalData.proposed_by = user.email || user.id;
+      }
+    }
+
+    onSave(finalData);
     onClose();
   };
 
