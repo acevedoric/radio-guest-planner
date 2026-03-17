@@ -31,8 +31,10 @@ export type Database = {
           phone: string | null
           position: string | null
           press_contact: string | null
+          press_email: string | null
           press_phone: string | null
           program_type: string | null
+          proposed_by: string | null
           recording_status: string
           scheduled_date: string | null
           scheduled_time: string | null
@@ -61,8 +63,10 @@ export type Database = {
           phone?: string | null
           position?: string | null
           press_contact?: string | null
+          press_email?: string | null
           press_phone?: string | null
           program_type?: string | null
+          proposed_by?: string | null
           recording_status?: string
           scheduled_date?: string | null
           scheduled_time?: string | null
@@ -91,8 +95,10 @@ export type Database = {
           phone?: string | null
           position?: string | null
           press_contact?: string | null
+          press_email?: string | null
           press_phone?: string | null
           program_type?: string | null
+          proposed_by?: string | null
           recording_status?: string
           scheduled_date?: string | null
           scheduled_time?: string | null
