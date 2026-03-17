@@ -27,4 +27,6 @@ export interface Guest {
   carrera_profesional?: string | null;
   datos_curiosos?: string | null;
   n8n_updated_at?: string | null;
+  press_email?: string | null;
+  proposed_by?: string | null;
 }

@@ -382,21 +382,18 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
                       )}
 
                       {/* Contactar PR */}
-                      {(guest.press_contact || guest.press_phone) && (
+                      {(guest.press_contact || guest.press_phone || guest.press_email) && (
                         <div className="space-y-2">
                           <span className="text-xs text-muted-foreground font-semibold">Contactar PR</span>
                           <div className="flex gap-2">
-                            {guest.press_contact && (
+                            {guest.press_email && (
                               <Button
                                 variant="outline"
                                 size="sm"
                                 className="text-xs"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  // If press_contact looks like email, use mailto; otherwise just show
-                                  if (guest.press_contact!.includes('@')) {
-                                    window.location.href = `mailto:${guest.press_contact}`;
-                                  }
+                                  window.location.href = `mailto:${guest.press_email}`;
                                 }}
                               >
                                 <Mail className="w-3 h-3 mr-1" />
