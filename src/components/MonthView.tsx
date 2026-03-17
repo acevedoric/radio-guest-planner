@@ -141,97 +141,114 @@ export const MonthView = ({ guests, allGuests, onGuestClick, selectedMonth, onDa
         ))}
 
         {/* Calendar days */}
-        {calendarDays.filter(day => isWorkDay(day)).map((day, index) => {
-          const isInMonth = isCurrentMonth(day);
-          const isWork = isWorkDay(day);
-          const past = isPastDay(day);
-          const scheduledRecordings = getScheduledRecordingsForDay(day);
+        {(() => {
+          const workDays = calendarDays.filter(day => isWorkDay(day));
+          const rows: Date[][] = [];
+          for (let i = 0; i < workDays.length; i += 4) {
+            rows.push(workDays.slice(i, i + 4));
+          }
+          
+          return rows.map((row, rowIndex) => {
+            const maxRecordings = Math.max(0, ...row.map(day => Math.min(getScheduledRecordingsForDay(day).length, 2)));
+            const hasAnyRecButton = row.some(day => getScheduledRecordingsForDay(day).length > 0);
+            // Height for REC button row + strips: button ~24px, each strip ~18px, spacing ~4px
+            const recButtonHeight = hasAnyRecButton ? 24 : 0;
+            const stripsHeight = maxRecordings * 20;
+            const recordingSectionMinHeight = recButtonHeight + stripsHeight + (maxRecordings > 0 ? 4 : 0);
+            
+            return row.map((day, colIndex) => {
+              const isInMonth = isCurrentMonth(day);
+              const past = isPastDay(day);
+              const scheduledRecordings = getScheduledRecordingsForDay(day);
 
-          return (
-            <Card
-              key={index}
-              className={`min-h-[140px] p-2 transition-all ${
-                !isInMonth ? "opacity-30 bg-muted/30" : ""
-              } ${
-                past && isInMonth ? "opacity-70" : ""
-              } ${
-                isWork && isInMonth ? "cursor-pointer hover:shadow-md hover:border-primary" : ""
-              }`}
-              onClick={() => {
-                if (isWork && isInMonth) {
-                  onDayClick(day);
-                }
-              }}
-            >
-              <div className="space-y-2">
-                {/* Day number and REC button */}
-                <div className="flex items-center justify-between">
-                  <div className="text-sm font-semibold text-foreground">
-                    {format(day, "d")}
-                  </div>
-                  
-                  {/* REC button */}
-                  {scheduledRecordings.length > 0 && (
-                    <div
-                      className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-600 hover:bg-red-700 text-white text-xs font-bold cursor-pointer transition-all hover:scale-105 shadow-sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onScheduledDateClick(day);
-                      }}
-                      title={`${scheduledRecordings.length} grabación(es) pendiente(s)`}
-                    >
-                      <span className="text-[10px]">●</span>
-                      <span>REC</span>
-                      {scheduledRecordings.length > 1 && <span>{scheduledRecordings.length}</span>}
-                    </div>
-                  )}
-                </div>
-
-                {/* Recording strips */}
-                {scheduledRecordings.length > 0 && (
-                  <div className="space-y-0.5">
-                    {scheduledRecordings.slice(0, 2).map((g) => (
-                      <div
-                        key={g.id}
-                        className="text-[9px] px-1 py-0.5 rounded bg-red-500/10 text-red-600 dark:text-red-400 truncate cursor-pointer hover:bg-red-500/20 border-l-2 border-red-500"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onRecordingGuestClick?.(g);
-                        }}
-                        title={`Grabación: ${g.name}`}
-                      >
-                        🔴 {g.name}
+              return (
+                <Card
+                  key={`${rowIndex}-${colIndex}`}
+                  className={`min-h-[140px] p-2 transition-all ${
+                    !isInMonth ? "opacity-30 bg-muted/30" : ""
+                  } ${
+                    past && isInMonth ? "opacity-70" : ""
+                  } ${
+                    isInMonth ? "cursor-pointer hover:shadow-md hover:border-primary" : ""
+                  }`}
+                  onClick={() => {
+                    if (isInMonth) {
+                      onDayClick(day);
+                    }
+                  }}
+                >
+                  <div className="space-y-2">
+                    {/* Day number and REC button - fixed height section */}
+                    <div style={{ minHeight: `${recordingSectionMinHeight}px` }}>
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm font-semibold text-foreground">
+                          {format(day, "d")}
+                        </div>
+                        
+                        {scheduledRecordings.length > 0 && (
+                          <div
+                            className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-600 hover:bg-red-700 text-white text-xs font-bold cursor-pointer transition-all hover:scale-105 shadow-sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onScheduledDateClick(day);
+                            }}
+                            title={`${scheduledRecordings.length} grabación(es) pendiente(s)`}
+                          >
+                            <span className="text-[10px]">●</span>
+                            <span>REC</span>
+                            {scheduledRecordings.length > 1 && <span>{scheduledRecordings.length}</span>}
+                          </div>
+                        )}
                       </div>
-                    ))}
-                    {scheduledRecordings.length > 2 && (
-                      <div className="text-[9px] text-red-500 px-1">+{scheduledRecordings.length - 2} más</div>
-                    )}
-                  </div>
-                )}
 
-                {/* Always show 3 slots */}
-                <div className="space-y-1">
-                  {[1, 2, 3].map((slot) => {
-                    const guest = getGuestForSlot(day, slot);
-                    
-                    return (
-                      <SlotCard
-                        key={slot}
-                        guest={guest}
-                        day={day}
-                        slot={slot}
-                        onGuestClick={onGuestClick}
-                        onAddGuest={onAddGuest}
-                        getStatusColor={getStatusColor}
-                        editMode={editMode}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
-            </Card>
-          );
-        })}
+                      {/* Recording strips */}
+                      {scheduledRecordings.length > 0 && (
+                        <div className="space-y-0.5 mt-1">
+                          {scheduledRecordings.slice(0, 2).map((g) => (
+                            <div
+                              key={g.id}
+                              className="text-[9px] px-1 py-0.5 rounded bg-red-500/10 text-red-600 dark:text-red-400 truncate cursor-pointer hover:bg-red-500/20 border-l-2 border-red-500"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onRecordingGuestClick?.(g);
+                              }}
+                              title={`Grabación: ${g.name}`}
+                            >
+                              🔴 {g.name}
+                            </div>
+                          ))}
+                          {scheduledRecordings.length > 2 && (
+                            <div className="text-[9px] text-red-500 px-1">+{scheduledRecordings.length - 2} más</div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Guest slots - now aligned across the row */}
+                    <div className="space-y-1">
+                      {[1, 2, 3].map((slot) => {
+                        const guest = getGuestForSlot(day, slot);
+                        
+                        return (
+                          <SlotCard
+                            key={slot}
+                            guest={guest}
+                            day={day}
+                            slot={slot}
+                            onGuestClick={onGuestClick}
+                            onAddGuest={onAddGuest}
+                            getStatusColor={getStatusColor}
+                            editMode={editMode}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+                </Card>
+              );
+            });
+          });
+        })()}
       </div>
       <DragOverlay>
         {activeGuest && (
