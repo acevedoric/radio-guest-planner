@@ -18,7 +18,7 @@ interface GuestDetailModalProps {
   guest: Guest | null;
   isOpen: boolean;
   onClose: () => void;
-  onSave: (guest: Guest) => void;
+  onSave: (guest: Guest) => Promise<boolean>;
   onDelete?: (guestId: string) => void;
   readOnly?: boolean;
 }
@@ -106,8 +106,8 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
       }
     }
 
-    onSave(finalData);
-    onClose();
+    const success = await onSave(finalData);
+    if (success) onClose();
   };
 
   const handleDelete = () => {
