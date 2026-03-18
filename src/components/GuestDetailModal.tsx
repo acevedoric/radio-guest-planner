@@ -18,7 +18,7 @@ interface GuestDetailModalProps {
   guest: Guest | null;
   isOpen: boolean;
   onClose: () => void;
-  onSave: (guest: Guest) => void;
+  onSave: (guest: Guest) => Promise<boolean>;
   onDelete?: (guestId: string) => void;
   readOnly?: boolean;
 }
