@@ -230,9 +230,8 @@ const Index = () => {
         }
       }
 
-      // Reubicar: cambiar week_date y day_of_week, mantener time_slot original
-      guestData.day_of_week = newDayOfWeek;
-      guestData.week_date = newWeekDateStr;
+      // No reubicar: el invitado mantiene su posición en el calendario.
+      // La grabación queda registrada en scheduled_date + scheduled_time.
     }
     
     if (guest.id) {
