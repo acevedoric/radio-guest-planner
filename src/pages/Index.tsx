@@ -134,11 +134,11 @@ const Index = () => {
       time_slot: newGuestSlot?.slot ?? guest.time_slot
     };
 
-    // Si el estado es "postponed" y hay scheduled_date, mover al nuevo día
+    // Si el estado es de grabación y hay scheduled_date, mover al nuevo día
     const statusesWithRelocation = ["postponed", "proposed", "to_record"];
     if (statusesWithRelocation.includes(guestData.recording_status) && guestData.scheduled_date) {
       const scheduledDate = new Date(guestData.scheduled_date + 'T12:00:00');
-      const dayOfWeekNum = scheduledDate.getDay(); // 0=Dom, 1=Lun, ... 4=Jue
+      const dayOfWeekNum = scheduledDate.getDay();
 
       const dayMap: Record<number, string> = {
         1: "monday",
@@ -156,45 +156,83 @@ const Index = () => {
       const newWeekDate = startOfWeek(scheduledDate, { weekStartsOn: 1 });
       const newWeekDateStr = format(newWeekDate, "yyyy-MM-dd");
 
-      // Buscar slots ocupados en el día destino (excluyendo al propio invitado)
-      let occupiedQuery = supabase
-        .from('guests')
-        .select('id, name, time_slot')
-        .eq('week_date', newWeekDateStr)
-        .eq('day_of_week', newDayOfWeek);
+      // Para grabaciones: verificar conflictos por scheduled_time, NO por time_slot
+      if (guestData.scheduled_time) {
+        let timeQuery = supabase
+          .from('guests')
+          .select('id, name, scheduled_time')
+          .eq('scheduled_date', guestData.scheduled_date)
+          .not('scheduled_time', 'is', null);
 
-      if (guest.id) {
-        occupiedQuery = occupiedQuery.neq('id', guest.id);
-      }
+        if (guest.id) {
+          timeQuery = timeQuery.neq('id', guest.id);
+        }
 
-      const { data: occupiedSlots, error: conflictError } = await occupiedQuery;
+        const { data: occupiedTimes, error: conflictError } = await timeQuery;
 
-      if (conflictError) {
-        toast.error("Error al verificar disponibilidad");
-        console.error(conflictError);
-        return false;
-      }
+        if (conflictError) {
+          toast.error("Error al verificar disponibilidad");
+          console.error(conflictError);
+          return false;
+        }
 
-      const occupiedSlotNumbers = (occupiedSlots || []).map(s => s.time_slot);
-      
-      // Si el slot original está libre, usarlo; si no, buscar uno disponible
-      let targetSlot = guestData.time_slot;
-      if (occupiedSlotNumbers.includes(targetSlot)) {
-        const availableSlot = [1, 2, 3].find(s => !occupiedSlotNumbers.includes(s));
-        if (!availableSlot) {
+        const takenTimes = (occupiedTimes || []).map(t => t.scheduled_time);
+        const requestedTime = guestData.scheduled_time;
+
+        if (takenTimes.includes(requestedTime)) {
+          const allRecordingHours = ["16:00:00", "17:00:00", "18:00:00", "19:00:00"];
+          const available = allRecordingHours
+            .filter(h => !takenTimes.includes(h))
+            .map(h => h.substring(0, 5));
+          const takenNames = (occupiedTimes || [])
+            .map(t => `${t.name} (${(t.scheduled_time || '').substring(0, 5)})`)
+            .join(', ');
+          
           const dayNames: Record<string, string> = {
             monday: "Lunes", tuesday: "Martes", wednesday: "Miércoles", thursday: "Jueves"
           };
-          toast.error(`No hay slots disponibles el ${dayNames[newDayOfWeek]}. Todos están ocupados.`);
+          const dayLabel = dayNames[newDayOfWeek];
+          const dateLabel = format(scheduledDate, "d/MM");
+
+          if (available.length > 0) {
+            toast.error(`${requestedTime.substring(0, 5)} ya está ocupada el ${dayLabel} ${dateLabel} (${takenNames}). Horas libres: ${available.join(', ')}`);
+          } else {
+            // Buscar días cercanos con horas libres
+            const nearbyDays = [-1, 1, -2, 2, -3, 3];
+            const suggestions: string[] = [];
+            for (const offset of nearbyDays) {
+              const nearbyDate = addDays(scheduledDate, offset);
+              const nearbyDayNum = nearbyDate.getDay();
+              if (nearbyDayNum < 1 || nearbyDayNum > 4) continue;
+
+              const { data: nearbyOccupied } = await supabase
+                .from('guests')
+                .select('scheduled_time')
+                .eq('scheduled_date', format(nearbyDate, "yyyy-MM-dd"))
+                .not('scheduled_time', 'is', null);
+
+              const nearbyTaken = (nearbyOccupied || []).map(t => t.scheduled_time);
+              const nearbyAvailable = allRecordingHours.filter(h => !nearbyTaken.includes(h));
+              if (nearbyAvailable.length > 0) {
+                const nearbyDayName = dayNames[dayMap[nearbyDayNum]];
+                suggestions.push(`${nearbyDayName} ${format(nearbyDate, "d/MM")}: ${nearbyAvailable.map(h => h.substring(0, 5)).join(', ')}`);
+              }
+              if (suggestions.length >= 3) break;
+            }
+
+            if (suggestions.length > 0) {
+              toast.error(`${dayLabel} ${dateLabel} está completamente lleno. Días cercanos disponibles: ${suggestions.join(' | ')}`);
+            } else {
+              toast.error(`No hay horas de grabación disponibles en días cercanos.`);
+            }
+          }
           return false;
         }
-        targetSlot = availableSlot;
       }
 
-      // Mover el invitado al nuevo día/semana/slot
+      // Reubicar: cambiar week_date y day_of_week, mantener time_slot original
       guestData.day_of_week = newDayOfWeek;
       guestData.week_date = newWeekDateStr;
-      guestData.time_slot = targetSlot;
     }
     
     if (guest.id) {
