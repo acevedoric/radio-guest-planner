@@ -1,46 +1,36 @@
 
 
-## Mejorar Busqueda: Separar en categorias INVITADOS y PRENSA
+## Diagnóstico: El modal se cierra antes de que el guardado termine
 
-### Problema
-La busqueda actual no incluye los campos `press_contact` ni `press_phone`, y muestra todos los resultados mezclados sin distincion entre datos del invitado y datos de prensa.
+El problema está en `GuestDetailModal.tsx`, línea 109-110:
 
-### Solucion
-
-Separar la busqueda en dos categorias con tabs/secciones en el dropdown y en la pagina de resultados:
-
-**1. INVITADOS** - Busca en: `name`, `topic`, `position`, `notes`, `program_type`, `tema_principal`
-**2. PRENSA** - Busca en: `press_contact`, `press_phone`
-
-### Cambios
-
-| Archivo | Cambio |
-|---------|--------|
-| `src/pages/Index.tsx` | En `searchAllGuests`, ejecutar dos queries separadas: una para invitados y otra para prensa. Devolver ambos conjuntos al FilterBar |
-| `src/components/FilterBar.tsx` | Mostrar el dropdown con dos secciones: "Invitados" y "Prensa". Cada seccion muestra sus resultados con formato distinto (invitados muestra nombre+tema, prensa muestra jefe de prensa+telefono+nombre del invitado asociado) |
-| `src/pages/SearchResults.tsx` | Agregar tabs "Invitados" / "Prensa" con queries separadas. En prensa mostrar contacto, telefono y el invitado al que pertenece |
-
-### Detalle tecnico
-
-**Query INVITADOS:**
-```
-.or(`name.ilike.%q%,topic.ilike.%q%,position.ilike.%q%,program_type.ilike.%q%,tema_principal.ilike.%q%`)
+```typescript
+onSave(finalData);  // NO se espera (await) — handleSaveGuest es async
+onClose();          // cierra el modal INMEDIATAMENTE
 ```
 
-**Query PRENSA:**
-```
-.or(`press_contact.ilike.%q%,press_phone.ilike.%q%`)
-```
+Esto causa que:
+1. Si hay un **conflicto de slot** en la fecha destino, el error toast aparece pero el modal ya se cerró — el usuario no asocia el error con su acción.
+2. Si la validación de `handleSaveGuest` hace `return` (ej: "La fecha no cae en día laboral"), el modal ya se cerró y parece que "no pasó nada".
+3. El usuario ve el modal cerrarse y asume que guardó, pero el invitado no se actualizó.
 
-**Estado en Index.tsx:**
-- `globalSearchResults` pasa a ser un objeto `{ guests: Guest[], press: Guest[] }`
+### Solución
 
-**Dropdown en FilterBar:**
-- Seccion "INVITADOS" con icono de persona: nombre, posicion, tema, fecha
-- Seccion "PRENSA" con icono de telefono: nombre del contacto de prensa, telefono, y debajo el nombre del invitado asociado
-- Boton "Ver todos los resultados" al final
+**Archivo: `src/pages/Index.tsx`**
+- Cambiar `handleSaveGuest` para que retorne `boolean` (`true` = éxito, `false` = error).
+- Cambiar el tipo de `onSave` en el modal de `(guest: Guest) => void` a `(guest: Guest) => Promise<boolean>`.
 
-**Pagina SearchResults:**
-- Dos tabs: "Invitados" y "Prensa"
-- Tab Prensa muestra tarjetas con: nombre del jefe de prensa, telefono, y el invitado/fecha asociados
+**Archivo: `src/components/GuestDetailModal.tsx`**
+- En `handleSubmit`: hacer `await onSave(finalData)` y solo llamar `onClose()` si retorna `true`.
+- Si retorna `false`, el modal permanece abierto para que el usuario corrija el problema.
+
+### Cambios concretos
+
+1. **`Index.tsx` — `handleSaveGuest`**: Agregar `return true` tras éxito y `return false` tras cada error/return temprano.
+2. **`GuestDetailModal.tsx` — tipo `onSave`**: Cambiar a `(guest: Guest) => Promise<boolean>`.
+3. **`GuestDetailModal.tsx` — `handleSubmit`**: 
+   ```typescript
+   const success = await onSave(finalData);
+   if (success) onClose();
+   ```
 
