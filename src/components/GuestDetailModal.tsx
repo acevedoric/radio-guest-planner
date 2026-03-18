@@ -106,8 +106,8 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
       }
     }
 
-    onSave(finalData);
-    onClose();
+    const success = await onSave(finalData);
+    if (success) onClose();
   };
 
   const handleDelete = () => {

@@ -126,7 +126,7 @@ const Index = () => {
       setGuests((data || []) as Guest[]);
     }
   };
-  const handleSaveGuest = async (guest: Guest) => {
+  const handleSaveGuest = async (guest: Guest): Promise<boolean> => {
     const guestData = {
       ...guest,
       week_date: guest.week_date || format(selectedWeek, "yyyy-MM-dd"),
@@ -149,7 +149,7 @@ const Index = () => {
 
       if (!dayMap[dayOfWeekNum]) {
         toast.error("La fecha seleccionada no cae en un día laboral (Lunes a Jueves)");
-        return;
+        return false;
       }
 
       const newDayOfWeek = dayMap[dayOfWeekNum];
@@ -173,7 +173,7 @@ const Index = () => {
       if (conflictError) {
         toast.error("Error al verificar disponibilidad");
         console.error(conflictError);
-        return;
+        return false;
       }
 
       if (conflicts && conflicts.length > 0) {
@@ -181,7 +181,7 @@ const Index = () => {
           monday: "Lunes", tuesday: "Martes", wednesday: "Miércoles", thursday: "Jueves"
         };
         toast.error(`El slot ${guestData.time_slot} del ${dayNames[newDayOfWeek]} ya está ocupado por "${conflicts[0].name}"`);
-        return;
+        return false;
       }
 
       // Mover el invitado al nuevo día/semana
@@ -196,6 +196,7 @@ const Index = () => {
       if (error) {
         toast.error("Error al actualizar invitado");
         console.error(error);
+        return false;
       } else {
         if (previousGuest) {
           pushAction({ type: "update", guestId: guest.id, previousData: { ...previousGuest }, newData: { ...guestData } });
@@ -207,12 +208,14 @@ const Index = () => {
       if (error) {
         toast.error("Error al crear invitado");
         console.error(error);
+        return false;
       } else {
         pushAction({ type: "insert", guestId: data.id, previousData: null, newData: { ...guestData } });
         toast.success("Invitado creado");
       }
     }
     setNewGuestSlot(null);
+    return true;
   };
 
   const triggerN8nScraping = async (guestId: string, name: string, position: string) => {
