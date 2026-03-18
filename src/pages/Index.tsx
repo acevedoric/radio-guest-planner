@@ -156,19 +156,18 @@ const Index = () => {
       const newWeekDate = startOfWeek(scheduledDate, { weekStartsOn: 1 });
       const newWeekDateStr = format(newWeekDate, "yyyy-MM-dd");
 
-      // Verificar disponibilidad del slot
-      let conflictQuery = supabase
+      // Buscar slots ocupados en el día destino (excluyendo al propio invitado)
+      let occupiedQuery = supabase
         .from('guests')
-        .select('id, name')
+        .select('id, name, time_slot')
         .eq('week_date', newWeekDateStr)
-        .eq('day_of_week', newDayOfWeek)
-        .eq('time_slot', guestData.time_slot);
+        .eq('day_of_week', newDayOfWeek);
 
       if (guest.id) {
-        conflictQuery = conflictQuery.neq('id', guest.id);
+        occupiedQuery = occupiedQuery.neq('id', guest.id);
       }
 
-      const { data: conflicts, error: conflictError } = await conflictQuery;
+      const { data: occupiedSlots, error: conflictError } = await occupiedQuery;
 
       if (conflictError) {
         toast.error("Error al verificar disponibilidad");
@@ -176,17 +175,26 @@ const Index = () => {
         return false;
       }
 
-      if (conflicts && conflicts.length > 0) {
-        const dayNames: Record<string, string> = {
-          monday: "Lunes", tuesday: "Martes", wednesday: "Miércoles", thursday: "Jueves"
-        };
-        toast.error(`El slot ${guestData.time_slot} del ${dayNames[newDayOfWeek]} ya está ocupado por "${conflicts[0].name}"`);
-        return false;
+      const occupiedSlotNumbers = (occupiedSlots || []).map(s => s.time_slot);
+      
+      // Si el slot original está libre, usarlo; si no, buscar uno disponible
+      let targetSlot = guestData.time_slot;
+      if (occupiedSlotNumbers.includes(targetSlot)) {
+        const availableSlot = [1, 2, 3].find(s => !occupiedSlotNumbers.includes(s));
+        if (!availableSlot) {
+          const dayNames: Record<string, string> = {
+            monday: "Lunes", tuesday: "Martes", wednesday: "Miércoles", thursday: "Jueves"
+          };
+          toast.error(`No hay slots disponibles el ${dayNames[newDayOfWeek]}. Todos están ocupados.`);
+          return false;
+        }
+        targetSlot = availableSlot;
       }
 
-      // Mover el invitado al nuevo día/semana
+      // Mover el invitado al nuevo día/semana/slot
       guestData.day_of_week = newDayOfWeek;
       guestData.week_date = newWeekDateStr;
+      guestData.time_slot = targetSlot;
     }
     
     if (guest.id) {
