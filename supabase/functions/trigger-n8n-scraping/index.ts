@@ -10,6 +10,9 @@ interface TriggerPayload {
   guest_id: string;
   name: string;
   position: string;
+  topic?: string;
+  document_url?: string | null;
+  document_name?: string | null;
 }
 
 function parseOutputSections(text: string): Record<string, string> {
