@@ -252,11 +252,23 @@ export const GuestInfoModules = ({ guest, editMode, onGuestUpdate }: GuestInfoMo
     try {
       toast({ title: "Buscando...", description: `Solicitando información con IA...` });
       
+      // Generate signed URL for document if available
+      let document_url: string | null = null;
+      if (guest.tema_principal_documento_url) {
+        const { data: signedData } = await supabase.storage
+          .from("guest-documents")
+          .createSignedUrl(guest.tema_principal_documento_url, 3600);
+        document_url = signedData?.signedUrl || null;
+      }
+
       const { data, error } = await supabase.functions.invoke('trigger-n8n-scraping', {
         body: {
           guest_id: guest.id,
           name: guest.name,
-          position: guest.position || ''
+          position: guest.position || '',
+          topic: guest.topic || '',
+          document_url,
+          document_name: guest.tema_principal_documento_nombre || null
         }
       });
 

@@ -10,6 +10,9 @@ interface TriggerPayload {
   guest_id: string;
   name: string;
   position: string;
+  topic?: string;
+  document_url?: string | null;
+  document_name?: string | null;
 }
 
 function parseOutputSections(text: string): Record<string, string> {
@@ -115,6 +118,9 @@ serve(async (req) => {
       guest_id: payload.guest_id,
       name: payload.name,
       position: payload.position,
+      topic: payload.topic || '',
+      document_url: payload.document_url || null,
+      document_name: payload.document_name || null,
       callback_url: callbackUrl
     };
 
