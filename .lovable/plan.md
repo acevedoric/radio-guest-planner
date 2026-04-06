@@ -1,46 +1,43 @@
 
 
-## Mejorar Busqueda: Separar en categorias INVITADOS y PRENSA
+## Autocompletado inteligente de invitados y contactos de prensa
 
 ### Problema
-La busqueda actual no incluye los campos `press_contact` ni `press_phone`, y muestra todos los resultados mezclados sin distincion entre datos del invitado y datos de prensa.
+Cuando María McCausland (u otro jefe de prensa) propone invitados que ya han aparecido antes, hay que rellenar manualmente teléfono, correo, cargo, redes sociales, datos de prensa, etc. — aunque esos datos ya existen en la base de datos.
 
-### Solucion
+### Solución
+Agregar **autocompletado predictivo** en dos campos del modal:
 
-Separar la busqueda en dos categorias con tabs/secciones en el dropdown y en la pagina de resultados:
+1. **Campo "Nombre" del invitado** — al escribir 3+ caracteres, buscar en la DB invitados previos con nombre similar. Si el usuario selecciona uno, auto-rellenar: `position`, `phone`, `social_networks` (twitter, instagram, etc.).
 
-**1. INVITADOS** - Busca en: `name`, `topic`, `position`, `notes`, `program_type`, `tema_principal`
-**2. PRENSA** - Busca en: `press_contact`, `press_phone`
+2. **Campo "Contacto de Prensa"** — al escribir 3+ caracteres, buscar jefes de prensa previos. Si selecciona uno, auto-rellenar: `press_phone`, `press_email`.
 
-### Cambios
+### Comportamiento
+- Aparece un dropdown debajo del campo con sugerencias (nombre + cargo para invitados, nombre + email para prensa).
+- Solo se activa en modo **nuevo invitado** o cuando el campo está vacío al editar.
+- Al seleccionar una sugerencia, se rellenan los campos relacionados pero **no se sobreescriben campos que ya tengan valor**.
+- El `topic`, `recording_status`, fechas y slot **nunca** se auto-rellenan (son específicos de cada aparición).
+- Las búsquedas son queries directas a la tabla `guests` agrupando por nombre (usando `DISTINCT` o deduplicación en el frontend).
 
-| Archivo | Cambio |
-|---------|--------|
-| `src/pages/Index.tsx` | En `searchAllGuests`, ejecutar dos queries separadas: una para invitados y otra para prensa. Devolver ambos conjuntos al FilterBar |
-| `src/components/FilterBar.tsx` | Mostrar el dropdown con dos secciones: "Invitados" y "Prensa". Cada seccion muestra sus resultados con formato distinto (invitados muestra nombre+tema, prensa muestra jefe de prensa+telefono+nombre del invitado asociado) |
-| `src/pages/SearchResults.tsx` | Agregar tabs "Invitados" / "Prensa" con queries separadas. En prensa mostrar contacto, telefono y el invitado al que pertenece |
+### Cambios técnicos
 
-### Detalle tecnico
+**Archivo: `src/components/GuestDetailModal.tsx`**
+- Agregar estado para sugerencias de invitado y sugerencias de prensa.
+- En el campo `name`: al cambiar el texto (debounce 300ms), hacer query:
+  ```sql
+  SELECT DISTINCT ON (name) name, position, phone, social_networks
+  FROM guests WHERE name ILIKE '%texto%' LIMIT 5
+  ```
+- En el campo `press_contact`: al cambiar el texto (debounce 300ms):
+  ```sql
+  SELECT DISTINCT ON (press_contact) press_contact, press_phone, press_email
+  FROM guests WHERE press_contact ILIKE '%texto%' AND press_contact IS NOT NULL LIMIT 5
+  ```
+- Renderizar dropdown posicionado debajo de cada input con las sugerencias.
+- Al hacer clic en una sugerencia, aplicar los campos al `formData` y `socialNetworks`/`customFields`.
 
-**Query INVITADOS:**
-```
-.or(`name.ilike.%q%,topic.ilike.%q%,position.ilike.%q%,program_type.ilike.%q%,tema_principal.ilike.%q%`)
-```
+**No se necesitan nuevas tablas ni edge functions** — todo se resuelve con queries a la tabla `guests` existente.
 
-**Query PRENSA:**
-```
-.or(`press_contact.ilike.%q%,press_phone.ilike.%q%`)
-```
-
-**Estado en Index.tsx:**
-- `globalSearchResults` pasa a ser un objeto `{ guests: Guest[], press: Guest[] }`
-
-**Dropdown en FilterBar:**
-- Seccion "INVITADOS" con icono de persona: nombre, posicion, tema, fecha
-- Seccion "PRENSA" con icono de telefono: nombre del contacto de prensa, telefono, y debajo el nombre del invitado asociado
-- Boton "Ver todos los resultados" al final
-
-**Pagina SearchResults:**
-- Dos tabs: "Invitados" y "Prensa"
-- Tab Prensa muestra tarjetas con: nombre del jefe de prensa, telefono, y el invitado/fecha asociados
+### Archivos a modificar
+- `src/components/GuestDetailModal.tsx` — lógica de búsqueda, dropdown de sugerencias, auto-rellenado
 
