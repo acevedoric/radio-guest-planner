@@ -399,13 +399,39 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
 
           <div className="space-y-2">
             <Label htmlFor="press_contact">Contacto de Prensa</Label>
-            <Input
-              id="press_contact"
-              value={formData.press_contact || ""}
-              onChange={(e) => setFormData({ ...formData, press_contact: e.target.value })}
-              placeholder="Nombre del contacto"
-              disabled={readOnly}
-            />
+            {readOnly ? (
+              <Input
+                id="press_contact"
+                value={formData.press_contact || ""}
+                disabled
+              />
+            ) : (
+              <AutocompleteInput
+                id="press_contact"
+                value={formData.press_contact || ""}
+                onChange={(val) => {
+                  setFormData({ ...formData, press_contact: val });
+                  searchPress(val);
+                }}
+                suggestions={pressSuggestions.map((p) => ({
+                  label: p.press_contact,
+                  sublabel: p.press_email || p.press_phone || undefined,
+                }))}
+                showSuggestions={showPressSuggestions}
+                onDismiss={dismissPressSuggestions}
+                onSelect={(i) => {
+                  const p = pressSuggestions[i];
+                  setFormData((prev) => ({
+                    ...prev,
+                    press_contact: p.press_contact,
+                    press_phone: prev.press_phone || p.press_phone || "",
+                    press_email: prev.press_email || p.press_email || "",
+                  }));
+                  dismissPressSuggestions();
+                }}
+                placeholder="Nombre del contacto"
+              />
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
