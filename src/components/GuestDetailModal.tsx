@@ -150,14 +150,55 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="name">Nombre *</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Nombre del invitado"
-                required
-                disabled={readOnly}
-              />
+              {readOnly ? (
+                <Input
+                  id="name"
+                  value={formData.name}
+                  disabled
+                />
+              ) : (
+                <AutocompleteInput
+                  id="name"
+                  value={formData.name}
+                  onChange={(val) => {
+                    setFormData({ ...formData, name: val });
+                    searchGuests(val);
+                  }}
+                  suggestions={guestSuggestions.map((g) => ({
+                    label: g.name,
+                    sublabel: g.position || undefined,
+                  }))}
+                  showSuggestions={showGuestSuggestions}
+                  onDismiss={dismissGuestSuggestions}
+                  onSelect={(i) => {
+                    const g = guestSuggestions[i];
+                    setFormData((prev) => ({
+                      ...prev,
+                      name: g.name,
+                      position: prev.position || g.position || "",
+                      phone: prev.phone || g.phone || "",
+                    }));
+                    // Apply social networks if empty
+                    if (g.social_networks && typeof g.social_networks === "object") {
+                      const { twitter = "", instagram = "", ...rest } = g.social_networks as any;
+                      setSocialNetworks((prev) => ({
+                        twitter: prev.twitter || twitter,
+                        instagram: prev.instagram || instagram,
+                      }));
+                      setCustomFields((prev) => {
+                        const merged = { ...prev };
+                        for (const [k, v] of Object.entries(rest)) {
+                          if (!merged[k]) merged[k] = v as string;
+                        }
+                        return merged;
+                      });
+                    }
+                    dismissGuestSuggestions();
+                  }}
+                  placeholder="Nombre del invitado"
+                  required
+                />
+              )}
             </div>
 
             <div className="space-y-2">
