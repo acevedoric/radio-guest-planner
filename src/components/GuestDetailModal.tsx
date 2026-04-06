@@ -7,11 +7,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Guest } from "@/types/guest";
 import { ContactLink } from "./ContactLink";
 import { SocialNetworkLink, getSocialPlatformOptions } from "./SocialNetworkLink";
+import { AutocompleteInput } from "./AutocompleteInput";
+import { useGuestAutocomplete } from "@/hooks/useGuestAutocomplete";
 import { supabase } from "@/integrations/supabase/client";
 
 interface GuestDetailModalProps {
@@ -41,6 +43,17 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
     instagram: ""
   });
   const [customFields, setCustomFields] = useState<{[key: string]: string}>({});
+
+  const {
+    guestSuggestions,
+    pressSuggestions,
+    showGuestSuggestions,
+    showPressSuggestions,
+    searchGuests,
+    searchPress,
+    dismissGuestSuggestions,
+    dismissPressSuggestions,
+  } = useGuestAutocomplete();
 
   useEffect(() => {
     if (guest) {
@@ -137,14 +150,55 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="name">Nombre *</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Nombre del invitado"
-                required
-                disabled={readOnly}
-              />
+              {readOnly ? (
+                <Input
+                  id="name"
+                  value={formData.name}
+                  disabled
+                />
+              ) : (
+                <AutocompleteInput
+                  id="name"
+                  value={formData.name}
+                  onChange={(val) => {
+                    setFormData({ ...formData, name: val });
+                    searchGuests(val);
+                  }}
+                  suggestions={guestSuggestions.map((g) => ({
+                    label: g.name,
+                    sublabel: g.position || undefined,
+                  }))}
+                  showSuggestions={showGuestSuggestions}
+                  onDismiss={dismissGuestSuggestions}
+                  onSelect={(i) => {
+                    const g = guestSuggestions[i];
+                    setFormData((prev) => ({
+                      ...prev,
+                      name: g.name,
+                      position: prev.position || g.position || "",
+                      phone: prev.phone || g.phone || "",
+                    }));
+                    // Apply social networks if empty
+                    if (g.social_networks && typeof g.social_networks === "object") {
+                      const { twitter = "", instagram = "", ...rest } = g.social_networks as any;
+                      setSocialNetworks((prev) => ({
+                        twitter: prev.twitter || twitter,
+                        instagram: prev.instagram || instagram,
+                      }));
+                      setCustomFields((prev) => {
+                        const merged = { ...prev };
+                        for (const [k, v] of Object.entries(rest)) {
+                          if (!merged[k]) merged[k] = v as string;
+                        }
+                        return merged;
+                      });
+                    }
+                    dismissGuestSuggestions();
+                  }}
+                  placeholder="Nombre del invitado"
+                  required
+                />
+              )}
             </div>
 
             <div className="space-y-2">
@@ -345,13 +399,39 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
 
           <div className="space-y-2">
             <Label htmlFor="press_contact">Contacto de Prensa</Label>
-            <Input
-              id="press_contact"
-              value={formData.press_contact || ""}
-              onChange={(e) => setFormData({ ...formData, press_contact: e.target.value })}
-              placeholder="Nombre del contacto"
-              disabled={readOnly}
-            />
+            {readOnly ? (
+              <Input
+                id="press_contact"
+                value={formData.press_contact || ""}
+                disabled
+              />
+            ) : (
+              <AutocompleteInput
+                id="press_contact"
+                value={formData.press_contact || ""}
+                onChange={(val) => {
+                  setFormData({ ...formData, press_contact: val });
+                  searchPress(val);
+                }}
+                suggestions={pressSuggestions.map((p) => ({
+                  label: p.press_contact,
+                  sublabel: p.press_email || p.press_phone || undefined,
+                }))}
+                showSuggestions={showPressSuggestions}
+                onDismiss={dismissPressSuggestions}
+                onSelect={(i) => {
+                  const p = pressSuggestions[i];
+                  setFormData((prev) => ({
+                    ...prev,
+                    press_contact: p.press_contact,
+                    press_phone: prev.press_phone || p.press_phone || "",
+                    press_email: prev.press_email || p.press_email || "",
+                  }));
+                  dismissPressSuggestions();
+                }}
+                placeholder="Nombre del contacto"
+              />
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
