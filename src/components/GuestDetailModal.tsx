@@ -44,6 +44,17 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
   });
   const [customFields, setCustomFields] = useState<{[key: string]: string}>({});
 
+  const {
+    guestSuggestions,
+    pressSuggestions,
+    showGuestSuggestions,
+    showPressSuggestions,
+    searchGuests,
+    searchPress,
+    dismissGuestSuggestions,
+    dismissPressSuggestions,
+  } = useGuestAutocomplete();
+
   useEffect(() => {
     if (guest) {
       setFormData(guest);
