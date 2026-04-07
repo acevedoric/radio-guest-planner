@@ -1,19 +1,20 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.76.0";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface TriggerPayload {
-  guest_id: string;
-  name: string;
-  position: string;
-  topic?: string;
-  document_url?: string | null;
-  document_name?: string | null;
-}
+const TriggerPayloadSchema = z.object({
+  guest_id: z.string().uuid("guest_id must be a valid UUID"),
+  name: z.string().min(1).max(300),
+  position: z.string().min(1).max(300),
+  topic: z.string().max(2000).optional(),
+  document_url: z.string().url().max(2000).nullable().optional(),
+  document_name: z.string().max(500).nullable().optional(),
+});
 
 function parseOutputSections(text: string): Record<string, string> {
   const sections: Record<string, string> = {};
@@ -90,6 +91,31 @@ serve(async (req) => {
   }
 
   try {
+    // Verify JWT - this function is called from the client
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Missing authorization header' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+    // Verify the user is authenticated
+    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: { user }, error: userError } = await userClient.auth.getUser();
+    if (userError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const n8nWebhookUrl = Deno.env.get('N8N_WEBHOOK_URL');
     
     if (!n8nWebhookUrl) {
@@ -100,18 +126,21 @@ serve(async (req) => {
       );
     }
 
-    const payload: TriggerPayload = await req.json();
-    
-    if (!payload.guest_id || !payload.name || !payload.position) {
+    // Validate input
+    const rawPayload = await req.json();
+    const parseResult = TriggerPayloadSchema.safeParse(rawPayload);
+
+    if (!parseResult.success) {
       return new Response(
-        JSON.stringify({ error: 'Missing required fields: guest_id, name, position' }),
+        JSON.stringify({ error: 'Invalid input', details: parseResult.error.issues }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
+    const payload = parseResult.data;
+
     console.log(`Triggering n8n scraping for guest: ${payload.name} (${payload.position})`);
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const callbackUrl = `${supabaseUrl}/functions/v1/n8n-guest-info`;
 
     const n8nPayload = {
@@ -124,7 +153,7 @@ serve(async (req) => {
       callback_url: callbackUrl
     };
 
-    console.log(`Sending to n8n webhook: ${n8nWebhookUrl}`);
+    console.log(`Sending to n8n webhook`);
 
     const n8nResponse = await fetch(n8nWebhookUrl, {
       method: 'POST',
@@ -133,10 +162,9 @@ serve(async (req) => {
     });
 
     if (!n8nResponse.ok) {
-      const errorText = await n8nResponse.text();
-      console.error(`n8n webhook error: ${n8nResponse.status} - ${errorText}`);
+      console.error(`n8n webhook error: ${n8nResponse.status}`);
       return new Response(
-        JSON.stringify({ error: 'Failed to trigger n8n webhook', details: errorText }),
+        JSON.stringify({ error: 'Failed to trigger n8n webhook' }),
         { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -146,32 +174,23 @@ serve(async (req) => {
     let savedData: Record<string, string> = {};
     try {
       const responseText = await n8nResponse.text();
-      console.log(`n8n raw response: ${responseText}`);
 
       if (responseText) {
         let n8nData = JSON.parse(responseText);
         
         // Support array response from n8n "All Incoming Items"
         if (Array.isArray(n8nData)) {
-          console.log(`n8n returned array with ${n8nData.length} items, using first`);
           n8nData = n8nData[0] || {};
         }
-        
-        console.log(`n8n parsed response keys: ${Object.keys(n8nData).join(', ')}`);
 
         // Extract data - support multiple response structures
         let extractedData: Record<string, string | undefined> = {};
 
         if (n8nData.output !== undefined) {
-          console.log(`Found "output" field, type: ${typeof n8nData.output}`);
-          
           if (typeof n8nData.output === 'object' && n8nData.output !== null) {
             extractedData = n8nData.output;
           } else if (typeof n8nData.output === 'string') {
-            // Parse sections from AI Agent's text output
-            console.log(`Parsing sections from output string (${n8nData.output.length} chars)`);
             extractedData = parseOutputSections(n8nData.output);
-            console.log(`Parsed sections: ${Object.keys(extractedData).join(', ')}`);
           }
         } else {
           extractedData = n8nData;
@@ -181,19 +200,16 @@ serve(async (req) => {
                         extractedData.carrera_profesional || extractedData.datos_curiosos;
 
         if (hasData) {
-          console.log('Data found, saving to database...');
-
-          const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
           const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
           const updateData: Record<string, string> = {
             n8n_updated_at: new Date().toISOString(),
           };
 
-          if (extractedData.tema_principal !== undefined) updateData.tema_principal = extractedData.tema_principal;
-          if (extractedData.infancia_vida_privada !== undefined) updateData.infancia_vida_privada = extractedData.infancia_vida_privada;
-          if (extractedData.carrera_profesional !== undefined) updateData.carrera_profesional = extractedData.carrera_profesional;
-          if (extractedData.datos_curiosos !== undefined) updateData.datos_curiosos = extractedData.datos_curiosos;
+          if (extractedData.tema_principal !== undefined) updateData.tema_principal = String(extractedData.tema_principal).slice(0, 10000);
+          if (extractedData.infancia_vida_privada !== undefined) updateData.infancia_vida_privada = String(extractedData.infancia_vida_privada).slice(0, 10000);
+          if (extractedData.carrera_profesional !== undefined) updateData.carrera_profesional = String(extractedData.carrera_profesional).slice(0, 10000);
+          if (extractedData.datos_curiosos !== undefined) updateData.datos_curiosos = String(extractedData.datos_curiosos).slice(0, 10000);
 
           const { error } = await supabase
             .from('guests')
@@ -207,12 +223,10 @@ serve(async (req) => {
             savedData = updateData;
             console.log('Guest data saved successfully');
           }
-        } else {
-          console.log('No relevant data fields found in n8n response');
         }
       }
     } catch (parseErr) {
-      console.log('Could not parse n8n response as JSON:', parseErr);
+      console.log('Could not parse n8n response');
     }
 
     return new Response(
@@ -220,7 +234,6 @@ serve(async (req) => {
         success: true, 
         message: dataSaved ? 'Data saved from n8n response' : 'Scraping workflow triggered',
         data_saved: dataSaved,
-        saved_data: savedData,
         guest_id: payload.guest_id 
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -228,9 +241,8 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in trigger-n8n-scraping:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return new Response(
-      JSON.stringify({ error: 'Internal server error', details: errorMessage }),
+      JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
