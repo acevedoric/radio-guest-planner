@@ -254,7 +254,7 @@ export const MonthView = ({ guests, allGuests, onGuestClick, selectedMonth, onDa
         {activeGuest && (
           <div className={`text-xs p-1 rounded shadow-lg cursor-grabbing ${getStatusColor(activeGuest.recording_status)}`}>
             <div className="font-semibold truncate">{activeGuest.name}</div>
-            <div className="truncate opacity-90">{activeGuest.topic}</div>
+            <div className="truncate opacity-70">{activeGuest.topic}</div>
           </div>
         )}
       </DragOverlay>
