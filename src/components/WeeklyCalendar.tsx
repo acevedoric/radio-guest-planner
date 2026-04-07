@@ -35,12 +35,12 @@ const TIME_SLOTS = [
   { slot: 3, label: "3ra Hora" },
 ];
 
-const statusConfig = {
-  live: { label: "EN VIVO", className: "bg-green-500 text-white" },
-  recorded: { label: "GRABADO", className: "bg-red-500 text-white" },
-  to_record: { label: "A GRABAR", className: "bg-yellow-500 text-white" },
-  postponed: { label: "APLAZADO", className: "bg-gray-500 text-white" },
-  proposed: { label: "PROPUESTO", className: "bg-blue-500 text-white" },
+const statusCardStyles: Record<string, string> = {
+  live: "bg-green-500/20 border-l-4 border-green-500",
+  recorded: "bg-red-500/20 border-l-4 border-red-500",
+  to_record: "bg-yellow-500/20 border-l-4 border-yellow-500",
+  postponed: "bg-gray-500/20 border-l-4 border-gray-500",
+  proposed: "bg-blue-500/20 border-l-4 border-blue-500",
 };
 
 export const WeeklyCalendar = ({ guests, allGuests, onGuestClick, onAddGuest, selectedWeek, onMoveGuest, editMode, onRecordingGuestClick }: WeeklyCalendarProps) => {
