@@ -1,43 +1,34 @@
 
 
-## Autocompletado inteligente de invitados y contactos de prensa
+## Colorear slots por estado + eliminar checkbox PROPUESTO
 
-### Problema
-Cuando María McCausland (u otro jefe de prensa) propone invitados que ya han aparecido antes, hay que rellenar manualmente teléfono, correo, cargo, redes sociales, datos de prensa, etc. — aunque esos datos ya existen en la base de datos.
+### Cambios
 
-### Solución
-Agregar **autocompletado predictivo** en dos campos del modal:
+**1. Vista SEMANA (`src/components/WeeklyCalendar.tsx`)**
 
-1. **Campo "Nombre" del invitado** — al escribir 3+ caracteres, buscar en la DB invitados previos con nombre similar. Si el usuario selecciona uno, auto-rellenar: `position`, `phone`, `social_networks` (twitter, instagram, etc.).
+- **Eliminar el Badge** de estado (líneas 255-257) de la tarjeta del invitado.
+- **Colorear el fondo del Card** según el estado con opacidad 20%:
+  - `live` → `bg-green-500/20 border-l-4 border-green-500`
+  - `recorded` → `bg-red-500/20 border-l-4 border-red-500`
+  - `to_record` → `bg-yellow-500/20 border-l-4 border-yellow-500`
+  - `postponed` → `bg-gray-500/20 border-l-4 border-gray-500`
+  - `proposed` → `bg-blue-500/20 border-l-4 border-blue-500`
+- **Eliminar el checkbox PROPUESTO** (líneas 277-291), dejando solo CONF. BLU y CONF. PR.
+- Aplicar lo mismo al DragOverlay.
 
-2. **Campo "Contacto de Prensa"** — al escribir 3+ caracteres, buscar jefes de prensa previos. Si selecciona uno, auto-rellenar: `press_phone`, `press_email`.
+**2. Vista MES (`src/components/MonthView.tsx`)**
 
-### Comportamiento
-- Aparece un dropdown debajo del campo con sugerencias (nombre + cargo para invitados, nombre + email para prensa).
-- Solo se activa en modo **nuevo invitado** o cuando el campo está vacío al editar.
-- Al seleccionar una sugerencia, se rellenan los campos relacionados pero **no se sobreescriben campos que ya tengan valor**.
-- El `topic`, `recording_status`, fechas y slot **nunca** se auto-rellenan (son específicos de cada aparición).
-- Las búsquedas son queries directas a la tabla `guests` agrupando por nombre (usando `DISTINCT` o deduplicación en el frontend).
-
-### Cambios técnicos
-
-**Archivo: `src/components/GuestDetailModal.tsx`**
-- Agregar estado para sugerencias de invitado y sugerencias de prensa.
-- En el campo `name`: al cambiar el texto (debounce 300ms), hacer query:
-  ```sql
-  SELECT DISTINCT ON (name) name, position, phone, social_networks
-  FROM guests WHERE name ILIKE '%texto%' LIMIT 5
-  ```
-- En el campo `press_contact`: al cambiar el texto (debounce 300ms):
-  ```sql
-  SELECT DISTINCT ON (press_contact) press_contact, press_phone, press_email
-  FROM guests WHERE press_contact ILIKE '%texto%' AND press_contact IS NOT NULL LIMIT 5
-  ```
-- Renderizar dropdown posicionado debajo de cada input con las sugerencias.
-- Al hacer clic en una sugerencia, aplicar los campos al `formData` y `socialNetworks`/`customFields`.
-
-**No se necesitan nuevas tablas ni edge functions** — todo se resuelve con queries a la tabla `guests` existente.
+- Cambiar `getStatusColor` para usar fondos al 20% con texto normal en vez de full color:
+  - `live` → `bg-green-500/20 text-green-700 dark:text-green-400`
+  - `recorded` → `bg-red-500/20 text-red-700 dark:text-red-400`
+  - `to_record` → `bg-yellow-500/20 text-yellow-700 dark:text-yellow-400`
+  - `postponed` → `bg-gray-500/20 text-gray-700 dark:text-gray-400`
+  - `proposed` → `bg-blue-500/20 text-blue-700 dark:text-blue-400`
+- Agregar `border-l-2` con el color sólido correspondiente para refuerzo visual.
+- **Eliminar el checkbox PROPUESTO** del `SlotCard`, dejando solo CONF. BLU y CONF. PR.
+- Ajustar textos de `text-white` a colores legibles sobre fondo claro.
 
 ### Archivos a modificar
-- `src/components/GuestDetailModal.tsx` — lógica de búsqueda, dropdown de sugerencias, auto-rellenado
+- `src/components/WeeklyCalendar.tsx`
+- `src/components/MonthView.tsx`
 
