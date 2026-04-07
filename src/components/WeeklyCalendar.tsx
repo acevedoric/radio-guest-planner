@@ -157,18 +157,13 @@ export const WeeklyCalendar = ({ guests, allGuests, onGuestClick, onAddGuest, se
       </div>
       <DragOverlay>
         {activeGuest && (
-          <Card className="p-4 min-h-[140px] shadow-lg cursor-grabbing">
+          <Card className={cn("p-4 min-h-[140px] shadow-lg cursor-grabbing", statusCardStyles[activeGuest.recording_status])}>
             <div className="space-y-2">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <h4 className="font-semibold text-sm line-clamp-1">{activeGuest.name}</h4>
-                  {activeGuest.position && (
-                    <span className="text-[10px] text-muted-foreground">({activeGuest.position})</span>
-                  )}
-                </div>
-                <Badge className={cn("text-xs", statusConfig[activeGuest.recording_status].className)}>
-                  {statusConfig[activeGuest.recording_status].label}
-                </Badge>
+              <div>
+                <h4 className="font-semibold text-sm line-clamp-1">{activeGuest.name}</h4>
+                {activeGuest.position && (
+                  <span className="text-[10px] text-muted-foreground">({activeGuest.position})</span>
+                )}
               </div>
               <p className="text-xs text-muted-foreground line-clamp-2">{activeGuest.topic}</p>
             </div>
