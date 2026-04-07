@@ -274,15 +274,13 @@ interface SlotCardProps {
 }
 
 const SlotCard = ({ guest, day, slot, onGuestClick, onAddGuest, getStatusColor, editMode }: SlotCardProps) => {
-  const handleCheckboxChange = async (guest: Guest, type: 'proposed' | 'blu' | 'pr', checked: boolean) => {
+  const handleCheckboxChange = async (guest: Guest, type: 'blu' | 'pr', checked: boolean) => {
     if (!guest.id) return;
     
     try {
       let updateData: Partial<Guest> = {};
       
-      if (type === 'proposed') {
-        updateData.recording_status = checked ? 'proposed' : 'to_record';
-      } else if (type === 'blu') {
+      if (type === 'blu') {
         updateData.confirmed_blu = checked;
       } else if (type === 'pr') {
         updateData.confirmed_pr = checked;
