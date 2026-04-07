@@ -1,5 +1,5 @@
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+
 import { Button } from "@/components/ui/button";
 import { Plus, Phone, Mail, Globe } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -35,12 +35,12 @@ const TIME_SLOTS = [
   { slot: 3, label: "3ra Hora" },
 ];
 
-const statusConfig = {
-  live: { label: "EN VIVO", className: "bg-green-500 text-white" },
-  recorded: { label: "GRABADO", className: "bg-red-500 text-white" },
-  to_record: { label: "A GRABAR", className: "bg-yellow-500 text-white" },
-  postponed: { label: "APLAZADO", className: "bg-gray-500 text-white" },
-  proposed: { label: "PROPUESTO", className: "bg-blue-500 text-white" },
+const statusCardStyles: Record<string, string> = {
+  live: "bg-green-500/20 border-l-4 border-green-500",
+  recorded: "bg-red-500/20 border-l-4 border-red-500",
+  to_record: "bg-yellow-500/20 border-l-4 border-yellow-500",
+  postponed: "bg-gray-500/20 border-l-4 border-gray-500",
+  proposed: "bg-blue-500/20 border-l-4 border-blue-500",
 };
 
 export const WeeklyCalendar = ({ guests, allGuests, onGuestClick, onAddGuest, selectedWeek, onMoveGuest, editMode, onRecordingGuestClick }: WeeklyCalendarProps) => {
@@ -157,18 +157,13 @@ export const WeeklyCalendar = ({ guests, allGuests, onGuestClick, onAddGuest, se
       </div>
       <DragOverlay>
         {activeGuest && (
-          <Card className="p-4 min-h-[140px] shadow-lg cursor-grabbing">
+          <Card className={cn("p-4 min-h-[140px] shadow-lg cursor-grabbing", statusCardStyles[activeGuest.recording_status])}>
             <div className="space-y-2">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <h4 className="font-semibold text-sm line-clamp-1">{activeGuest.name}</h4>
-                  {activeGuest.position && (
-                    <span className="text-[10px] text-muted-foreground">({activeGuest.position})</span>
-                  )}
-                </div>
-                <Badge className={cn("text-xs", statusConfig[activeGuest.recording_status].className)}>
-                  {statusConfig[activeGuest.recording_status].label}
-                </Badge>
+              <div>
+                <h4 className="font-semibold text-sm line-clamp-1">{activeGuest.name}</h4>
+                {activeGuest.position && (
+                  <span className="text-[10px] text-muted-foreground">({activeGuest.position})</span>
+                )}
               </div>
               <p className="text-xs text-muted-foreground line-clamp-2">{activeGuest.topic}</p>
             </div>
@@ -201,15 +196,13 @@ const GuestSlotCard = ({ day, slot, guest, onGuestClick, onAddGuest, editMode }:
     disabled: !guest || !editMode,
   });
 
-  const handleCheckboxChange = async (guest: Guest, type: 'proposed' | 'blu' | 'pr', checked: boolean) => {
+  const handleCheckboxChange = async (guest: Guest, type: 'blu' | 'pr', checked: boolean) => {
     if (!guest.id) return;
     
     try {
       let updateData: Partial<Guest> = {};
       
-      if (type === 'proposed') {
-        updateData.recording_status = checked ? 'proposed' : 'to_record';
-      } else if (type === 'blu') {
+      if (type === 'blu') {
         updateData.confirmed_blu = checked;
       } else if (type === 'pr') {
         updateData.confirmed_pr = checked;
@@ -237,7 +230,8 @@ const GuestSlotCard = ({ day, slot, guest, onGuestClick, onAddGuest, editMode }:
           {...listeners}
           {...attributes}
           className={cn(
-            "p-4 min-h-[140px] transition-all bg-card",
+            "p-4 min-h-[140px] transition-all",
+            statusCardStyles[guest.recording_status],
             editMode ? "cursor-grab active:cursor-grabbing" : "cursor-pointer",
             isDragging && "opacity-50",
             isOver && "ring-2 ring-primary shadow-lg"
@@ -245,16 +239,11 @@ const GuestSlotCard = ({ day, slot, guest, onGuestClick, onAddGuest, editMode }:
           onClick={() => onGuestClick(guest)}
         >
           <div className="space-y-2">
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <h4 className="font-semibold text-sm line-clamp-1">{guest.name}</h4>
-                {guest.position && (
-                  <span className="text-[10px] text-muted-foreground">({guest.position})</span>
-                )}
-              </div>
-              <Badge className={cn("text-xs", statusConfig[guest.recording_status].className)}>
-                {statusConfig[guest.recording_status].label}
-              </Badge>
+            <div>
+              <h4 className="font-semibold text-sm line-clamp-1">{guest.name}</h4>
+              {guest.position && (
+                <span className="text-[10px] text-muted-foreground">({guest.position})</span>
+              )}
             </div>
             <p className="text-xs text-muted-foreground line-clamp-2">{guest.topic}</p>
             {guest.phone && (
@@ -274,21 +263,6 @@ const GuestSlotCard = ({ day, slot, guest, onGuestClick, onAddGuest, editMode }:
                   📋 {guest.proposed_by}
                 </div>
               )}
-              <div className="flex items-center space-x-1">
-                <Checkbox
-                  id={`proposed-week-${guest.id}-${slot}`}
-                  checked={guest.recording_status === 'proposed'}
-                  onCheckedChange={(checked) => handleCheckboxChange(guest, 'proposed', checked as boolean)}
-                  disabled={!editMode}
-                  className="h-3 w-3"
-                />
-                <label
-                  htmlFor={`proposed-week-${guest.id}-${slot}`}
-                  className="text-[10px] font-medium leading-none cursor-pointer"
-                >
-                  PROPUESTO
-                </label>
-              </div>
               <div className="flex items-center space-x-1">
                 <Checkbox
                   id={`blu-week-${guest.id}-${slot}`}

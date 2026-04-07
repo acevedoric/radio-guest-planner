@@ -88,11 +88,11 @@ export const MonthView = ({ guests, allGuests, onGuestClick, selectedMonth, onDa
 
   const getStatusColor = (status: Guest["recording_status"]) => {
     const colors = {
-      live: "bg-green-500 hover:bg-green-600 text-white",
-      recorded: "bg-red-500 hover:bg-red-600 text-white",
-      to_record: "bg-yellow-500 hover:bg-yellow-600 text-white",
-      postponed: "bg-gray-500 hover:bg-gray-600 text-white",
-      proposed: "bg-blue-500 hover:bg-blue-600 text-white"
+      live: "bg-green-500/20 border-l-2 border-green-500 text-green-700 dark:text-green-400",
+      recorded: "bg-red-500/20 border-l-2 border-red-500 text-red-700 dark:text-red-400",
+      to_record: "bg-yellow-500/20 border-l-2 border-yellow-500 text-yellow-700 dark:text-yellow-400",
+      postponed: "bg-gray-500/20 border-l-2 border-gray-500 text-gray-700 dark:text-gray-400",
+      proposed: "bg-blue-500/20 border-l-2 border-blue-500 text-blue-700 dark:text-blue-400"
     };
     return colors[status] || "bg-card";
   };
@@ -254,7 +254,7 @@ export const MonthView = ({ guests, allGuests, onGuestClick, selectedMonth, onDa
         {activeGuest && (
           <div className={`text-xs p-1 rounded shadow-lg cursor-grabbing ${getStatusColor(activeGuest.recording_status)}`}>
             <div className="font-semibold truncate">{activeGuest.name}</div>
-            <div className="truncate opacity-90">{activeGuest.topic}</div>
+            <div className="truncate opacity-70">{activeGuest.topic}</div>
           </div>
         )}
       </DragOverlay>
@@ -274,15 +274,13 @@ interface SlotCardProps {
 }
 
 const SlotCard = ({ guest, day, slot, onGuestClick, onAddGuest, getStatusColor, editMode }: SlotCardProps) => {
-  const handleCheckboxChange = async (guest: Guest, type: 'proposed' | 'blu' | 'pr', checked: boolean) => {
+  const handleCheckboxChange = async (guest: Guest, type: 'blu' | 'pr', checked: boolean) => {
     if (!guest.id) return;
     
     try {
       let updateData: Partial<Guest> = {};
       
-      if (type === 'proposed') {
-        updateData.recording_status = checked ? 'proposed' : 'to_record';
-      } else if (type === 'blu') {
+      if (type === 'blu') {
         updateData.confirmed_blu = checked;
       } else if (type === 'pr') {
         updateData.confirmed_pr = checked;
@@ -338,39 +336,24 @@ const SlotCard = ({ guest, day, slot, onGuestClick, onAddGuest, getStatusColor, 
           >
             <div className="font-semibold truncate">{guest.name}</div>
             {guest.position && (
-              <div className="text-[10px] text-white/70 truncate">{guest.position}</div>
+              <div className="text-[10px] opacity-70 truncate">{guest.position}</div>
             )}
             <div className="truncate opacity-90">{guest.topic}</div>
             
             {/* Checkboxes de confirmación */}
-            <div className="mt-2 pt-2 border-t border-white/20 space-y-1" onClick={(e) => e.stopPropagation()}>
+            <div className="mt-2 pt-2 border-t border-muted space-y-1" onClick={(e) => e.stopPropagation()}>
               {guest.proposed_by && (
-                <div className="text-[8px] text-white/60 truncate mb-1" title={`Propuesto por: ${guest.proposed_by}`}>
+                <div className="text-[8px] opacity-60 truncate mb-1" title={`Propuesto por: ${guest.proposed_by}`}>
                   📋 {guest.proposed_by}
                 </div>
               )}
-              <div className="flex items-center space-x-1">
-                <Checkbox
-                  id={`proposed-${guest.id}-${slot}`}
-                  checked={guest.recording_status === 'proposed'}
-                  onCheckedChange={(checked) => handleCheckboxChange(guest, 'proposed', checked as boolean)}
-                  disabled={!editMode}
-                  className="h-3 w-3 bg-white"
-                />
-                <label
-                  htmlFor={`proposed-${guest.id}-${slot}`}
-                  className="text-[10px] font-medium leading-none cursor-pointer"
-                >
-                  PROPUESTO
-                </label>
-              </div>
               <div className="flex items-center space-x-1">
                 <Checkbox
                   id={`blu-${guest.id}-${slot}`}
                   checked={guest.confirmed_blu || false}
                   onCheckedChange={(checked) => handleCheckboxChange(guest, 'blu', checked as boolean)}
                   disabled={!editMode}
-                  className="h-3 w-3 bg-white"
+                  className="h-3 w-3"
                 />
                 <label
                   htmlFor={`blu-${guest.id}-${slot}`}
@@ -385,7 +368,7 @@ const SlotCard = ({ guest, day, slot, onGuestClick, onAddGuest, getStatusColor, 
                   checked={guest.confirmed_pr || false}
                   onCheckedChange={(checked) => handleCheckboxChange(guest, 'pr', checked as boolean)}
                   disabled={!editMode}
-                  className="h-3 w-3 bg-white"
+                  className="h-3 w-3"
                 />
                 <label
                   htmlFor={`pr-${guest.id}-${slot}`}
