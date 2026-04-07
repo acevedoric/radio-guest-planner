@@ -355,7 +355,7 @@ const SlotCard = ({ guest, day, slot, onGuestClick, onAddGuest, getStatusColor, 
                   checked={guest.confirmed_blu || false}
                   onCheckedChange={(checked) => handleCheckboxChange(guest, 'blu', checked as boolean)}
                   disabled={!editMode}
-                  className="h-3 w-3 bg-white"
+                  className="h-3 w-3"
                 />
                 <label
                   htmlFor={`blu-${guest.id}-${slot}`}
@@ -370,7 +370,7 @@ const SlotCard = ({ guest, day, slot, onGuestClick, onAddGuest, getStatusColor, 
                   checked={guest.confirmed_pr || false}
                   onCheckedChange={(checked) => handleCheckboxChange(guest, 'pr', checked as boolean)}
                   disabled={!editMode}
-                  className="h-3 w-3 bg-white"
+                  className="h-3 w-3"
                 />
                 <label
                   htmlFor={`pr-${guest.id}-${slot}`}
