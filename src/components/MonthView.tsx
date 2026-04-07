@@ -88,11 +88,11 @@ export const MonthView = ({ guests, allGuests, onGuestClick, selectedMonth, onDa
 
   const getStatusColor = (status: Guest["recording_status"]) => {
     const colors = {
-      live: "bg-green-500 hover:bg-green-600 text-white",
-      recorded: "bg-red-500 hover:bg-red-600 text-white",
-      to_record: "bg-yellow-500 hover:bg-yellow-600 text-white",
-      postponed: "bg-gray-500 hover:bg-gray-600 text-white",
-      proposed: "bg-blue-500 hover:bg-blue-600 text-white"
+      live: "bg-green-500/20 border-l-2 border-green-500 text-green-700 dark:text-green-400",
+      recorded: "bg-red-500/20 border-l-2 border-red-500 text-red-700 dark:text-red-400",
+      to_record: "bg-yellow-500/20 border-l-2 border-yellow-500 text-yellow-700 dark:text-yellow-400",
+      postponed: "bg-gray-500/20 border-l-2 border-gray-500 text-gray-700 dark:text-gray-400",
+      proposed: "bg-blue-500/20 border-l-2 border-blue-500 text-blue-700 dark:text-blue-400"
     };
     return colors[status] || "bg-card";
   };
