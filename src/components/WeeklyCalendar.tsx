@@ -267,21 +267,6 @@ const GuestSlotCard = ({ day, slot, guest, onGuestClick, onAddGuest, editMode }:
               )}
               <div className="flex items-center space-x-1">
                 <Checkbox
-                  id={`proposed-week-${guest.id}-${slot}`}
-                  checked={guest.recording_status === 'proposed'}
-                  onCheckedChange={(checked) => handleCheckboxChange(guest, 'proposed', checked as boolean)}
-                  disabled={!editMode}
-                  className="h-3 w-3"
-                />
-                <label
-                  htmlFor={`proposed-week-${guest.id}-${slot}`}
-                  className="text-[10px] font-medium leading-none cursor-pointer"
-                >
-                  PROPUESTO
-                </label>
-              </div>
-              <div className="flex items-center space-x-1">
-                <Checkbox
                   id={`blu-week-${guest.id}-${slot}`}
                   checked={guest.confirmed_blu || false}
                   onCheckedChange={(checked) => handleCheckboxChange(guest, 'blu', checked as boolean)}
