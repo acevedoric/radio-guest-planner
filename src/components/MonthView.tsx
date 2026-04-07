@@ -343,27 +343,12 @@ const SlotCard = ({ guest, day, slot, onGuestClick, onAddGuest, getStatusColor, 
             <div className="truncate opacity-90">{guest.topic}</div>
             
             {/* Checkboxes de confirmación */}
-            <div className="mt-2 pt-2 border-t border-white/20 space-y-1" onClick={(e) => e.stopPropagation()}>
+            <div className="mt-2 pt-2 border-t border-muted space-y-1" onClick={(e) => e.stopPropagation()}>
               {guest.proposed_by && (
-                <div className="text-[8px] text-white/60 truncate mb-1" title={`Propuesto por: ${guest.proposed_by}`}>
+                <div className="text-[8px] opacity-60 truncate mb-1" title={`Propuesto por: ${guest.proposed_by}`}>
                   📋 {guest.proposed_by}
                 </div>
               )}
-              <div className="flex items-center space-x-1">
-                <Checkbox
-                  id={`proposed-${guest.id}-${slot}`}
-                  checked={guest.recording_status === 'proposed'}
-                  onCheckedChange={(checked) => handleCheckboxChange(guest, 'proposed', checked as boolean)}
-                  disabled={!editMode}
-                  className="h-3 w-3 bg-white"
-                />
-                <label
-                  htmlFor={`proposed-${guest.id}-${slot}`}
-                  className="text-[10px] font-medium leading-none cursor-pointer"
-                >
-                  PROPUESTO
-                </label>
-              </div>
               <div className="flex items-center space-x-1">
                 <Checkbox
                   id={`blu-${guest.id}-${slot}`}
