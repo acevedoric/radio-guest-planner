@@ -232,7 +232,8 @@ const GuestSlotCard = ({ day, slot, guest, onGuestClick, onAddGuest, editMode }:
           {...listeners}
           {...attributes}
           className={cn(
-            "p-4 min-h-[140px] transition-all bg-card",
+            "p-4 min-h-[140px] transition-all",
+            statusCardStyles[guest.recording_status],
             editMode ? "cursor-grab active:cursor-grabbing" : "cursor-pointer",
             isDragging && "opacity-50",
             isOver && "ring-2 ring-primary shadow-lg"
@@ -240,16 +241,11 @@ const GuestSlotCard = ({ day, slot, guest, onGuestClick, onAddGuest, editMode }:
           onClick={() => onGuestClick(guest)}
         >
           <div className="space-y-2">
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <h4 className="font-semibold text-sm line-clamp-1">{guest.name}</h4>
-                {guest.position && (
-                  <span className="text-[10px] text-muted-foreground">({guest.position})</span>
-                )}
-              </div>
-              <Badge className={cn("text-xs", statusConfig[guest.recording_status].className)}>
-                {statusConfig[guest.recording_status].label}
-              </Badge>
+            <div>
+              <h4 className="font-semibold text-sm line-clamp-1">{guest.name}</h4>
+              {guest.position && (
+                <span className="text-[10px] text-muted-foreground">({guest.position})</span>
+              )}
             </div>
             <p className="text-xs text-muted-foreground line-clamp-2">{guest.topic}</p>
             {guest.phone && (
