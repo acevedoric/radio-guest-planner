@@ -143,15 +143,20 @@ serve(async (req) => {
 
     const callbackUrl = `${supabaseUrl}/functions/v1/n8n-guest-info`;
 
-    const n8nPayload = {
+    const n8nPayload: Record<string, string> = {
       guest_id: payload.guest_id,
       name: payload.name,
       position: payload.position,
       topic: payload.topic || '',
-      document_url: payload.document_url || null,
-      document_name: payload.document_name || null,
       callback_url: callbackUrl
     };
+
+    if (payload.document_url) {
+      n8nPayload.document_url = payload.document_url;
+    }
+    if (payload.document_name) {
+      n8nPayload.document_name = payload.document_name;
+    }
 
     console.log(`Sending to n8n webhook`);
 
