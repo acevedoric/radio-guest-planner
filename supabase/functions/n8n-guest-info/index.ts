@@ -1,17 +1,18 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.76.0";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-webhook-secret",
 };
 
-interface N8nPayload {
-  guest_id: string;
-  tema_principal?: string;
-  infancia_vida_privada?: string;
-  carrera_profesional?: string;
-  datos_curiosos?: string;
-}
+const N8nPayloadSchema = z.object({
+  guest_id: z.string().uuid("guest_id must be a valid UUID"),
+  tema_principal: z.string().max(10000).optional(),
+  infancia_vida_privada: z.string().max(10000).optional(),
+  carrera_profesional: z.string().max(10000).optional(),
+  datos_curiosos: z.string().max(10000).optional(),
+});
 
 Deno.serve(async (req) => {
   // Handle CORS preflight
@@ -28,17 +29,30 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Parse request body
-    const payload: N8nPayload = await req.json();
-    console.log("Received n8n payload:", JSON.stringify(payload, null, 2));
+    // Verify webhook secret
+    const webhookSecret = req.headers.get("x-webhook-secret");
+    const expectedSecret = Deno.env.get("N8N_WEBHOOK_SECRET");
 
-    // Validate required field
-    if (!payload.guest_id) {
+    if (expectedSecret && (!webhookSecret || webhookSecret !== expectedSecret)) {
       return new Response(
-        JSON.stringify({ error: "guest_id is required" }),
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Parse and validate request body
+    const rawPayload = await req.json();
+    const parseResult = N8nPayloadSchema.safeParse(rawPayload);
+
+    if (!parseResult.success) {
+      return new Response(
+        JSON.stringify({ error: "Invalid input", details: parseResult.error.issues }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    const payload = parseResult.data;
+    console.log("Received validated n8n payload for guest:", payload.guest_id);
 
     // Create Supabase client with service role for admin access
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -77,7 +91,7 @@ Deno.serve(async (req) => {
     if (error) {
       console.error("Database error:", error);
       return new Response(
-        JSON.stringify({ error: error.message }),
+        JSON.stringify({ error: "Failed to update guest record" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -103,9 +117,8 @@ Deno.serve(async (req) => {
 
   } catch (error: unknown) {
     console.error("Error processing request:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return new Response(
-      JSON.stringify({ error: "Internal server error", details: errorMessage }),
+      JSON.stringify({ error: "Internal server error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
