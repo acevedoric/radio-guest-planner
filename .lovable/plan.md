@@ -1,49 +1,35 @@
 
 
-## Fix: evitar enviar `document_url: null` a n8n
+## Plan: Importar invitados históricos desde Excel
 
 ### Problema
-Cuando un invitado no tiene documento adjunto, la Edge Function envía `document_url: null` en el payload. El nodo "HTTP Request" de n8n intenta usar ese valor como URL y falla con "Invalid URL: null".
+Tienes un Excel (`Consolidado_Invitados_BBB_2.xlsx`) con invitados organizados por año/mes/dia con nombre, cargo y tema. Necesitas importar los datos de fechas anteriores a las que ya existen en la base de datos (antes de 2025-10-20), sin tocar los días que ya tienen invitados.
 
-### Solución
-En `supabase/functions/trigger-n8n-scraping/index.ts`, construir el payload condicionalmente: solo incluir `document_url` y `document_name` cuando realmente tienen un valor. Así n8n puede verificar si el campo existe antes de intentar usarlo.
+### Enfoque
+Escribir un script Python que:
+1. Copie el Excel al filesystem y lo lea con pandas
+2. Identifique la estructura (hojas por año/mes, columnas de fecha/nombre/cargo/tema)
+3. Convierta cada fila a un registro de invitado, calculando `day_of_week`, `time_slot` y `week_date` a partir de la fecha
+4. Filtre los registros cuyo `week_date + day_of_week + time_slot` ya existan en la BD
+5. Inserte los nuevos registros usando la herramienta de inserción de datos
 
-### Cambio
+### Mapeo de campos
+| Excel | BD |
+|-------|-----|
+| Fecha (año/mes/dia) | `week_date` (lunes de esa semana), `day_of_week`, `scheduled_date` |
+| Nombre | `name` |
+| Cargo | `position` |
+| Tema | `topic` |
+| -- | `recording_status` = `'live'` (default) |
+| -- | `time_slot` = asignado secuencialmente (1, 2, 3) por día |
 
-**`supabase/functions/trigger-n8n-scraping/index.ts`** (líneas 146-154)
+### Pasos de implementación
+1. Copiar el Excel y leerlo con pandas para inspeccionar las hojas y columnas exactas
+2. Parsear todas las filas, construyendo la fecha completa desde año/mes/dia
+3. Consultar la BD para obtener todas las combinaciones `(week_date, day_of_week, time_slot)` existentes
+4. Solo insertar filas para slots que NO estén ocupados
+5. Insertar en lotes usando el Supabase insert tool
 
-Antes:
-```typescript
-const n8nPayload = {
-  guest_id: payload.guest_id,
-  name: payload.name,
-  position: payload.position,
-  topic: payload.topic || '',
-  document_url: payload.document_url || null,
-  document_name: payload.document_name || null,
-  callback_url: callbackUrl
-};
-```
-
-Después:
-```typescript
-const n8nPayload: Record<string, string> = {
-  guest_id: payload.guest_id,
-  name: payload.name,
-  position: payload.position,
-  topic: payload.topic || '',
-  callback_url: callbackUrl
-};
-
-if (payload.document_url) {
-  n8nPayload.document_url = payload.document_url;
-}
-if (payload.document_name) {
-  n8nPayload.document_name = payload.document_name;
-}
-```
-
-Esto hace que n8n no reciba el campo `document_url` cuando no hay documento, evitando que el nodo HTTP Request intente hacer fetch a `null`.
-
-**Nota importante para n8n**: en tu workflow, el nodo HTTP Request que usa `document_url` debe tener una condición (IF node) que verifique si `{{ $json.document_url }}` existe antes de ejecutarse. Si ya la tienes, con este cambio debería funcionar correctamente.
+### Regla clave
+- **No se modifican datos existentes** -- solo se insertan invitados en slots vacíos de fechas que no están cubiertas actualmente
 
