@@ -352,21 +352,6 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
                     <div className="flex flex-col gap-2">
                       <div className="flex items-center space-x-2">
                         <Checkbox
-                          id={`proposed-${guest.id}`}
-                          checked={guest.recording_status === 'proposed'}
-                          onCheckedChange={(checked) => handleCheckboxChange(guest, 'proposed', checked as boolean)}
-                          disabled={!editMode}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                        <label
-                          htmlFor={`proposed-${guest.id}`}
-                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                        >
-                          PROPUESTO
-                        </label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
                           id={`blu-${guest.id}`}
                           checked={guest.confirmed_blu || false}
                           onCheckedChange={(checked) => handleCheckboxChange(guest, 'blu', checked as boolean)}
