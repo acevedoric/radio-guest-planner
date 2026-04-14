@@ -1,13 +1,14 @@
-import { useRef } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Search, ChevronLeft, ChevronRight, Lock, Unlock, Loader2, CalendarDays, User, Phone } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, Lock, Unlock, Loader2, CalendarDays, User, Phone, Sparkles } from "lucide-react";
 import { addWeeks, subWeeks, addMonths, subMonths, addDays, subDays, format } from "date-fns";
 import { es } from "date-fns/locale";
 import { Guest } from "@/types/guest";
+import { supabase } from "@/integrations/supabase/client";
 
 interface FilterBarProps {
   searchQuery: string;
@@ -29,6 +30,12 @@ interface FilterBarProps {
   onGlobalResultClick: (guest: Guest) => void;
 }
 
+const isQuestion = (text: string): boolean => {
+  const t = text.trim().toLowerCase();
+  return /^[¿?]/.test(t) ||
+    /\?$/.test(t) ||
+    /^(cuándo|cuando|hace cuánto|hace cuanto|quién|quien|cuántos|cuantos|último|ultima|alguna vez|primera vez|por qué|porque|dime|cuál|cual|cómo|como|qué|que tan)/i.test(t);
+};
 
 export const FilterBar = ({
   searchQuery,
@@ -51,6 +58,39 @@ export const FilterBar = ({
 }: FilterBarProps) => {
   const searchRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const [aiAnswer, setAiAnswer] = useState<string | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const aiTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const isQuestionMode = searchQuery.length >= 3 && isQuestion(searchQuery);
+
+  useEffect(() => {
+    if (aiTimerRef.current) clearTimeout(aiTimerRef.current);
+    if (!isQuestionMode) {
+      setAiAnswer(null);
+      setAiLoading(false);
+      return;
+    }
+    setAiLoading(true);
+    setAiAnswer(null);
+    aiTimerRef.current = setTimeout(async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke("chat-guests", {
+          body: { question: searchQuery },
+        });
+        if (error) throw error;
+        setAiAnswer(data?.answer || "Sin respuesta");
+      } catch (e: any) {
+        console.error("AI chat error:", e);
+        setAiAnswer("Error al consultar la IA. Intenta de nuevo.");
+      } finally {
+        setAiLoading(false);
+      }
+    }, 800);
+    return () => {
+      if (aiTimerRef.current) clearTimeout(aiTimerRef.current);
+    };
+  }, [searchQuery, isQuestionMode]);
 
   const calculateDayDate = () => {
     const dayIndex = {
@@ -168,22 +208,45 @@ export const FilterBar = ({
       {/* Search and Filter */}
       <div className="flex gap-2 w-full">
         <div className="relative flex-1" ref={searchRef}>
-          {isSearching ? (
+          {isSearching || aiLoading ? (
             <Loader2 className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground animate-spin" />
+          ) : isQuestionMode ? (
+            <Sparkles className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-primary" />
           ) : (
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           )}
           <Input
-            placeholder="Buscar invitados, temas, prensa..."
+            placeholder="Buscar invitados o preguntar a la IA..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             className="pl-10"
           />
 
-          {/* Dropdown resultados globales */}
+          {/* Dropdown resultados */}
           {searchQuery.length >= 3 && (
-            <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-popover border border-border rounded-md shadow-lg overflow-hidden max-h-[420px] overflow-y-auto">
-              {!hasResults && !isSearching && (
+            <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-popover border border-border rounded-md shadow-lg overflow-hidden max-h-[520px] overflow-y-auto">
+
+              {/* Respuesta IA */}
+              {isQuestionMode && (
+                <div className="border-b border-border">
+                  <div className="px-4 py-2 bg-primary/10 flex items-center gap-2">
+                    <Sparkles className="w-3.5 h-3.5 text-primary" />
+                    <span className="text-xs font-semibold uppercase tracking-wide text-primary">Respuesta IA</span>
+                  </div>
+                  <div className="px-4 py-3">
+                    {aiLoading ? (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Pensando...
+                      </div>
+                    ) : aiAnswer ? (
+                      <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{aiAnswer}</p>
+                    ) : null}
+                  </div>
+                </div>
+              )}
+
+              {!isQuestionMode && !hasResults && !isSearching && (
                 <div className="px-4 py-3 text-sm text-muted-foreground text-center">
                   No se encontraron resultados
                 </div>
