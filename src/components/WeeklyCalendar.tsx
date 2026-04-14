@@ -96,18 +96,16 @@ export const WeeklyCalendar = ({ guests, allGuests, onGuestClick, onAddGuest, se
       <div className="w-full overflow-x-auto">
       <div className="min-w-[800px]">
         {/* Header */}
-        <div className="grid gap-4 mb-4" style={{ gridTemplateColumns: "150px repeat(4, 1fr)" }}>
-          <div className="font-semibold text-sm text-muted-foreground">Horario</div>
+        <div className="grid gap-4 mb-4" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
           {DAYS.map(day => (
             <div key={day.key} className="font-semibold text-center text-foreground">
-              {day.label}
+              {day.label} {format(addDays(selectedWeek, day.offset), 'd')}
             </div>
           ))}
         </div>
 
         {/* Recording strips per day */}
-        <div className="grid gap-4 mb-2" style={{ gridTemplateColumns: "150px repeat(4, 1fr)" }}>
-          <div />
+        <div className="grid gap-4 mb-2" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
           {DAYS.map(day => {
             const recordings = getRecordingsForDay(day.offset);
             if (recordings.length === 0) return <div key={day.key} />;
@@ -133,10 +131,7 @@ export const WeeklyCalendar = ({ guests, allGuests, onGuestClick, onAddGuest, se
 
         {/* Time Slots Grid */}
         {TIME_SLOTS.map(timeSlot => (
-          <div key={timeSlot.slot} className="grid gap-4 mb-4" style={{ gridTemplateColumns: "150px repeat(4, 1fr)" }}>
-            <div className="flex items-center font-medium text-muted-foreground">
-              {timeSlot.label}
-            </div>
+          <div key={timeSlot.slot} className="grid gap-4 mb-4" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
             {DAYS.map(day => {
               const guest = getGuestForSlot(day.key, timeSlot.slot);
               

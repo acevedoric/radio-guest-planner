@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { SocialNetworkLink } from "./SocialNetworkLink";
 import { GuestInfoModules } from "./GuestInfoModules";
+import { parse, addDays, format } from "date-fns";
 
 interface DayViewProps {
   guests: Guest[];
@@ -24,10 +25,10 @@ interface DayViewProps {
 }
 
 const DAYS = [
-  { value: "monday", label: "Lunes" },
-  { value: "tuesday", label: "Martes" },
-  { value: "wednesday", label: "Miércoles" },
-  { value: "thursday", label: "Jueves" },
+  { value: "monday", label: "Lunes", offset: 0 },
+  { value: "tuesday", label: "Martes", offset: 1 },
+  { value: "wednesday", label: "Miércoles", offset: 2 },
+  { value: "thursday", label: "Jueves", offset: 3 },
 ];
 
 const TIME_SLOTS = [
@@ -138,21 +139,33 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
     <div className="space-y-6">
       {/* Day Selector */}
       <div className="flex gap-2 justify-center">
-        {DAYS.map((day) => (
-          <Button
-            key={day.value}
-            variant={selectedDay === day.value ? "default" : "outline"}
-            onClick={() => onDayChange(day.value)}
-            className="min-w-[100px]"
-          >
-            {day.label}
-          </Button>
-        ))}
+        {DAYS.map((day) => {
+          let dayNumber = "";
+          if (selectedDayDate) {
+            const mondayDate = parse(selectedDayDate, "yyyy-MM-dd", new Date());
+            const currentDayOffset = DAYS.find(d => d.value === selectedDay)?.offset || 0;
+            const mondayBase = addDays(mondayDate, -currentDayOffset);
+            const thisDayDate = addDays(mondayBase, day.offset);
+            dayNumber = ` ${format(thisDayDate, 'd')}`;
+          }
+          return (
+            <Button
+              key={day.value}
+              variant={selectedDay === day.value ? "default" : "outline"}
+              onClick={() => onDayChange(day.value)}
+              className="min-w-[100px]"
+            >
+              {day.label}{dayNumber}
+            </Button>
+          );
+        })}
       </div>
 
       {/* Day Header */}
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-foreground">{currentDayLabel}</h2>
+        <h2 className="text-2xl font-bold text-foreground">
+          {currentDayLabel}{selectedDayDate ? ` ${format(parse(selectedDayDate, "yyyy-MM-dd", new Date()), 'd')}` : ""}
+        </h2>
       </div>
 
       {/* TITULARES */}
