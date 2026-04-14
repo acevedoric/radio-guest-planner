@@ -161,12 +161,6 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
         })}
       </div>
 
-      {/* Day Header */}
-      <div className="text-center">
-        <h2 className="text-2xl font-bold text-foreground">
-          {currentDayLabel}{selectedDayDate ? ` ${format(parse(selectedDayDate, "yyyy-MM-dd", new Date()), 'd')}` : ""}
-        </h2>
-      </div>
 
       {/* TITULARES */}
       <Card className="p-4 bg-muted/50 border-primary/20">
