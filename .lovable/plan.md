@@ -1,47 +1,28 @@
 
 
-## Plan: Correo pre-llenado para confirmar invitados con PR
+## Plan: Agregar número de día en vistas DÍA y SEMANA + quitar etiquetas de hora en SEMANA
 
-### Cambio
-Modificar el botón "Correo PR" en `src/components/DayView.tsx` (línea ~396) para que el `mailto:` incluya asunto y cuerpo pre-llenados con los datos del invitado.
+### Cambios
 
-### Detalle
+**1. Vista DÍA (`src/components/DayView.tsx`)**
 
-**Archivo:** `src/components/DayView.tsx`
+- Usar `selectedDayDate` para extraer el número del día
+- Cambiar el header de `"Lunes"` a `"Lunes 14"` (línea 155)
+- Cambiar los botones de navegación de `"Lunes"` a `"Lunes 14"` (línea 148), calculando la fecha de cada día a partir de `selectedDayDate` y el offset del día
 
-1. Crear una función helper `buildPRMailto(guest, selectedDayDate)` que construya un `mailto:` con:
-   - **To:** `guest.press_email`
-   - **Subject:** `Confirmación de entrevista - [nombre del invitado]`
-   - **Body:** Texto pre-llenado con:
-     - Saludo al contacto de prensa (`press_contact`)
-     - Nombre del invitado
-     - Cargo (`position`)
-     - Tema (`topic`)
-     - Fecha de la entrevista (`selectedDayDate` formateada en español)
-     - Solicitud de confirmación
-     - Cierre cordial
+**2. Vista SEMANA (`src/components/WeeklyCalendar.tsx`)**
 
-2. Reemplazar el `mailto:${guest.press_email}` simple (línea 396) por la llamada a esta función.
+- En el header, cambiar `"Lunes"` a `"Lunes 14"` usando `selectedWeek` + `day.offset` para calcular el número del día (línea 102-103)
+- Quitar la columna "Horario" del header y la columna de "1ra Hora / 2da Hora / 3ra Hora" de cada fila
+- Cambiar el grid de `"150px repeat(4, 1fr)"` a `"repeat(4, 1fr)"` en header, recording strips y time slots grids
 
-3. También actualizar el botón "Enviar Correo" del invitado directo (línea 358) con un mailto pre-llenado similar pero dirigido al invitado.
+### Detalle técnico
 
-### Ejemplo del correo generado
-
-```
-Asunto: Confirmación de entrevista - Juan Pérez
-
-Estimado/a [press_contact],
-
-Le escribimos para confirmar la participación de Juan Pérez (Director de Marketing) en nuestro programa.
-
-Tema: Tendencias digitales 2025
-Fecha: Martes, 15 de abril de 2025
-
-Quedamos atentos a su confirmación.
-
-Saludos cordiales.
-```
+- En WeeklyCalendar: `format(addDays(selectedWeek, day.offset), 'd')` da el número del día
+- En DayView: parsear `selectedDayDate` para obtener el día, y calcular los días adyacentes para los botones de navegación
+- Ambos ya importan `date-fns`
 
 ### Archivos a modificar
-- `src/components/DayView.tsx` — agregar helper y actualizar los onClick de ambos botones de correo
+- `src/components/DayView.tsx`
+- `src/components/WeeklyCalendar.tsx`
 
