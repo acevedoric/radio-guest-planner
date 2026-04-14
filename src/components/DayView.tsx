@@ -400,7 +400,7 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
                                 className="text-xs"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  window.location.href = `mailto:${guest.email}`;
+                                  window.location.href = buildGuestMailto(guest, selectedDayDate);
                                 }}
                               >
                                 <Mail className="w-3 h-3 mr-1" />
@@ -438,7 +438,7 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
                                 className="text-xs"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  window.location.href = `mailto:${guest.press_email}`;
+                                  window.location.href = buildPRMailto(guest, selectedDayDate);
                                 }}
                               >
                                 <Mail className="w-3 h-3 mr-1" />
