@@ -44,6 +44,51 @@ const statusConfig = {
   proposed: { label: "PROPUESTO", className: "bg-blue-500 text-white" },
 };
 
+const formatDateSpanish = (dateStr?: string | null) => {
+  if (!dateStr) return '';
+  const d = new Date(dateStr + 'T12:00:00');
+  const days = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+  const months = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  return `${days[d.getDay()]}, ${d.getDate()} de ${months[d.getMonth()]} de ${d.getFullYear()}`;
+};
+
+const buildGuestMailto = (guest: Guest, selectedDayDate?: string) => {
+  const subject = encodeURIComponent(`Confirmación de entrevista - ${guest.name}`);
+  const fecha = formatDateSpanish(selectedDayDate);
+  const lines = [
+    `Estimado/a ${guest.name},`,
+    '',
+    `Le escribimos para confirmar su participación en nuestro programa.`,
+    '',
+    guest.topic ? `Tema: ${guest.topic}` : '',
+    fecha ? `Fecha: ${fecha}` : '',
+    '',
+    'Quedamos atentos a su confirmación.',
+    '',
+    'Saludos cordiales.',
+  ].filter(Boolean);
+  return `mailto:${guest.email}?subject=${subject}&body=${encodeURIComponent(lines.join('\n'))}`;
+};
+
+const buildPRMailto = (guest: Guest, selectedDayDate?: string) => {
+  const subject = encodeURIComponent(`Confirmación de entrevista - ${guest.name}`);
+  const fecha = formatDateSpanish(selectedDayDate);
+  const cargo = guest.position ? ` (${guest.position})` : '';
+  const lines = [
+    `Estimado/a ${guest.press_contact || 'Contacto de Prensa'},`,
+    '',
+    `Le escribimos para confirmar la participación de ${guest.name}${cargo} en nuestro programa.`,
+    '',
+    guest.topic ? `Tema: ${guest.topic}` : '',
+    fecha ? `Fecha: ${fecha}` : '',
+    '',
+    'Quedamos atentos a su confirmación.',
+    '',
+    'Saludos cordiales.',
+  ].filter(Boolean);
+  return `mailto:${guest.press_email}?subject=${subject}&body=${encodeURIComponent(lines.join('\n'))}`;
+};
+
 export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedDay, onDayChange, editMode, onGuestUpdate, selectedDayDate, onRecordingGuestClick }: DayViewProps) => {
   const getGuestForSlot = (slot: number) => {
     return guests.find(g => g.day_of_week === selectedDay && g.time_slot === slot);
@@ -355,7 +400,7 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
                                 className="text-xs"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  window.location.href = `mailto:${guest.email}`;
+                                  window.location.href = buildGuestMailto(guest, selectedDayDate);
                                 }}
                               >
                                 <Mail className="w-3 h-3 mr-1" />
@@ -393,7 +438,7 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
                                 className="text-xs"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  window.location.href = `mailto:${guest.press_email}`;
+                                  window.location.href = buildPRMailto(guest, selectedDayDate);
                                 }}
                               >
                                 <Mail className="w-3 h-3 mr-1" />
