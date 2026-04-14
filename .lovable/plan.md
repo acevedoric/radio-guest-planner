@@ -1,35 +1,47 @@
 
 
-## Plan: Importar invitados históricos desde Excel
+## Plan: Correo pre-llenado para confirmar invitados con PR
 
-### Problema
-Tienes un Excel (`Consolidado_Invitados_BBB_2.xlsx`) con invitados organizados por año/mes/dia con nombre, cargo y tema. Necesitas importar los datos de fechas anteriores a las que ya existen en la base de datos (antes de 2025-10-20), sin tocar los días que ya tienen invitados.
+### Cambio
+Modificar el botón "Correo PR" en `src/components/DayView.tsx` (línea ~396) para que el `mailto:` incluya asunto y cuerpo pre-llenados con los datos del invitado.
 
-### Enfoque
-Escribir un script Python que:
-1. Copie el Excel al filesystem y lo lea con pandas
-2. Identifique la estructura (hojas por año/mes, columnas de fecha/nombre/cargo/tema)
-3. Convierta cada fila a un registro de invitado, calculando `day_of_week`, `time_slot` y `week_date` a partir de la fecha
-4. Filtre los registros cuyo `week_date + day_of_week + time_slot` ya existan en la BD
-5. Inserte los nuevos registros usando la herramienta de inserción de datos
+### Detalle
 
-### Mapeo de campos
-| Excel | BD |
-|-------|-----|
-| Fecha (año/mes/dia) | `week_date` (lunes de esa semana), `day_of_week`, `scheduled_date` |
-| Nombre | `name` |
-| Cargo | `position` |
-| Tema | `topic` |
-| -- | `recording_status` = `'live'` (default) |
-| -- | `time_slot` = asignado secuencialmente (1, 2, 3) por día |
+**Archivo:** `src/components/DayView.tsx`
 
-### Pasos de implementación
-1. Copiar el Excel y leerlo con pandas para inspeccionar las hojas y columnas exactas
-2. Parsear todas las filas, construyendo la fecha completa desde año/mes/dia
-3. Consultar la BD para obtener todas las combinaciones `(week_date, day_of_week, time_slot)` existentes
-4. Solo insertar filas para slots que NO estén ocupados
-5. Insertar en lotes usando el Supabase insert tool
+1. Crear una función helper `buildPRMailto(guest, selectedDayDate)` que construya un `mailto:` con:
+   - **To:** `guest.press_email`
+   - **Subject:** `Confirmación de entrevista - [nombre del invitado]`
+   - **Body:** Texto pre-llenado con:
+     - Saludo al contacto de prensa (`press_contact`)
+     - Nombre del invitado
+     - Cargo (`position`)
+     - Tema (`topic`)
+     - Fecha de la entrevista (`selectedDayDate` formateada en español)
+     - Solicitud de confirmación
+     - Cierre cordial
 
-### Regla clave
-- **No se modifican datos existentes** -- solo se insertan invitados en slots vacíos de fechas que no están cubiertas actualmente
+2. Reemplazar el `mailto:${guest.press_email}` simple (línea 396) por la llamada a esta función.
+
+3. También actualizar el botón "Enviar Correo" del invitado directo (línea 358) con un mailto pre-llenado similar pero dirigido al invitado.
+
+### Ejemplo del correo generado
+
+```
+Asunto: Confirmación de entrevista - Juan Pérez
+
+Estimado/a [press_contact],
+
+Le escribimos para confirmar la participación de Juan Pérez (Director de Marketing) en nuestro programa.
+
+Tema: Tendencias digitales 2025
+Fecha: Martes, 15 de abril de 2025
+
+Quedamos atentos a su confirmación.
+
+Saludos cordiales.
+```
+
+### Archivos a modificar
+- `src/components/DayView.tsx` — agregar helper y actualizar los onClick de ambos botones de correo
 
