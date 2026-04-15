@@ -37,6 +37,38 @@ const isQuestion = (text: string): boolean => {
     /^(cuándo|cuando|hace cuánto|hace cuanto|quién|quien|cuántos|cuantos|último|ultima|alguna vez|primera vez|por qué|porque|dime|cuál|cual|cómo|como|qué|que tan)/i.test(t);
 };
 
+const AiAnswerWithLinks = ({ text, onNavigate }: { text: string; onNavigate: (weekDate: string, dayOfWeek: string) => void }) => {
+  const dayLabelsMap: Record<string, string> = {
+    monday: "lunes", tuesday: "martes", wednesday: "miércoles", thursday: "jueves",
+  };
+  const parts = text.split(/(\[\[.*?\]\])/g);
+  return (
+    <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
+      {parts.map((part, i) => {
+        const match = part.match(/^\[\[(.+?)\|(.+?)\|(.+?)\]\]$/);
+        if (match) {
+          const [, name, dayOfWeek, weekDate] = match;
+          const date = new Date(weekDate + 'T12:00:00');
+          const dayIndex = { monday: 0, tuesday: 1, wednesday: 2, thursday: 3 }[dayOfWeek] || 0;
+          const actualDate = addDays(startOfWeek(date, { weekStartsOn: 1 }), dayIndex);
+          const label = `${name} (${dayLabelsMap[dayOfWeek] || dayOfWeek} ${format(actualDate, "d 'de' MMMM yyyy", { locale: es })})`;
+          return (
+            <button
+              key={i}
+              type="button"
+              className="text-primary underline hover:text-primary/80 font-medium cursor-pointer"
+              onClick={() => onNavigate(weekDate, dayOfWeek)}
+            >
+              {label}
+            </button>
+          );
+        }
+        return <span key={i}>{part}</span>;
+      })}
+    </p>
+  );
+};
+
 export const FilterBar = ({
   searchQuery,
   onSearchChange,
