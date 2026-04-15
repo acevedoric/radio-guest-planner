@@ -23,6 +23,18 @@ export type Database = {
           datos_curiosos: string | null
           day_of_week: string
           email: string | null
+          h2_documento_nombre: string | null
+          h2_documento_url: string | null
+          h2_info_personal: string | null
+          h2_link_info: string | null
+          h2_n8n_updated_at: string | null
+          h2_preguntas_sugeridas: string | null
+          h3_comunicado_prensa: string | null
+          h3_datos_personales: string | null
+          h3_documento_nombre: string | null
+          h3_documento_url: string | null
+          h3_link_info: string | null
+          h3_n8n_updated_at: string | null
           id: string
           infancia_vida_privada: string | null
           n8n_updated_at: string | null
@@ -55,6 +67,18 @@ export type Database = {
           datos_curiosos?: string | null
           day_of_week: string
           email?: string | null
+          h2_documento_nombre?: string | null
+          h2_documento_url?: string | null
+          h2_info_personal?: string | null
+          h2_link_info?: string | null
+          h2_n8n_updated_at?: string | null
+          h2_preguntas_sugeridas?: string | null
+          h3_comunicado_prensa?: string | null
+          h3_datos_personales?: string | null
+          h3_documento_nombre?: string | null
+          h3_documento_url?: string | null
+          h3_link_info?: string | null
+          h3_n8n_updated_at?: string | null
           id?: string
           infancia_vida_privada?: string | null
           n8n_updated_at?: string | null
@@ -87,6 +111,18 @@ export type Database = {
           datos_curiosos?: string | null
           day_of_week?: string
           email?: string | null
+          h2_documento_nombre?: string | null
+          h2_documento_url?: string | null
+          h2_info_personal?: string | null
+          h2_link_info?: string | null
+          h2_n8n_updated_at?: string | null
+          h2_preguntas_sugeridas?: string | null
+          h3_comunicado_prensa?: string | null
+          h3_datos_personales?: string | null
+          h3_documento_nombre?: string | null
+          h3_documento_url?: string | null
+          h3_link_info?: string | null
+          h3_n8n_updated_at?: string | null
           id?: string
           infancia_vida_privada?: string | null
           n8n_updated_at?: string | null

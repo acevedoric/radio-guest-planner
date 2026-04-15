@@ -14,20 +14,48 @@ const TriggerPayloadSchema = z.object({
   topic: z.string().max(2000).optional(),
   document_url: z.string().url().max(2000).nullable().optional(),
   document_name: z.string().max(500).nullable().optional(),
+  slot: z.number().int().min(1).max(3).optional().default(1),
 });
 
-function parseOutputSections(text: string): Record<string, string> {
-  const sections: Record<string, string> = {};
+// Field mapping per slot for n8n response parsing
+const SLOT_FIELD_MAP: Record<number, { fields: string[]; keywordMap: Record<string, string> }> = {
+  1: {
+    fields: ['tema_principal', 'infancia_vida_privada', 'carrera_profesional', 'datos_curiosos'],
+    keywordMap: {
+      'coyuntura': 'tema_principal',
+      'tema': 'tema_principal',
+      'infancia': 'infancia_vida_privada',
+      'carrera': 'carrera_profesional',
+      'curiosidades': 'datos_curiosos',
+      'curiosos': 'datos_curiosos',
+    },
+  },
+  2: {
+    fields: ['h2_info_personal', 'h2_preguntas_sugeridas'],
+    keywordMap: {
+      'personal': 'h2_info_personal',
+      'información': 'h2_info_personal',
+      'info': 'h2_info_personal',
+      'preguntas': 'h2_preguntas_sugeridas',
+      'sugeridas': 'h2_preguntas_sugeridas',
+    },
+  },
+  3: {
+    fields: ['h3_datos_personales', 'h3_comunicado_prensa'],
+    keywordMap: {
+      'datos': 'h3_datos_personales',
+      'personales': 'h3_datos_personales',
+      'personal': 'h3_datos_personales',
+      'comunicado': 'h3_comunicado_prensa',
+      'prensa': 'h3_comunicado_prensa',
+    },
+  },
+};
 
-  // Keyword -> field mapping
-  const keywordMap: Record<string, string> = {
-    'coyuntura': 'tema_principal',
-    'tema': 'tema_principal',
-    'infancia': 'infancia_vida_privada',
-    'carrera': 'carrera_profesional',
-    'curiosidades': 'datos_curiosos',
-    'curiosos': 'datos_curiosos',
-  };
+function parseOutputSections(text: string, slot: number): Record<string, string> {
+  const sections: Record<string, string> = {};
+  const slotConfig = SLOT_FIELD_MAP[slot];
+  const keywordMap = slotConfig.keywordMap;
 
   // Try ### KEYWORD ### format first
   const hashRegex = /(?:^|\n)\s*#{1,4}\s*([^#\n]+?)\s*#{0,4}\s*\n/gi;
@@ -54,7 +82,7 @@ function parseOutputSections(text: string): Record<string, string> {
     if (Object.keys(sections).length > 0) return sections;
   }
 
-  // Fallback: numbered sections "1.", "2.", etc.
+  // Fallback: numbered sections
   const numRegex = /(?:^|\n)\s*(\d)\.\s*\*{0,2}([^*\n]+?)\*{0,2}\s*\n/gi;
   const numMatches: { index: number; num: string }[] = [];
 
@@ -63,18 +91,13 @@ function parseOutputSections(text: string): Record<string, string> {
   }
 
   if (numMatches.length > 0) {
-    const fieldMap: Record<string, string> = {
-      '1': 'tema_principal',
-      '2': 'infancia_vida_privada',
-      '3': 'carrera_profesional',
-      '4': 'datos_curiosos',
-    };
-
+    const fields = slotConfig.fields;
     for (let i = 0; i < numMatches.length; i++) {
       const start = text.indexOf('\n', numMatches[i].index + 1);
       const end = i + 1 < numMatches.length ? numMatches[i + 1].index : text.length;
       const content = text.slice(start, end).trim();
-      const field = fieldMap[numMatches[i].num];
+      const fieldIdx = parseInt(numMatches[i].num) - 1;
+      const field = fields[fieldIdx];
       if (field && content) {
         sections[field] = content;
       }
@@ -82,7 +105,8 @@ function parseOutputSections(text: string): Record<string, string> {
     if (Object.keys(sections).length > 0) return sections;
   }
 
-  return { tema_principal: text.trim() };
+  // Default: put everything in the first field
+  return { [slotConfig.fields[0]]: text.trim() };
 }
 
 serve(async (req) => {
@@ -91,7 +115,6 @@ serve(async (req) => {
   }
 
   try {
-    // Verify JWT - this function is called from the client
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       return new Response(
@@ -104,7 +127,6 @@ serve(async (req) => {
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-    // Verify the user is authenticated
     const userClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
@@ -117,7 +139,6 @@ serve(async (req) => {
     }
 
     const n8nWebhookUrl = Deno.env.get('N8N_WEBHOOK_URL');
-    
     if (!n8nWebhookUrl) {
       console.error('N8N_WEBHOOK_URL secret not configured');
       return new Response(
@@ -126,10 +147,8 @@ serve(async (req) => {
       );
     }
 
-    // Validate input
     const rawPayload = await req.json();
     const parseResult = TriggerPayloadSchema.safeParse(rawPayload);
-
     if (!parseResult.success) {
       return new Response(
         JSON.stringify({ error: 'Invalid input', details: parseResult.error.issues }),
@@ -138,27 +157,24 @@ serve(async (req) => {
     }
 
     const payload = parseResult.data;
+    const slot = payload.slot;
+    const slotConfig = SLOT_FIELD_MAP[slot];
 
-    console.log(`Triggering n8n scraping for guest: ${payload.name} (${payload.position})`);
+    console.log(`Triggering n8n scraping for guest: ${payload.name} (${payload.position}), slot: ${slot}`);
 
     const callbackUrl = `${supabaseUrl}/functions/v1/n8n-guest-info`;
 
-    const n8nPayload: Record<string, string> = {
+    const n8nPayload: Record<string, string | number> = {
       guest_id: payload.guest_id,
       name: payload.name,
       position: payload.position,
       topic: payload.topic || '',
-      callback_url: callbackUrl
+      callback_url: callbackUrl,
+      slot,
     };
 
-    if (payload.document_url) {
-      n8nPayload.document_url = payload.document_url;
-    }
-    if (payload.document_name) {
-      n8nPayload.document_name = payload.document_name;
-    }
-
-    console.log(`Sending to n8n webhook`);
+    if (payload.document_url) n8nPayload.document_url = payload.document_url;
+    if (payload.document_name) n8nPayload.document_name = payload.document_name;
 
     const n8nResponse = await fetch(n8nWebhookUrl, {
       method: 'POST',
@@ -174,47 +190,37 @@ serve(async (req) => {
       );
     }
 
-    // Read and parse n8n response
     let dataSaved = false;
-    let savedData: Record<string, string> = {};
     try {
       const responseText = await n8nResponse.text();
-
       if (responseText) {
         let n8nData = JSON.parse(responseText);
-        
-        // Support array response from n8n "All Incoming Items"
-        if (Array.isArray(n8nData)) {
-          n8nData = n8nData[0] || {};
-        }
+        if (Array.isArray(n8nData)) n8nData = n8nData[0] || {};
 
-        // Extract data - support multiple response structures
         let extractedData: Record<string, string | undefined> = {};
-
         if (n8nData.output !== undefined) {
           if (typeof n8nData.output === 'object' && n8nData.output !== null) {
             extractedData = n8nData.output;
           } else if (typeof n8nData.output === 'string') {
-            extractedData = parseOutputSections(n8nData.output);
+            extractedData = parseOutputSections(n8nData.output, slot);
           }
         } else {
           extractedData = n8nData;
         }
 
-        const hasData = extractedData.tema_principal || extractedData.infancia_vida_privada ||
-                        extractedData.carrera_profesional || extractedData.datos_curiosos;
-
+        const hasData = slotConfig.fields.some(f => extractedData[f]);
         if (hasData) {
           const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
+          const timestampKey = slot === 1 ? 'n8n_updated_at' : `h${slot}_n8n_updated_at`;
           const updateData: Record<string, string> = {
-            n8n_updated_at: new Date().toISOString(),
+            [timestampKey]: new Date().toISOString(),
           };
 
-          if (extractedData.tema_principal !== undefined) updateData.tema_principal = String(extractedData.tema_principal).slice(0, 10000);
-          if (extractedData.infancia_vida_privada !== undefined) updateData.infancia_vida_privada = String(extractedData.infancia_vida_privada).slice(0, 10000);
-          if (extractedData.carrera_profesional !== undefined) updateData.carrera_profesional = String(extractedData.carrera_profesional).slice(0, 10000);
-          if (extractedData.datos_curiosos !== undefined) updateData.datos_curiosos = String(extractedData.datos_curiosos).slice(0, 10000);
+          for (const field of slotConfig.fields) {
+            if (extractedData[field] !== undefined) {
+              updateData[field] = String(extractedData[field]).slice(0, 10000);
+            }
+          }
 
           const { error } = await supabase
             .from('guests')
@@ -225,8 +231,7 @@ serve(async (req) => {
             console.error('Database update error:', error);
           } else {
             dataSaved = true;
-            savedData = updateData;
-            console.log('Guest data saved successfully');
+            console.log('Guest data saved successfully for slot', slot);
           }
         }
       }
@@ -235,15 +240,14 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         message: dataSaved ? 'Data saved from n8n response' : 'Scraping workflow triggered',
         data_saved: dataSaved,
-        guest_id: payload.guest_id 
+        guest_id: payload.guest_id,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
-
   } catch (error) {
     console.error('Error in trigger-n8n-scraping:', error);
     return new Response(
