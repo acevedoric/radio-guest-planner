@@ -215,6 +215,11 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
           const guest = getGuestForSlot(slot);
 
           return (
+            <React.Fragment key={slot}>
+            {/* Encuesta del día entre Hora 1 y Hora 2 */}
+            {slot === 2 && (
+              <EncuestaSection guest={getGuestForSlot(1)} selectedDay={selectedDay} editMode={editMode} />
+            )}
             <Card
               key={slot}
               className={`p-6 transition-all ${
