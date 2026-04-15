@@ -1,80 +1,60 @@
 
 
-## Plan: Fase 1 — Libreto para Martes y Jueves
+## Plan: Exportar Libreto a Word (Martes/Jueves)
 
 ### Resumen
 
-Agregar las secciones faltantes del libreto diario para los días **Martes** y **Jueves**, basados en los moldes Word. La Vista Día detectará el día seleccionado y mostrará secciones específicas según corresponda.
+Agregar un botón "Exportar Libreto" en la Vista Día (solo Martes y Jueves) que genera un documento Word (.docx) usando los moldes como plantilla, reemplazando todas las instrucciones en `[corchetes]` con la información real de los invitados almacenada en la base de datos.
 
-### Estructura del Libreto (según los moldes)
+### Mapeo de placeholders → campos de la BD
 
-**Elementos comunes a ambos días:**
-- **Canciones en stock**: texto libre por hora para listar canciones sugeridas y criterios de selección
-- **Encuesta del día**: pregunta + hashtag (entre Hora 1 y Hora 2)
-- **Avance segunda hora**: texto de transición que conecta H1 con H2
-- **Avance tercera hora**: texto de transición que conecta H2 con H3
+| Placeholder en el molde | Campo en la BD | Hora |
+|---|---|---|
+| `[DIA]`, `[MES]`, `[AÑO]` | Calculado desde `selectedDayDate` | Global |
+| `[INVITADO]` | `guest.name` | H1 |
+| `[Cargo]` | `guest.position` | H1 |
+| `[twitter]`, `[instagram]` | `guest.social_networks` | H1/H2/H3 |
+| `[TEMA PRINCIPAL]` | `guest.tema_principal` | H1 |
+| `[INFANCIA Y VIDA PRIVADA]` | `guest.infancia_vida_privada` | H1 |
+| `[CARRERA ARTISTICA O PROFESIONAL]` | `guest.carrera_profesional` | H1 |
+| `[DATOS CURIOSOS]` | `guest.datos_curiosos` | H1 |
+| `[PREGUNTA DE LA ENCUESTA]` | `guest.encuesta_pregunta` | H1 (ancla) |
+| Canciones / Clips | `guest.h1_canciones` | H1 |
+| `[TEMA SEGUNDA HORA]` | `guest_h2.topic` | H2 |
+| Contexto H2 | `guest_h2.h2_contexto` | H2 |
+| `[PREGUNTAS SUGERIDAS]` | `guest_h2.h2_preguntas_sugeridas` | H2 |
+| `[INVITADO SEGUNDA HORA]` | `guest_h2.name` + `position` | H2 |
+| `guest_h2.h2_info_personal` | Info personal H2 | H2 |
+| Canciones H2 | `guest_h2.h2_canciones` | H2 |
+| Avance H2 / H3 | `guest.avance_h2`, `guest.avance_h3` | H1/H2 |
+| `[INVITADO TERCERA HORA]` | `guest_h3.name` | H3 |
+| `[TEMA DE LA TERCERA HORA]` | `guest_h3.topic` | H3 |
+| `[DATOS PERSONALES]` | `guest_h3.h3_datos_personales` | H3 |
+| `[COMUNICADO DE PRENSA]` | `guest_h3.h3_comunicado_prensa` | H3 |
+| Canciones H3 | `guest_h3.h3_canciones` | H3 |
 
-**Martes específico:**
-- H2: Sección fija "Puerta al Universo" con contexto astronómico
-- Hashtag: `#PuertaAlUniversoBlaBlaBLU`
+### Implementación
 
-**Jueves específico:**
-- H1: usa "Clips de comediante" en lugar de canciones
-- H2: Sección fija "#TBT" con contexto de recuerdo/nostalgia
-- Hashtag: `#tbtBlaBlaBLU`
+**1. Script generador de Word** — Un script Node.js usando `docx-js` que construye el documento siguiendo la estructura exacta de los moldes (Martes o Jueves), insertando los datos reales de los 3 invitados del día.
 
-### Cambios en base de datos
+**2. Botón en DayView** — Un botón "Exportar Libreto" visible solo en Martes y Jueves, que:
+- Toma los 3 guests del día seleccionado
+- Genera el .docx en el cliente usando `docx` (librería npm)
+- Descarga automáticamente el archivo con nombre tipo `MARTES_15_DE_ABRIL_DE_2026.docx`
 
-Nuevas columnas en la tabla `guests` (se anclan al invitado de Hora 1 como dato del día):
+**3. Lógica condicional por día:**
+- **Martes**: H1 usa "Canciones", H2 es "Puerta al Universo", hashtag `#PuertaAlUniversoBlaBlaBLU`
+- **Jueves**: H1 usa "Clips de comediante", H2 es "#TBT", hashtag `#tbtBlaBlaBLU`
 
-```sql
--- Encuesta del día
-ALTER TABLE guests ADD COLUMN encuesta_pregunta text;
-ALTER TABLE guests ADD COLUMN encuesta_hashtag text;
-
--- Canciones / Clips por hora
-ALTER TABLE guests ADD COLUMN h1_canciones text;
-ALTER TABLE guests ADD COLUMN h2_canciones text;
-ALTER TABLE guests ADD COLUMN h3_canciones text;
-
--- Contexto de la segunda hora (intro del segmento)
-ALTER TABLE guests ADD COLUMN h2_contexto text;
-
--- Avances (transiciones entre horas)
-ALTER TABLE guests ADD COLUMN avance_h2 text;
-ALTER TABLE guests ADD COLUMN avance_h3 text;
-```
-
-**Total: 8 columnas nuevas.**
-
-### Cambios en código
-
-**1. `src/types/guest.ts`** — Agregar los 8 campos nuevos.
-
-**2. `src/components/DayView.tsx`** — Agregar secciones condicionales por día:
-
-- **Sección "Canciones"** (icono 🎵): Textarea editable dentro de cada Card de hora. En Jueves H1 se etiqueta como "Clips de comediante" en lugar de "Canciones".
-
-- **Sección "Encuesta del día"** (icono 📊): Card independiente entre Hora 1 y Hora 2. Muestra pregunta editable + campo de hashtag. Solo aparece si `selectedDay === 'tuesday' || selectedDay === 'thursday'`. Se guarda en el guest de Hora 1.
-
-- **Sección "Contexto H2"** (icono 📝): Textarea dentro de la Card de Hora 2. Para Martes muestra placeholder "Puerta al Universo..."; para Jueves placeholder "#TBT...". Se guarda en el guest de Hora 2.
-
-- **Sección "Avance"** (icono 📢): Textarea al final de Hora 1 (avance H2) y al final de Hora 2 (avance H3). Texto de transición entre segmentos.
-
-**3. Lógica de guardado**: Cada campo nuevo usa el mismo patrón que los checkboxes existentes — `supabase.update()` directo con `onBlur`.
-
-### Lo que NO incluye esta fase
-
-- Lunes y Miércoles (se harán después con sus moldes)
-- Generación con IA de canciones/encuestas
-- Exportar a Word
-- Conteo de seguidores de redes sociales
-
-### Archivos a modificar
+### Archivos a modificar/crear
 
 | Archivo | Cambio |
-|---------|--------|
-| Migración SQL | 8 nuevas columnas |
-| `src/types/guest.ts` | Nuevos campos |
-| `src/components/DayView.tsx` | Secciones de Canciones, Encuesta, Contexto H2, Avances |
+|---|---|
+| `package.json` | Agregar dependencia `docx` y `file-saver` |
+| `src/components/LibretoExport.tsx` | Nuevo componente con la lógica de generación del Word |
+| `src/components/DayView.tsx` | Agregar botón "Exportar Libreto" (solo Mar/Jue) |
+
+### Detalle técnico
+
+El documento se genera 100% en el cliente (no necesita Edge Function). La librería `docx` crea el archivo en memoria y `file-saver` lo descarga. Si un campo está vacío en la BD, se muestra `[PENDIENTE]` en el documento para que el equipo sepa qué falta completar.
 
