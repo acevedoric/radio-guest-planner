@@ -292,11 +292,12 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
                     )}
                   </div>
 
-                  {/* Módulos de información solo para HORA 1 */}
-                  {slot === 1 && (
+                  {/* Módulos de información */}
+                  {(slot === 1 || slot === 2 || slot === 3) && (
                     <GuestInfoModules
                       guest={guest}
                       editMode={editMode}
+                      slot={slot}
                       onGuestUpdate={(updates) => {
                         onGuestUpdate?.({ ...updates, id: guest.id });
                       }}
