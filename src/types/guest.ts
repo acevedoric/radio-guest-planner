@@ -45,4 +45,14 @@ export interface Guest {
   h3_documento_nombre?: string | null;
   h3_link_info?: string | null;
   h3_n8n_updated_at?: string | null;
+
+  // Libreto diario (Martes/Jueves)
+  encuesta_pregunta?: string | null;
+  encuesta_hashtag?: string | null;
+  h1_canciones?: string | null;
+  h2_canciones?: string | null;
+  h3_canciones?: string | null;
+  h2_contexto?: string | null;
+  avance_h2?: string | null;
+  avance_h3?: string | null;
 }

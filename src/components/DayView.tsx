@@ -1,6 +1,8 @@
+import React from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Globe, User, Newspaper, Mail, MessageCircle } from "lucide-react";
+import { CancionesSection, EncuestaSection, ContextoH2Section, AvanceSection } from "./LibretoSections";
 import { Guest } from "@/types/guest";
 import { Button } from "@/components/ui/button";
 import { ContactLink } from "./ContactLink";
@@ -214,6 +216,11 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
           const guest = getGuestForSlot(slot);
 
           return (
+            <React.Fragment key={slot}>
+            {/* Encuesta del día entre Hora 1 y Hora 2 */}
+            {slot === 2 && (
+              <EncuestaSection guest={getGuestForSlot(1)} selectedDay={selectedDay} editMode={editMode} />
+            )}
             <Card
               key={slot}
               className={`p-6 transition-all ${
@@ -303,6 +310,17 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
                       }}
                     />
                   )}
+
+                  {/* Contexto H2 (Puerta al Universo / #TBT) */}
+                  {slot === 2 && (
+                    <ContextoH2Section guest={guest} selectedDay={selectedDay} editMode={editMode} />
+                  )}
+
+                  {/* Canciones / Clips */}
+                  <CancionesSection guest={guest} slot={slot} selectedDay={selectedDay} editMode={editMode} />
+
+                  {/* Avance siguiente hora */}
+                  <AvanceSection guest={guest} slot={slot} selectedDay={selectedDay} editMode={editMode} />
 
                   {/* Additional Info - Prensa */}
                   {(guest.press_contact || guest.press_phone || guest.press_email || guest.program_type || guest.notes) && (
@@ -466,6 +484,7 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
                 </div>
               )}
             </Card>
+            </React.Fragment>
           );
         })}
       </div>
