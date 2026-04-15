@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { SocialNetworkLink } from "./SocialNetworkLink";
 import { GuestInfoModules } from "./GuestInfoModules";
+import { LibretoExport } from "./LibretoExport";
 import { parse, addDays, format } from "date-fns";
 
 interface DayViewProps {
@@ -163,6 +164,12 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
         })}
       </div>
 
+      {/* Export button for Tuesday/Thursday */}
+      {(selectedDay === "tuesday" || selectedDay === "thursday") && (
+        <div className="flex justify-end">
+          <LibretoExport guests={guests} selectedDay={selectedDay} selectedDayDate={selectedDayDate} />
+        </div>
+      )}
 
       {/* TITULARES */}
       <Card className="p-4 bg-muted/50 border-primary/20">
