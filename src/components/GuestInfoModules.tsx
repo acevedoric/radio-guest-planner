@@ -315,7 +315,7 @@ export const GuestInfoModules = ({ guest, editMode, onGuestUpdate, slot = 1 }: G
           .single();
 
         if (!fetchError && updatedGuest) {
-          onGuestUpdate?.(updatedGuest);
+          onGuestUpdate?.(updatedGuest as unknown as Partial<Guest>);
           setEditingContent({});
           toast({ title: "✅ Información actualizada", description: "Los datos de IA se cargaron correctamente" });
         }
