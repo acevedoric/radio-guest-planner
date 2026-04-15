@@ -1,31 +1,23 @@
 
 
-## Plan: Mejorar búsqueda IA + botón X para limpiar
+## Plan: Redesplegar Edge Function `chat-guests`
 
-### Cambios
+### Diagnóstico
 
-**1. Edge Function `chat-guests` — Incluir `position` en búsqueda y contexto**
+Revisé el código y ejecuté pruebas directas contra la Edge Function. El código **ya incluye** correctamente:
 
-- Agregar `position` al filtro `.or()` para que busque también por cargo: `position.ilike.%${sanitized}%`
-- Incluir `position` en el select de `recentGuests`
-- Ya se incluye `position` en el contexto enviado a la IA (línea con `g.position`), así que solo falta buscarlo
+- `position.ilike.%${v}%` en el filtro `.or()` (línea 78)
+- Variantes de género (`getGenderVariants`) para cada keyword
+- El cargo en el contexto enviado a la IA
 
-**2. Edge Function `chat-guests` — Búsqueda sin distinción de género**
+Las pruebas que hice confirman que funciona — por ejemplo, al preguntar "¿qué escritores han venido?" devuelve resultados con "(Escritor)", "(Escritora)", "(Periodista)", etc.
 
-- Para cada keyword, generar variantes de género automáticamente: si termina en "or" agregar variante "ora", si termina en "ora" agregar "or", si termina en "ero" agregar "era", etc.
-- Alternativamente (más simple y robusto): truncar las últimas 1-2 letras de palabras que podrían tener variante de género y buscar con el tronco. Ejemplo: "escritor" → buscar `%escritor%` que ya matchea "escritora"
-- Dado que `ilike` con `%escritor%` ya incluye "escritora" (porque "escritora" contiene "escritor"), esto funciona naturalmente para la mayoría de casos. El problema sería al revés: "escritora" no matchea "escritor". Solución: agregar al prompt de la IA instrucciones de ignorar género, y en la búsqueda DB, si la palabra termina en "a"/"o", buscar también con la otra terminación.
+**El problema probable:** la función desplegada puede estar desactualizada respecto al código actual. 
 
-**3. FilterBar — Botón X para limpiar búsqueda**
+### Acción
 
-- Agregar un ícono `X` al final del input cuando `searchQuery` no está vacío
-- Al hacer click, llama `onSearchChange("")` para limpiar todo
-- Importar `X` de lucide-react
+1. **Redesplegar** la Edge Function `chat-guests` para asegurar que la versión en producción sea la correcta
+2. **Verificar** con una prueba en vivo que los resultados incluyan el cargo
 
-### Archivos a modificar
-
-| Archivo | Cambio |
-|---------|--------|
-| `supabase/functions/chat-guests/index.ts` | Agregar `position` al `.or()` filter; generar variantes de género para keywords |
-| `src/components/FilterBar.tsx` | Agregar botón X para limpiar el campo de búsqueda |
+No se necesitan cambios de código — solo redeploy.
 
