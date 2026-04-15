@@ -1,6 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Globe, User, Newspaper, Mail, MessageCircle } from "lucide-react";
+import { CancionesSection, EncuestaSection, ContextoH2Section, AvanceSection } from "./LibretoSections";
 import { Guest } from "@/types/guest";
 import { Button } from "@/components/ui/button";
 import { ContactLink } from "./ContactLink";
