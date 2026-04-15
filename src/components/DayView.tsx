@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { SocialNetworkLink } from "./SocialNetworkLink";
 import { GuestInfoModules } from "./GuestInfoModules";
+import { LibretoExport } from "./LibretoExport";
 import { parse, addDays, format } from "date-fns";
 
 interface DayViewProps {
