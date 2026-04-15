@@ -16,6 +16,8 @@ export type Database = {
     Tables: {
       guests: {
         Row: {
+          avance_h2: string | null
+          avance_h3: string | null
           carrera_profesional: string | null
           confirmed_blu: boolean
           confirmed_pr: boolean
@@ -23,12 +25,18 @@ export type Database = {
           datos_curiosos: string | null
           day_of_week: string
           email: string | null
+          encuesta_hashtag: string | null
+          encuesta_pregunta: string | null
+          h1_canciones: string | null
+          h2_canciones: string | null
+          h2_contexto: string | null
           h2_documento_nombre: string | null
           h2_documento_url: string | null
           h2_info_personal: string | null
           h2_link_info: string | null
           h2_n8n_updated_at: string | null
           h2_preguntas_sugeridas: string | null
+          h3_canciones: string | null
           h3_comunicado_prensa: string | null
           h3_datos_personales: string | null
           h3_documento_nombre: string | null
@@ -60,6 +68,8 @@ export type Database = {
           week_date: string
         }
         Insert: {
+          avance_h2?: string | null
+          avance_h3?: string | null
           carrera_profesional?: string | null
           confirmed_blu?: boolean
           confirmed_pr?: boolean
@@ -67,12 +77,18 @@ export type Database = {
           datos_curiosos?: string | null
           day_of_week: string
           email?: string | null
+          encuesta_hashtag?: string | null
+          encuesta_pregunta?: string | null
+          h1_canciones?: string | null
+          h2_canciones?: string | null
+          h2_contexto?: string | null
           h2_documento_nombre?: string | null
           h2_documento_url?: string | null
           h2_info_personal?: string | null
           h2_link_info?: string | null
           h2_n8n_updated_at?: string | null
           h2_preguntas_sugeridas?: string | null
+          h3_canciones?: string | null
           h3_comunicado_prensa?: string | null
           h3_datos_personales?: string | null
           h3_documento_nombre?: string | null
@@ -104,6 +120,8 @@ export type Database = {
           week_date: string
         }
         Update: {
+          avance_h2?: string | null
+          avance_h3?: string | null
           carrera_profesional?: string | null
           confirmed_blu?: boolean
           confirmed_pr?: boolean
@@ -111,12 +129,18 @@ export type Database = {
           datos_curiosos?: string | null
           day_of_week?: string
           email?: string | null
+          encuesta_hashtag?: string | null
+          encuesta_pregunta?: string | null
+          h1_canciones?: string | null
+          h2_canciones?: string | null
+          h2_contexto?: string | null
           h2_documento_nombre?: string | null
           h2_documento_url?: string | null
           h2_info_personal?: string | null
           h2_link_info?: string | null
           h2_n8n_updated_at?: string | null
           h2_preguntas_sugeridas?: string | null
+          h3_canciones?: string | null
           h3_comunicado_prensa?: string | null
           h3_datos_personales?: string | null
           h3_documento_nombre?: string | null
