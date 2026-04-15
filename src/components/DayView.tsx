@@ -305,6 +305,17 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
                     />
                   )}
 
+                  {/* Contexto H2 (Puerta al Universo / #TBT) */}
+                  {slot === 2 && (
+                    <ContextoH2Section guest={guest} selectedDay={selectedDay} editMode={editMode} />
+                  )}
+
+                  {/* Canciones / Clips */}
+                  <CancionesSection guest={guest} slot={slot} selectedDay={selectedDay} editMode={editMode} />
+
+                  {/* Avance siguiente hora */}
+                  <AvanceSection guest={guest} slot={slot} selectedDay={selectedDay} editMode={editMode} />
+
                   {/* Additional Info - Prensa */}
                   {(guest.press_contact || guest.press_phone || guest.press_email || guest.program_type || guest.notes) && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
