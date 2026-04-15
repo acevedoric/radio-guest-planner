@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Search, ChevronLeft, ChevronRight, Lock, Unlock, Loader2, CalendarDays, User, Phone, Sparkles } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, Lock, Unlock, Loader2, CalendarDays, User, Phone, Sparkles, X } from "lucide-react";
 import { addWeeks, subWeeks, addMonths, subMonths, addDays, subDays, format, startOfWeek } from "date-fns";
 import { es } from "date-fns/locale";
 import { Guest } from "@/types/guest";
@@ -251,8 +251,17 @@ export const FilterBar = ({
             placeholder="Buscar invitados o preguntar a la IA..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="pl-10"
+            className="pl-10 pr-9"
           />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => onSearchChange("")}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
 
           {/* Dropdown resultados */}
           {searchQuery.length >= 3 && (
