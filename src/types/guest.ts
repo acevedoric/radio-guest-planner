@@ -29,4 +29,20 @@ export interface Guest {
   n8n_updated_at?: string | null;
   press_email?: string | null;
   proposed_by?: string | null;
+
+  // Módulos de información (HORA 2)
+  h2_info_personal?: string | null;
+  h2_preguntas_sugeridas?: string | null;
+  h2_documento_url?: string | null;
+  h2_documento_nombre?: string | null;
+  h2_link_info?: string | null;
+  h2_n8n_updated_at?: string | null;
+
+  // Módulos de información (HORA 3)
+  h3_datos_personales?: string | null;
+  h3_comunicado_prensa?: string | null;
+  h3_documento_url?: string | null;
+  h3_documento_nombre?: string | null;
+  h3_link_info?: string | null;
+  h3_n8n_updated_at?: string | null;
 }
