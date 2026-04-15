@@ -1,11 +1,11 @@
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Search, ChevronLeft, ChevronRight, Lock, Unlock, Loader2, CalendarDays, User, Phone, Sparkles } from "lucide-react";
-import { addWeeks, subWeeks, addMonths, subMonths, addDays, subDays, format } from "date-fns";
+import { addWeeks, subWeeks, addMonths, subMonths, addDays, subDays, format, startOfWeek } from "date-fns";
 import { es } from "date-fns/locale";
 import { Guest } from "@/types/guest";
 import { supabase } from "@/integrations/supabase/client";
@@ -35,6 +35,38 @@ const isQuestion = (text: string): boolean => {
   return /^[¿?]/.test(t) ||
     /\?$/.test(t) ||
     /^(cuándo|cuando|hace cuánto|hace cuanto|quién|quien|cuántos|cuantos|último|ultima|alguna vez|primera vez|por qué|porque|dime|cuál|cual|cómo|como|qué|que tan)/i.test(t);
+};
+
+const AiAnswerWithLinks = ({ text, onNavigate }: { text: string; onNavigate: (weekDate: string, dayOfWeek: string) => void }) => {
+  const dayLabelsMap: Record<string, string> = {
+    monday: "lunes", tuesday: "martes", wednesday: "miércoles", thursday: "jueves",
+  };
+  const parts = text.split(/(\[\[.*?\]\])/g);
+  return (
+    <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
+      {parts.map((part, i) => {
+        const match = part.match(/^\[\[(.+?)\|(.+?)\|(.+?)\]\]$/);
+        if (match) {
+          const [, name, dayOfWeek, weekDate] = match;
+          const date = new Date(weekDate + 'T12:00:00');
+          const dayIndex = { monday: 0, tuesday: 1, wednesday: 2, thursday: 3 }[dayOfWeek] || 0;
+          const actualDate = addDays(startOfWeek(date, { weekStartsOn: 1 }), dayIndex);
+          const label = `${name} (${dayLabelsMap[dayOfWeek] || dayOfWeek} ${format(actualDate, "d 'de' MMMM yyyy", { locale: es })})`;
+          return (
+            <button
+              key={i}
+              type="button"
+              className="text-primary underline hover:text-primary/80 font-medium cursor-pointer"
+              onClick={() => onNavigate(weekDate, dayOfWeek)}
+            >
+              {label}
+            </button>
+          );
+        }
+        return <span key={i}>{part}</span>;
+      })}
+    </p>
+  );
 };
 
 export const FilterBar = ({
@@ -240,7 +272,17 @@ export const FilterBar = ({
                         Pensando...
                       </div>
                     ) : aiAnswer ? (
-                      <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{aiAnswer}</p>
+                      <AiAnswerWithLinks
+                        text={aiAnswer}
+                        onNavigate={(weekDate, dayOfWeek) => {
+                          const date = new Date(weekDate + 'T12:00:00');
+                          const monday = startOfWeek(date, { weekStartsOn: 1 });
+                          onWeekChange(monday);
+                          onDayChange(dayOfWeek);
+                          onViewModeChange("day");
+                          onSearchChange("");
+                        }}
+                      />
                     ) : null}
                   </div>
                 </div>
