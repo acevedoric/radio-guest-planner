@@ -1,76 +1,80 @@
 
 
-## Plan: Módulos de información para Hora 2 y Hora 3
+## Plan: Fase 1 — Libreto para Martes y Jueves
 
 ### Resumen
 
-Agregar módulos colapsables con información, carga de archivos, campo de enlace externo y generación con IA para los invitados de la 2da y 3ra hora, similar a lo que existe para la 1ra hora.
+Agregar las secciones faltantes del libreto diario para los días **Martes** y **Jueves**, basados en los moldes Word. La Vista Día detectará el día seleccionado y mostrará secciones específicas según corresponda.
 
-### Estructura de módulos
+### Estructura del Libreto (según los moldes)
 
-**Hora 2 (2 casillas):**
-- 📋 INFORMACIÓN PERSONAL — datos personales del invitado
-- ❓ PREGUNTAS SUGERIDAS — preguntas basadas en el tema a tratar
+**Elementos comunes a ambos días:**
+- **Canciones en stock**: texto libre por hora para listar canciones sugeridas y criterios de selección
+- **Encuesta del día**: pregunta + hashtag (entre Hora 1 y Hora 2)
+- **Avance segunda hora**: texto de transición que conecta H1 con H2
+- **Avance tercera hora**: texto de transición que conecta H2 con H3
 
-**Hora 3 (2 casillas):**
-- 📋 DATOS PERSONALES — información del invitado
-- 📰 COMUNICADO DE PRENSA — datos del comunicado de prensa
+**Martes específico:**
+- H2: Sección fija "Puerta al Universo" con contexto astronómico
+- Hashtag: `#PuertaAlUniversoBlaBlaBLU`
 
-Cada módulo tendrá: texto editable (markdown), carga de archivo (PDF/Word), campo de enlace externo, y botón de generación con IA.
+**Jueves específico:**
+- H1: usa "Clips de comediante" en lugar de canciones
+- H2: Sección fija "#TBT" con contexto de recuerdo/nostalgia
+- Hashtag: `#tbtBlaBlaBLU`
 
 ### Cambios en base de datos
 
-Migración para agregar 12 nuevas columnas a la tabla `guests`:
+Nuevas columnas en la tabla `guests` (se anclan al invitado de Hora 1 como dato del día):
 
 ```sql
--- Hora 2
-ALTER TABLE guests ADD COLUMN h2_info_personal text;
-ALTER TABLE guests ADD COLUMN h2_preguntas_sugeridas text;
-ALTER TABLE guests ADD COLUMN h2_documento_url text;
-ALTER TABLE guests ADD COLUMN h2_documento_nombre text;
-ALTER TABLE guests ADD COLUMN h2_link_info text;
+-- Encuesta del día
+ALTER TABLE guests ADD COLUMN encuesta_pregunta text;
+ALTER TABLE guests ADD COLUMN encuesta_hashtag text;
 
--- Hora 3
-ALTER TABLE guests ADD COLUMN h3_datos_personales text;
-ALTER TABLE guests ADD COLUMN h3_comunicado_prensa text;
-ALTER TABLE guests ADD COLUMN h3_documento_url text;
-ALTER TABLE guests ADD COLUMN h3_documento_nombre text;
-ALTER TABLE guests ADD COLUMN h3_link_info text;
+-- Canciones / Clips por hora
+ALTER TABLE guests ADD COLUMN h1_canciones text;
+ALTER TABLE guests ADD COLUMN h2_canciones text;
+ALTER TABLE guests ADD COLUMN h3_canciones text;
 
--- AI timestamp per slot
-ALTER TABLE guests ADD COLUMN h2_n8n_updated_at timestamptz;
-ALTER TABLE guests ADD COLUMN h3_n8n_updated_at timestamptz;
+-- Contexto de la segunda hora (intro del segmento)
+ALTER TABLE guests ADD COLUMN h2_contexto text;
+
+-- Avances (transiciones entre horas)
+ALTER TABLE guests ADD COLUMN avance_h2 text;
+ALTER TABLE guests ADD COLUMN avance_h3 text;
 ```
+
+**Total: 8 columnas nuevas.**
 
 ### Cambios en código
 
-**1. `src/types/guest.ts`** — Agregar los 12 nuevos campos al tipo Guest.
+**1. `src/types/guest.ts`** — Agregar los 8 campos nuevos.
 
-**2. `src/components/GuestInfoModules.tsx`** — Refactorizar para aceptar un prop `slot` que determine qué módulos mostrar:
-- `slot === 1`: módulos actuales (sin cambios)
-- `slot === 2`: INFORMACIÓN PERSONAL + PREGUNTAS SUGERIDAS
-- `slot === 3`: DATOS PERSONALES + COMUNICADO DE PRENSA
+**2. `src/components/DayView.tsx`** — Agregar secciones condicionales por día:
 
-Agregar a cada módulo:
-- Campo de enlace externo (input de URL) debajo del contenido de texto
-- Carga de archivo (PDF/Word) — reutilizar la lógica existente de `tema_principal` pero parametrizada por `documento_url_key` y `documento_nombre_key`
-- Botón IA — reutilizar `handleTriggerAI` pasando el slot
+- **Sección "Canciones"** (icono 🎵): Textarea editable dentro de cada Card de hora. En Jueves H1 se etiqueta como "Clips de comediante" en lugar de "Canciones".
 
-**3. `src/components/DayView.tsx`** — Renderizar `<GuestInfoModules>` también para slots 2 y 3:
-```tsx
-{slot === 2 && <GuestInfoModules guest={guest} editMode={editMode} slot={2} onGuestUpdate={...} />}
-{slot === 3 && <GuestInfoModules guest={guest} editMode={editMode} slot={3} onGuestUpdate={...} />}
-```
+- **Sección "Encuesta del día"** (icono 📊): Card independiente entre Hora 1 y Hora 2. Muestra pregunta editable + campo de hashtag. Solo aparece si `selectedDay === 'tuesday' || selectedDay === 'thursday'`. Se guarda en el guest de Hora 1.
 
-**4. `supabase/functions/trigger-n8n-scraping/index.ts`** — Modificar para aceptar el parámetro `slot` y adaptar el prompt/campos según la hora.
+- **Sección "Contexto H2"** (icono 📝): Textarea dentro de la Card de Hora 2. Para Martes muestra placeholder "Puerta al Universo..."; para Jueves placeholder "#TBT...". Se guarda en el guest de Hora 2.
+
+- **Sección "Avance"** (icono 📢): Textarea al final de Hora 1 (avance H2) y al final de Hora 2 (avance H3). Texto de transición entre segmentos.
+
+**3. Lógica de guardado**: Cada campo nuevo usa el mismo patrón que los checkboxes existentes — `supabase.update()` directo con `onBlur`.
+
+### Lo que NO incluye esta fase
+
+- Lunes y Miércoles (se harán después con sus moldes)
+- Generación con IA de canciones/encuestas
+- Exportar a Word
+- Conteo de seguidores de redes sociales
 
 ### Archivos a modificar
 
 | Archivo | Cambio |
 |---------|--------|
-| Migración SQL | 12 nuevas columnas en `guests` |
-| `src/types/guest.ts` | Nuevos campos en la interfaz |
-| `src/components/GuestInfoModules.tsx` | Prop `slot`, módulos dinámicos, campo de enlace, documento parametrizado |
-| `src/components/DayView.tsx` | Renderizar módulos para slots 2 y 3 |
-| `supabase/functions/trigger-n8n-scraping/index.ts` | Soporte para slot 2 y 3 en scraping IA |
+| Migración SQL | 8 nuevas columnas |
+| `src/types/guest.ts` | Nuevos campos |
+| `src/components/DayView.tsx` | Secciones de Canciones, Encuesta, Contexto H2, Avances |
 
