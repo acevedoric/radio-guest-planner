@@ -1,3 +1,4 @@
+import React from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Globe, User, Newspaper, Mail, MessageCircle } from "lucide-react";
@@ -483,6 +484,7 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
                 </div>
               )}
             </Card>
+            </React.Fragment>
           );
         })}
       </div>
