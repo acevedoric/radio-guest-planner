@@ -1,47 +1,31 @@
 
 
-## Plan: Respuestas IA con enlaces a los días de los invitados
-
-### Objetivo
-Que las respuestas de la IA incluyan links clicables que lleven directamente a la vista DÍA del invitado mencionado.
+## Plan: Mejorar búsqueda IA + botón X para limpiar
 
 ### Cambios
 
-**1. Edge Function `chat-guests` — Modificar prompt y respuesta**
+**1. Edge Function `chat-guests` — Incluir `position` en búsqueda y contexto**
 
-- Instruir a la IA para que incluya referencias estructuradas en formato `[[nombre|day_of_week|week_date]]` cuando mencione invitados
-- Además de `answer`, devolver también la lista de `guests` encontrados con sus datos (`name`, `day_of_week`, `week_date`) para que el frontend pueda construir links
+- Agregar `position` al filtro `.or()` para que busque también por cargo: `position.ilike.%${sanitized}%`
+- Incluir `position` en el select de `recentGuests`
+- Ya se incluye `position` en el contexto enviado a la IA (línea con `g.position`), así que solo falta buscarlo
 
-Cambio en el system prompt:
-```
-Cuando menciones un invitado y su fecha, usa el formato [[nombre del invitado|day_of_week|week_date]] 
-para que se genere un enlace. Ejemplo: [[Carlos Vives|tuesday|2025-04-08]]
-```
+**2. Edge Function `chat-guests` — Búsqueda sin distinción de género**
 
-Cambio en la respuesta:
-```json
-{ "answer": "texto con [[marcadores]]...", "guests": [...] }
-```
+- Para cada keyword, generar variantes de género automáticamente: si termina en "or" agregar variante "ora", si termina en "ora" agregar "or", si termina en "ero" agregar "era", etc.
+- Alternativamente (más simple y robusto): truncar las últimas 1-2 letras de palabras que podrían tener variante de género y buscar con el tronco. Ejemplo: "escritor" → buscar `%escritor%` que ya matchea "escritora"
+- Dado que `ilike` con `%escritor%` ya incluye "escritora" (porque "escritora" contiene "escritor"), esto funciona naturalmente para la mayoría de casos. El problema sería al revés: "escritora" no matchea "escritor". Solución: agregar al prompt de la IA instrucciones de ignorar género, y en la búsqueda DB, si la palabra termina en "a"/"o", buscar también con la otra terminación.
 
-**2. FilterBar — Renderizar links en la respuesta IA**
+**3. FilterBar — Botón X para limpiar búsqueda**
 
-- Parsear el texto de `aiAnswer` buscando patrones `[[nombre|day_of_week|week_date]]`
-- Reemplazar cada match con un `<button>` o `<a>` clicable que navegue a la vista DÍA correspondiente usando las props `onWeekChange`, `onDayChange` y `onViewModeChange`
-- La navegación calcula el lunes de esa semana a partir de `week_date` y setea el `day_of_week`
-
-Ejemplo visual: "Carlos Vives fue invitado el **martes 8 de abril de 2025** (link clicable) con tema: Nuevo álbum."
-
-**3. FilterBar — Agregar props necesarias**
-
-- El FilterBar ya recibe `onWeekChange`, `onDayChange` y `onViewModeChange`, así que no se necesitan props adicionales
-- Crear función `navigateToGuestDay(weekDate, dayOfWeek)` que:
-  - Calcula el lunes de la semana con `startOfWeek`
-  - Llama `onWeekChange(monday)`, `onDayChange(dayOfWeek)`, `onViewModeChange("day")`
-  - Limpia la búsqueda
+- Agregar un ícono `X` al final del input cuando `searchQuery` no está vacío
+- Al hacer click, llama `onSearchChange("")` para limpiar todo
+- Importar `X` de lucide-react
 
 ### Archivos a modificar
-| Archivo | Acción |
+
+| Archivo | Cambio |
 |---------|--------|
-| `supabase/functions/chat-guests/index.ts` | Modificar prompt para incluir marcadores de enlace |
-| `src/components/FilterBar.tsx` | Parsear marcadores en la respuesta IA y renderizar como links clicables |
+| `supabase/functions/chat-guests/index.ts` | Agregar `position` al `.or()` filter; generar variantes de género para keywords |
+| `src/components/FilterBar.tsx` | Agregar botón X para limpiar el campo de búsqueda |
 
