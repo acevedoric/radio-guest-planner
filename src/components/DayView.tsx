@@ -95,6 +95,8 @@ const buildPRMailto = (guest: Guest, selectedDayDate?: string) => {
 };
 
 export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedDay, onDayChange, editMode, onGuestUpdate, selectedDayDate, onRecordingGuestClick }: DayViewProps) => {
+  const [showLibreto, setShowLibreto] = useState(false);
+
   const getGuestForSlot = (slot: number) => {
     return guests.find(g => g.day_of_week === selectedDay && g.time_slot === slot);
   };
