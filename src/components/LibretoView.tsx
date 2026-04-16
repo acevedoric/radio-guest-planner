@@ -8,6 +8,8 @@ import { ChevronDown, ChevronRight, AlertTriangle, Printer } from "lucide-react"
 import { Guest } from "@/types/guest";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { generateLibretoBlob } from "./LibretoExport";
+import { saveAs } from "file-saver";
 
 interface LibretoViewProps {
   guests: Guest[];
@@ -111,7 +113,7 @@ const getSocial = (guest: Guest | undefined, platform: string): string | null =>
 };
 
 // ── Section wrapper ────────────────────────────────────────────────
-const HourSection = ({ title, defaultOpen = true, children }: { title: string; defaultOpen?: boolean; children: React.ReactNode }) => {
+const HourSection = ({ title, defaultOpen = false, children }: { title: string; defaultOpen?: boolean; children: React.ReactNode }) => {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
@@ -175,7 +177,20 @@ export const LibretoView: React.FC<LibretoViewProps> = ({ guests, selectedDay, s
     />
   );
 
-  const handlePrint = () => window.print();
+  const handlePrint = async () => {
+    try {
+      const result = await generateLibretoBlob(guests, selectedDay, selectedDayDate);
+      if (!result) {
+        toast.error("No hay invitados para imprimir");
+        return;
+      }
+      saveAs(result.blob, result.fileName);
+      toast.success("Libreto descargado para impresión");
+    } catch (error) {
+      console.error("Error generating libreto:", error);
+      toast.error("Error al generar el libreto");
+    }
+  };
 
   const isTuesday = selectedDay === "tuesday";
 

@@ -1,7 +1,7 @@
-import React from "react";
+import React, { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Globe, User, Newspaper, Mail, MessageCircle } from "lucide-react";
+import { Globe, User, Newspaper, Mail, MessageCircle, BookOpen } from "lucide-react";
 import { CancionesSection, EncuestaSection, ContextoH2Section, AvanceSection } from "./LibretoSections";
 import { Guest } from "@/types/guest";
 import { Button } from "@/components/ui/button";
@@ -95,6 +95,8 @@ const buildPRMailto = (guest: Guest, selectedDayDate?: string) => {
 };
 
 export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedDay, onDayChange, editMode, onGuestUpdate, selectedDayDate, onRecordingGuestClick }: DayViewProps) => {
+  const [showLibreto, setShowLibreto] = useState(false);
+
   const getGuestForSlot = (slot: number) => {
     return guests.find(g => g.day_of_week === selectedDay && g.time_slot === slot);
   };
@@ -141,47 +143,45 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
 
   return (
     <div className="space-y-6">
-      {/* Day Selector */}
-      <div className="flex gap-2 justify-center">
-        {DAYS.map((day) => {
-          let dayNumber = "";
-          if (selectedDayDate) {
-            const mondayDate = parse(selectedDayDate, "yyyy-MM-dd", new Date());
-            const currentDayOffset = DAYS.find(d => d.value === selectedDay)?.offset || 0;
-            const mondayBase = addDays(mondayDate, -currentDayOffset);
-            const thisDayDate = addDays(mondayBase, day.offset);
-            dayNumber = ` ${format(thisDayDate, 'd')}`;
-          }
-          return (
-            <Button
-              key={day.value}
-              variant={selectedDay === day.value ? "default" : "outline"}
-              onClick={() => onDayChange(day.value)}
-              className="min-w-[100px]"
-            >
-              {day.label}{dayNumber}
-            </Button>
-          );
-        })}
-      </div>
-
-      {/* Export button for Tuesday/Thursday */}
-      {(selectedDay === "tuesday" || selectedDay === "thursday") && (
-        <div className="flex justify-end">
-          <LibretoExport guests={guests} selectedDay={selectedDay} selectedDayDate={selectedDayDate} />
+      {/* Day Selector + Libreto Buttons */}
+      <div className="flex flex-wrap items-center gap-2 justify-between">
+        <div className="flex gap-2">
+          {DAYS.map((day) => {
+            let dayNumber = "";
+            if (selectedDayDate) {
+              const mondayDate = parse(selectedDayDate, "yyyy-MM-dd", new Date());
+              const currentDayOffset = DAYS.find(d => d.value === selectedDay)?.offset || 0;
+              const mondayBase = addDays(mondayDate, -currentDayOffset);
+              const thisDayDate = addDays(mondayBase, day.offset);
+              dayNumber = ` ${format(thisDayDate, 'd')}`;
+            }
+            return (
+              <Button
+                key={day.value}
+                variant={selectedDay === day.value ? "default" : "outline"}
+                onClick={() => onDayChange(day.value)}
+                className="min-w-[100px]"
+              >
+                {day.label}{dayNumber}
+              </Button>
+            );
+          })}
         </div>
-      )}
-
-      {/* Libreto interactivo (Martes/Jueves) */}
-      {(selectedDay === "tuesday" || selectedDay === "thursday") && (
-        <LibretoView
-          guests={guests}
-          selectedDay={selectedDay}
-          selectedDayDate={selectedDayDate}
-          editMode={editMode}
-          onGuestUpdate={onGuestUpdate}
-        />
-      )}
+        {(selectedDay === "tuesday" || selectedDay === "thursday") && (
+          <div className="flex gap-2">
+            <Button
+              variant={showLibreto ? "default" : "outline"}
+              size="sm"
+              onClick={() => setShowLibreto(!showLibreto)}
+              className="gap-2"
+            >
+              <BookOpen className="w-4 h-4" />
+              {showLibreto ? "Ocultar Libreto" : "Ver Libreto"}
+            </Button>
+            <LibretoExport guests={guests} selectedDay={selectedDay} selectedDayDate={selectedDayDate} />
+          </div>
+        )}
+      </div>
 
       {/* TITULARES */}
       <Card className="p-4 bg-muted/50 border-primary/20">
@@ -209,6 +209,17 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
           })}
         </div>
       </Card>
+
+      {/* Libreto interactivo (Martes/Jueves) - toggled */}
+      {showLibreto && (selectedDay === "tuesday" || selectedDay === "thursday") && (
+        <LibretoView
+          guests={guests}
+          selectedDay={selectedDay}
+          selectedDayDate={selectedDayDate}
+          editMode={editMode}
+          onGuestUpdate={onGuestUpdate}
+        />
+      )}
 
       {/* Recording banner */}
       {scheduledRecordings.length > 0 && (
