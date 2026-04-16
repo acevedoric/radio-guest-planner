@@ -505,53 +505,61 @@ const buildThursdayDoc = (h1: Guest | undefined, h2: Guest | undefined, h3: Gues
   return paragraphs;
 };
 
+// Export build functions for reuse in LibretoView
+export { buildTuesdayDoc, buildThursdayDoc, buildDateInfo, DAYS_ES as DAYS_ES_EXPORT };
+
+export const generateLibretoBlob = async (guests: Guest[], selectedDay: string, selectedDayDate?: string): Promise<{ blob: Blob; fileName: string } | null> => {
+  const h1 = guests.find(g => g.day_of_week === selectedDay && g.time_slot === 1);
+  const h2 = guests.find(g => g.day_of_week === selectedDay && g.time_slot === 2);
+  const h3 = guests.find(g => g.day_of_week === selectedDay && g.time_slot === 3);
+
+  if (!h1 && !h2 && !h3) return null;
+
+  const dateInfo = buildDateInfo(selectedDayDate);
+  const dayLabel = DAYS_ES[selectedDay];
+
+  const paragraphs = selectedDay === "tuesday"
+    ? buildTuesdayDoc(h1, h2, h3, dateInfo)
+    : buildThursdayDoc(h1, h2, h3, dateInfo);
+
+  const doc = new Document({
+    styles: {
+      default: {
+        document: {
+          run: { font: "Arial", size: 24 },
+        },
+      },
+    },
+    sections: [
+      {
+        properties: {
+          page: {
+            size: { width: 12240, height: 15840 },
+            margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 },
+          },
+        },
+        children: paragraphs,
+      },
+    ],
+  });
+
+  const blob = await Packer.toBlob(doc);
+  const fileName = `${dayLabel}_${dateInfo.dia}_DE_${dateInfo.mes}_DE_${dateInfo.anio}.docx`;
+  return { blob, fileName };
+};
+
 export const LibretoExport: React.FC<LibretoExportProps> = ({ guests, selectedDay, selectedDayDate }) => {
   const isTuesdayOrThursday = selectedDay === "tuesday" || selectedDay === "thursday";
   if (!isTuesdayOrThursday) return null;
 
   const handleExport = async () => {
     try {
-      const h1 = guests.find(g => g.day_of_week === selectedDay && g.time_slot === 1);
-      const h2 = guests.find(g => g.day_of_week === selectedDay && g.time_slot === 2);
-      const h3 = guests.find(g => g.day_of_week === selectedDay && g.time_slot === 3);
-
-      if (!h1 && !h2 && !h3) {
+      const result = await generateLibretoBlob(guests, selectedDay, selectedDayDate);
+      if (!result) {
         toast.error("No hay invitados programados para exportar");
         return;
       }
-
-      const dateInfo = buildDateInfo(selectedDayDate);
-      const dayLabel = DAYS_ES[selectedDay];
-
-      const paragraphs = selectedDay === "tuesday"
-        ? buildTuesdayDoc(h1, h2, h3, dateInfo)
-        : buildThursdayDoc(h1, h2, h3, dateInfo);
-
-      const doc = new Document({
-        styles: {
-          default: {
-            document: {
-              run: { font: "Arial", size: 24 },
-            },
-          },
-        },
-        sections: [
-          {
-            properties: {
-              page: {
-                size: { width: 12240, height: 15840 },
-                margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 },
-              },
-            },
-            children: paragraphs,
-          },
-        ],
-      });
-
-      const blob = await Packer.toBlob(doc);
-      const fileName = `${dayLabel}_${dateInfo.dia}_DE_${dateInfo.mes}_DE_${dateInfo.anio}.docx`;
-      saveAs(blob, fileName);
-
+      saveAs(result.blob, result.fileName);
       toast.success("Libreto exportado correctamente");
     } catch (error) {
       console.error("Error exporting libreto:", error);
