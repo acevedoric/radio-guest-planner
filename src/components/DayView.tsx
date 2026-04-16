@@ -1,7 +1,7 @@
-import React from "react";
+import React, { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Globe, User, Newspaper, Mail, MessageCircle } from "lucide-react";
+import { Globe, User, Newspaper, Mail, MessageCircle, BookOpen } from "lucide-react";
 import { CancionesSection, EncuestaSection, ContextoH2Section, AvanceSection } from "./LibretoSections";
 import { Guest } from "@/types/guest";
 import { Button } from "@/components/ui/button";
