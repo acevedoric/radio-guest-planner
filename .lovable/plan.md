@@ -1,60 +1,81 @@
 
 
-## Plan: Exportar Libreto a Word (Martes/Jueves)
+## Plan: Libreto del Día — Vista Interactiva en Línea
 
 ### Resumen
 
-Agregar un botón "Exportar Libreto" en la Vista Día (solo Martes y Jueves) que genera un documento Word (.docx) usando los moldes como plantilla, reemplazando todas las instrucciones en `[corchetes]` con la información real de los invitados almacenada en la base de datos.
+Crear un componente `LibretoView` que renderice el guión completo del programa directamente en la Vista Día (solo Martes/Jueves), con campos dinámicos que se rellenan automáticamente desde los datos del planner, campos pendientes resaltados en amarillo, edición inline, secciones colapsables por hora, y botón de impresión.
 
-### Mapeo de placeholders → campos de la BD
+### Lo que ya existe y se reutiliza
 
-| Placeholder en el molde | Campo en la BD | Hora |
+- `LibretoExport.tsx` — Tiene las plantillas completas de Martes y Jueves. La misma estructura se replica en HTML.
+- `LibretoSections.tsx` — `LibretoField` ya maneja edición inline con auto-save en `onBlur`. Se reutiliza.
+- `n8n-guest-info` edge function — Ya acepta POST con datos del invitado y actualiza la BD. Sirve como webhook para n8n.
+
+### Cambios
+
+**1. Nuevo componente `src/components/LibretoView.tsx`**
+
+Componente principal que renderiza el libreto completo en HTML:
+
+- Recibe `guests`, `selectedDay`, `selectedDayDate`, `editMode`
+- Solo se muestra para Martes y Jueves
+- Estructura: plantilla hardcodeada (misma que en LibretoExport) pero en JSX
+- **Campos dinámicos**: texto entre `[corchetes]` se reemplaza por datos del guest:
+  - Si el dato existe → texto normal integrado
+  - Si el dato NO existe → `<span>` con fondo amarillo/naranja, icono de advertencia, clickeable para editar inline
+- **Edición inline**: al hacer clic en cualquier campo (lleno o pendiente), se convierte en input/textarea. Al hacer blur, se guarda via Supabase y se sincroniza con `onGuestUpdate`
+- **Secciones colapsables**: cada hora es un `Collapsible` (ya existe el componente) con trigger que muestra "PRIMERA HORA", "SEGUNDA HORA", "TERCERA HORA"
+- **Fuente legible**: texto base de 16px, fondo ligeramente diferenciado (`bg-amber-50/50` o similar)
+- **Botón "Imprimir libreto"**: genera `window.print()` con CSS `@media print` que oculta controles de edición y muestra solo el texto limpio
+
+**2. Modificar `src/components/DayView.tsx`**
+
+- Agregar `<LibretoView>` después de TITULARES y antes de las Cards de slots (solo Mar/Jue)
+- El LibretoView reemplaza visualmente las secciones individuales de LibretoSections cuando está visible (toggle opcional, o siempre visible)
+
+**3. n8n Integration (ya existente)**
+
+- El endpoint `n8n-guest-info` ya funciona como webhook POST
+- Documentar en comentarios del código los campos esperados para facilitar integración
+- Agregar un endpoint GET simple (nueva edge function `get-libreto`) que devuelva el libreto de un día en JSON
+
+**4. Nueva edge function `supabase/functions/get-libreto/index.ts`**
+
+- GET con query param `date=YYYY-MM-DD`
+- Devuelve JSON con los 3 invitados del día y todos sus campos del libreto
+- Protegido por `x-webhook-secret`
+
+### Mapeo de campos (resumen)
+
+| Placeholder | Guest field | Slot |
 |---|---|---|
-| `[DIA]`, `[MES]`, `[AÑO]` | Calculado desde `selectedDayDate` | Global |
-| `[INVITADO]` | `guest.name` | H1 |
-| `[Cargo]` | `guest.position` | H1 |
-| `[twitter]`, `[instagram]` | `guest.social_networks` | H1/H2/H3 |
-| `[TEMA PRINCIPAL]` | `guest.tema_principal` | H1 |
-| `[INFANCIA Y VIDA PRIVADA]` | `guest.infancia_vida_privada` | H1 |
-| `[CARRERA ARTISTICA O PROFESIONAL]` | `guest.carrera_profesional` | H1 |
-| `[DATOS CURIOSOS]` | `guest.datos_curiosos` | H1 |
-| `[PREGUNTA DE LA ENCUESTA]` | `guest.encuesta_pregunta` | H1 (ancla) |
-| Canciones / Clips | `guest.h1_canciones` | H1 |
-| `[TEMA SEGUNDA HORA]` | `guest_h2.topic` | H2 |
-| Contexto H2 | `guest_h2.h2_contexto` | H2 |
-| `[PREGUNTAS SUGERIDAS]` | `guest_h2.h2_preguntas_sugeridas` | H2 |
-| `[INVITADO SEGUNDA HORA]` | `guest_h2.name` + `position` | H2 |
-| `guest_h2.h2_info_personal` | Info personal H2 | H2 |
-| Canciones H2 | `guest_h2.h2_canciones` | H2 |
-| Avance H2 / H3 | `guest.avance_h2`, `guest.avance_h3` | H1/H2 |
-| `[INVITADO TERCERA HORA]` | `guest_h3.name` | H3 |
-| `[TEMA DE LA TERCERA HORA]` | `guest_h3.topic` | H3 |
-| `[DATOS PERSONALES]` | `guest_h3.h3_datos_personales` | H3 |
-| `[COMUNICADO DE PRENSA]` | `guest_h3.h3_comunicado_prensa` | H3 |
-| Canciones H3 | `guest_h3.h3_canciones` | H3 |
+| `[INVITADO]` | `name` | H1 |
+| `[Cargo]` | `position` | H1 |
+| `[twitter]`/`[instagram]` | `social_networks` | H1/H2/H3 |
+| `[TEMA PRINCIPAL]` | `tema_principal` | H1 |
+| `[INFANCIA Y VIDA PRIVADA]` | `infancia_vida_privada` | H1 |
+| `[CARRERA]` | `carrera_profesional` | H1 |
+| `[DATOS CURIOSOS]` | `datos_curiosos` | H1 |
+| `[PREGUNTA DE LA ENCUESTA]` | `encuesta_pregunta` | H1 |
+| `[TEMA SEGUNDA HORA]` | `topic` | H2 |
+| `[INVITADO SEGUNDA HORA]` | `name` | H2 |
+| `[INVITADO TERCERA HORA]` | `name` | H3 |
+| `[TEMA TERCERA HORA]` | `topic` | H3 |
+| `[DIA]`, `[MES]`, `[AÑO]` | Desde `selectedDayDate` | — |
 
-### Implementación
-
-**1. Script generador de Word** — Un script Node.js usando `docx-js` que construye el documento siguiendo la estructura exacta de los moldes (Martes o Jueves), insertando los datos reales de los 3 invitados del día.
-
-**2. Botón en DayView** — Un botón "Exportar Libreto" visible solo en Martes y Jueves, que:
-- Toma los 3 guests del día seleccionado
-- Genera el .docx en el cliente usando `docx` (librería npm)
-- Descarga automáticamente el archivo con nombre tipo `MARTES_15_DE_ABRIL_DE_2026.docx`
-
-**3. Lógica condicional por día:**
-- **Martes**: H1 usa "Canciones", H2 es "Puerta al Universo", hashtag `#PuertaAlUniversoBlaBlaBLU`
-- **Jueves**: H1 usa "Clips de comediante", H2 es "#TBT", hashtag `#tbtBlaBlaBLU`
-
-### Archivos a modificar/crear
+### Archivos a crear/modificar
 
 | Archivo | Cambio |
 |---|---|
-| `package.json` | Agregar dependencia `docx` y `file-saver` |
-| `src/components/LibretoExport.tsx` | Nuevo componente con la lógica de generación del Word |
-| `src/components/DayView.tsx` | Agregar botón "Exportar Libreto" (solo Mar/Jue) |
+| `src/components/LibretoView.tsx` | **Nuevo** — Vista interactiva del libreto completo |
+| `src/components/DayView.tsx` | Integrar `<LibretoView>` para Mar/Jue |
+| `supabase/functions/get-libreto/index.ts` | **Nuevo** — GET endpoint para n8n |
+| `supabase/config.toml` | Agregar config para `get-libreto` |
 
-### Detalle técnico
+### Lo que NO incluye
 
-El documento se genera 100% en el cliente (no necesita Edge Function). La librería `docx` crea el archivo en memoria y `file-saver` lo descarga. Si un campo está vacío en la BD, se muestra `[PENDIENTE]` en el documento para que el equipo sepa qué falta completar.
+- Lunes/Miércoles (se harán con sus propios moldes)
+- Campo `[nombre del periodista]` configurable (se puede agregar después como setting)
+- Conteo de seguidores de redes sociales
 
