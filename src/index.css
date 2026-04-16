@@ -118,3 +118,18 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+
+/* Print styles for Libreto */
+@media print {
+  body > *:not(.libreto-view),
+  header, nav, button, .print\\:hidden {
+    display: none !important;
+  }
+  .libreto-view {
+    border: none !important;
+    box-shadow: none !important;
+    background: white !important;
+    padding: 0 !important;
+    font-size: 14pt !important;
+  }
+}

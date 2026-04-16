@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { SocialNetworkLink } from "./SocialNetworkLink";
 import { GuestInfoModules } from "./GuestInfoModules";
 import { LibretoExport } from "./LibretoExport";
+import { LibretoView } from "./LibretoView";
 import { parse, addDays, format } from "date-fns";
 
 interface DayViewProps {
@@ -169,6 +170,17 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
         <div className="flex justify-end">
           <LibretoExport guests={guests} selectedDay={selectedDay} selectedDayDate={selectedDayDate} />
         </div>
+      )}
+
+      {/* Libreto interactivo (Martes/Jueves) */}
+      {(selectedDay === "tuesday" || selectedDay === "thursday") && (
+        <LibretoView
+          guests={guests}
+          selectedDay={selectedDay}
+          selectedDayDate={selectedDayDate}
+          editMode={editMode}
+          onGuestUpdate={onGuestUpdate}
+        />
       )}
 
       {/* TITULARES */}
