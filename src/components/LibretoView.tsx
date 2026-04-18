@@ -392,7 +392,7 @@ export const LibretoView: React.FC<LibretoViewProps> = ({ guests, selectedDay, s
       </HourSection>
 
       {/* ═══ TERCERA HORA ═══ */}
-      <HourSection title="3. Tercera Hora">
+      <HourSection title="3. Tercera Hora" open={h3Open} onOpenChange={setH3Open}>
         <Line>En la casa: <Bold>Mauricio Quintero.</Bold></Line>
         <Spacer />
         <Line>1. Canción.</Line>
