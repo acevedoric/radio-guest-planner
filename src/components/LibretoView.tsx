@@ -225,8 +225,8 @@ export const LibretoView: React.FC<LibretoViewProps> = ({ guests, selectedDay, s
         <Spacer />
 
         {/* Segments */}
-        <Line>{isTuesday ? "1. Canción." : "1. Clip 1 COMEDIANTE"} {h1?.h1_canciones && <span className="text-muted-foreground italic text-sm"> — {h1.h1_canciones}</span>}</Line>
-        <Line>{isTuesday ? "2" : "2"}. Primer segmento: <Bold>Bienvenida.</Bold></Line>
+        <Line>{(isTuesday || isMonOrWed) ? "1. Canción." : "1. Clip 1 COMEDIANTE"} {h1?.h1_canciones && <span className="text-muted-foreground italic text-sm"> — {h1.h1_canciones}</span>}</Line>
+        <Line>2. Primer segmento: <Bold>Bienvenida.</Bold></Line>
         <div className="pl-4 border-l-2 border-primary/20">
           {F(h1, "tema_principal", "TEMA PRINCIPAL", true)}
         </div>
