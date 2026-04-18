@@ -77,6 +77,10 @@ const Auth = () => {
         if (error) {
           if (error.message.includes("already registered")) {
             toast.error("Este email ya está registrado");
+          } else if (error.message.includes("EMAIL_NOT_ALLOWED")) {
+            toast.error("Este correo no está autorizado", {
+              description: "Solicita acceso al administrador del proyecto.",
+            });
           } else {
             toast.error(error.message);
           }
