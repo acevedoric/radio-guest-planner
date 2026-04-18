@@ -121,15 +121,46 @@ All colors MUST be HSL.
 
 /* Print styles for Libreto */
 @media print {
-  body > *:not(.libreto-view),
-  header, nav, button, .print\\:hidden {
-    display: none !important;
+  @page {
+    margin: 1.5cm;
   }
+
+  body * {
+    visibility: hidden;
+  }
+
+  .libreto-view,
+  .libreto-view * {
+    visibility: visible;
+  }
+
   .libreto-view {
+    position: absolute !important;
+    top: 0;
+    left: 0;
+    width: 100%;
     border: none !important;
     box-shadow: none !important;
     background: white !important;
+    color: black !important;
     padding: 0 !important;
-    font-size: 14pt !important;
+    font-size: 12pt !important;
+  }
+
+  /* Force all collapsibles inside the libreto to render expanded */
+  .libreto-view [data-state="closed"] {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+    animation: none !important;
+  }
+
+  .libreto-view [hidden] {
+    display: block !important;
+  }
+
+  /* Hide anything explicitly marked print:hidden */
+  .print\\:hidden {
+    display: none !important;
   }
 }
