@@ -111,8 +111,10 @@ const getSocial = (guest: Guest | undefined, platform: string): string | null =>
 };
 
 // ── Section wrapper ────────────────────────────────────────────────
-const HourSection = ({ title, defaultOpen = false, children }: { title: string; defaultOpen?: boolean; children: React.ReactNode }) => {
-  const [open, setOpen] = useState(defaultOpen);
+const HourSection = ({ title, defaultOpen = false, open: openProp, onOpenChange, children }: { title: string; defaultOpen?: boolean; open?: boolean; onOpenChange?: (o: boolean) => void; children: React.ReactNode }) => {
+  const [internalOpen, setInternalOpen] = useState(defaultOpen);
+  const open = openProp !== undefined ? openProp : internalOpen;
+  const setOpen = onOpenChange ?? setInternalOpen;
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
       <CollapsibleTrigger className="flex items-center gap-2 w-full py-3 px-4 bg-primary/10 rounded-lg hover:bg-primary/20 transition-colors print:bg-transparent">
