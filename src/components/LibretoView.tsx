@@ -23,7 +23,9 @@ const MONTHS_ES = [
 ];
 
 const DAYS_ES: Record<string, string> = {
+  monday: "LUNES",
   tuesday: "MARTES",
+  wednesday: "MIÉRCOLES",
   thursday: "JUEVES",
 };
 
@@ -144,8 +146,8 @@ export const LibretoView: React.FC<LibretoViewProps> = ({ guests, selectedDay, s
   const [h1Open, setH1Open] = useState(false);
   const [h2Open, setH2Open] = useState(false);
   const [h3Open, setH3Open] = useState(false);
-  const isTuesdayOrThursday = selectedDay === "tuesday" || selectedDay === "thursday";
-  if (!isTuesdayOrThursday) return null;
+  const validDays = ["monday", "tuesday", "wednesday", "thursday"];
+  if (!validDays.includes(selectedDay)) return null;
 
   const h1 = guests.find(g => g.day_of_week === selectedDay && g.time_slot === 1);
   const h2 = guests.find(g => g.day_of_week === selectedDay && g.time_slot === 2);
@@ -190,6 +192,8 @@ export const LibretoView: React.FC<LibretoViewProps> = ({ guests, selectedDay, s
   };
 
   const isTuesday = selectedDay === "tuesday";
+  const isThursday = selectedDay === "thursday";
+  const isMonOrWed = selectedDay === "monday" || selectedDay === "wednesday";
 
   return (
     <Card className="libreto-view p-6 bg-amber-50/30 dark:bg-amber-950/10 border-primary/20 space-y-6 text-base">
@@ -287,12 +291,12 @@ export const LibretoView: React.FC<LibretoViewProps> = ({ guests, selectedDay, s
       </HourSection>
 
       {/* ═══ SEGUNDA HORA ═══ */}
-      <HourSection title={`2. Segunda Hora, en vivo${isTuesday ? " — Puerta al Universo" : " — #TBT"}`} open={h2Open} onOpenChange={setH2Open}>
+      <HourSection title={`2. Segunda Hora, en vivo${isTuesday ? " — Puerta al Universo" : isThursday ? " — #TBT" : ""}`} open={h2Open} onOpenChange={setH2Open}>
         <Line>En la casa: <Bold>Mauricio Quintero.</Bold></Line>
-        <Line><Bold>Tema: </Bold>{isTuesday ? F(h2, "topic", "TEMA SEGUNDA HORA") : "#tbt"}</Line>
+        <Line><Bold>Tema: </Bold>{isThursday ? "#tbt" : F(h2, "topic", "TEMA SEGUNDA HORA")}</Line>
         <Spacer />
 
-        {isTuesday ? (
+        {isTuesday && (
           <>
             <Line>Todas las noches de los martes, de aquí hasta que el tiempo y el espacio nos lo permitan, se abre una nueva puerta en Bla, Bla, BLU.</Line>
             <Spacer />
@@ -300,11 +304,17 @@ export const LibretoView: React.FC<LibretoViewProps> = ({ guests, selectedDay, s
             <Spacer />
             <Line>En BBB tenemos el placer de presentarles: Puerta al universo con nuestro astrónomo Germán Puerta.</Line>
           </>
-        ) : (
+        )}
+        {isThursday && (
           <>
             <Line><Bold>Contexto: </Bold>{F(h2, "h2_contexto", "CONTEXTO #TBT", true)}</Line>
             <Spacer />
             <Line>Jueves de TBT, jueves para recordar, hablaremos sobre {F(h2, "topic", "TEMA SEGUNDA HORA")}</Line>
+          </>
+        )}
+        {isMonOrWed && (
+          <>
+            <Line><Bold>Contexto: </Bold>{F(h2, "h2_contexto", "CONTEXTO SEGUNDA HORA", true)}</Line>
           </>
         )}
         <Spacer />
