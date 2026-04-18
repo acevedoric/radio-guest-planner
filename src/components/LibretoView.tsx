@@ -238,16 +238,16 @@ export const LibretoView: React.FC<LibretoViewProps> = ({ guests, selectedDay, s
         </div>
         <Spacer />
 
-        <Line>{isTuesday ? "4. Canción." : "3. Clip 2 COMEDIANTE"}</Line>
+        <Line>{(isTuesday || isMonOrWed) ? "4. Canción." : "3. Clip 2 COMEDIANTE"}</Line>
         <Spacer />
 
-        <Line>{isTuesday ? "5" : "4"}. Segundo segmento: <Bold>Carrera</Bold></Line>
+        <Line>{(isTuesday || isMonOrWed) ? "5" : "4"}. Segundo segmento: <Bold>Carrera</Bold></Line>
         <div className="pl-4 border-l-2 border-primary/20">
           {F(h1, "carrera_profesional", "CARRERA ARTÍSTICA O PROFESIONAL", true)}
         </div>
         <Spacer />
 
-        {!isTuesday && <Line>5. Clip 3 COMEDIANTE</Line>}
+        {!(isTuesday || isMonOrWed) && <Line>5. Clip 3 COMEDIANTE</Line>}
 
         {/* Avance + Encuesta */}
         <Line>{isTuesday ? "6" : "6"}. Avance segunda hora. Pregunta para el invitado que nos recuerde el tema de la segunda hora. A propósito del tema de esta noche, cuéntenos:</Line>
