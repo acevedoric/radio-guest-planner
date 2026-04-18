@@ -484,8 +484,7 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
                                 className="text-xs"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  const clean = guest.phone!.replace(/\s|-|\(|\)/g, "");
-                                  window.open(`https://wa.me/${clean}`, "_blank");
+                                  window.open(buildGuestWhatsApp(guest, selectedDayDate), "_blank");
                                 }}
                               >
                                 <MessageCircle className="w-3 h-3 mr-1" />
