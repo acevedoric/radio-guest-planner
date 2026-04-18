@@ -141,6 +141,9 @@ const Spacer = () => <div className="h-2" />;
 
 // ── Main component ─────────────────────────────────────────────────
 export const LibretoView: React.FC<LibretoViewProps> = ({ guests, selectedDay, selectedDayDate, editMode, onGuestUpdate }) => {
+  const [h1Open, setH1Open] = useState(false);
+  const [h2Open, setH2Open] = useState(false);
+  const [h3Open, setH3Open] = useState(false);
   const isTuesdayOrThursday = selectedDay === "tuesday" || selectedDay === "thursday";
   if (!isTuesdayOrThursday) return null;
 
