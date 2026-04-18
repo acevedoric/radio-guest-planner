@@ -250,7 +250,7 @@ export const LibretoView: React.FC<LibretoViewProps> = ({ guests, selectedDay, s
         {!(isTuesday || isMonOrWed) && <Line>5. Clip 3 COMEDIANTE</Line>}
 
         {/* Avance + Encuesta */}
-        <Line>{isTuesday ? "6" : "6"}. Avance segunda hora. Pregunta para el invitado que nos recuerde el tema de la segunda hora. A propósito del tema de esta noche, cuéntenos:</Line>
+        <Line>6. Avance segunda hora. Pregunta para el invitado que nos recuerde el tema de la segunda hora. A propósito del tema de esta noche, cuéntenos:</Line>
         <div className="pl-4 border-l-2 border-amber-400/40 bg-amber-100/30 dark:bg-amber-900/10 p-2 rounded">
           {F(h1, "encuesta_pregunta", "PREGUNTA DE LA ENCUESTA")}
           <Line className="text-sm">Sí / No</Line>
@@ -258,24 +258,24 @@ export const LibretoView: React.FC<LibretoViewProps> = ({ guests, selectedDay, s
         </div>
         <Spacer />
 
-        <Line>{isTuesday ? "7. Canción." : ""}</Line>
+        {(isTuesday || isMonOrWed) && <Line>7. Canción.</Line>}
 
-        <Line>{isTuesday ? "8" : "7"}. Tercer segmento: <Bold>Datos curiosos</Bold></Line>
+        <Line>{(isTuesday || isMonOrWed) ? "8" : "7"}. Tercer segmento: <Bold>Datos curiosos</Bold></Line>
         <div className="pl-4 border-l-2 border-primary/20">
           {F(h1, "datos_curiosos", "DATOS CURIOSOS", true)}
         </div>
         <Spacer />
 
-        {!isTuesday && <Line>8. Clip 4 COMEDIANTE</Line>}
-        <Line>{isTuesday ? "9" : "9"}. {isTuesday ? "Cuarto" : "Tercer"} segmento: <Bold>Proyectos 2026 y despedida.</Bold></Line>
-        {isTuesday && <Line>10. Canción.</Line>}
+        {!(isTuesday || isMonOrWed) && <Line>8. Clip 4 COMEDIANTE</Line>}
+        <Line>{(isTuesday || isMonOrWed) ? "9" : "9"}. {(isTuesday || isMonOrWed) ? "Cuarto" : "Tercer"} segmento: <Bold>Proyectos 2026 y despedida.</Bold></Line>
+        {(isTuesday || isMonOrWed) && <Line>10. Canción.</Line>}
 
         {h1?.h1_canciones && (
           <>
             <Spacer />
-            <Line><Bold>{isTuesday ? "Canciones en stock:" : "Clips de comediante:"}</Bold></Line>
+            <Line><Bold>{(isTuesday || isMonOrWed) ? "Canciones en stock:" : "Clips de comediante:"}</Bold></Line>
             <div className="pl-4 border-l-2 border-primary/20">
-              {F(h1, "h1_canciones", isTuesday ? "CANCIONES" : "CLIPS", true)}
+              {F(h1, "h1_canciones", (isTuesday || isMonOrWed) ? "CANCIONES" : "CLIPS", true)}
             </div>
           </>
         )}
