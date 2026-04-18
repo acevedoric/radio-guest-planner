@@ -309,12 +309,12 @@ const buildTuesdayDoc = (h1: Guest | undefined, h2: Guest | undefined, h3: Guest
   return paragraphs;
 };
 
-const buildThursdayDoc = (h1: Guest | undefined, h2: Guest | undefined, h3: Guest | undefined, dateInfo: { dia: string; mes: string; anio: string }): Paragraph[] => {
+const buildThursdayDoc = (h1: Guest | undefined, h2: Guest | undefined, h3: Guest | undefined, dateInfo: { dia: string; mes: string; anio: string }, dayLabel: string = "JUEVES", isThursdayTBT: boolean = true): Paragraph[] => {
   const paragraphs: Paragraph[] = [];
 
   // Title
   paragraphs.push(new Paragraph({
-    children: [textRun(`JUEVES ${dateInfo.dia} DE ${dateInfo.mes} DE ${dateInfo.anio}`, { bold: true, size: 32 })],
+    children: [textRun(`${dayLabel} ${dateInfo.dia} DE ${dateInfo.mes} DE ${dateInfo.anio}`, { bold: true, size: 32 })],
     spacing: { after: 240 },
   }));
 
@@ -402,7 +402,7 @@ const buildThursdayDoc = (h1: Guest | undefined, h2: Guest | undefined, h3: Gues
   paragraphs.push(heading("2. SEGUNDA HORA, EN VIVO:"));
   paragraphs.push(new Paragraph({ children: [textRun("En la casa: Mauricio Quintero.")] }));
   paragraphs.push(new Paragraph({
-    children: [textRun("Tema: ", { bold: true }), textRun("#tbt")],
+    children: [textRun("Tema: ", { bold: true }), textRun(isThursdayTBT ? "#tbt" : v(h2?.topic))],
   }));
   paragraphs.push(emptyLine());
 
@@ -411,10 +411,12 @@ const buildThursdayDoc = (h1: Guest | undefined, h2: Guest | undefined, h3: Gues
   }));
   paragraphs.push(emptyLine());
 
-  paragraphs.push(new Paragraph({
-    children: [textRun("Jueves de TBT, jueves para recordar, hablaremos sobre " + v(h2?.topic))],
-  }));
-  paragraphs.push(emptyLine());
+  if (isThursdayTBT) {
+    paragraphs.push(new Paragraph({
+      children: [textRun("Jueves de TBT, jueves para recordar, hablaremos sobre " + v(h2?.topic))],
+    }));
+    paragraphs.push(emptyLine());
+  }
 
   paragraphs.push(new Paragraph({
     children: [textRun("Invitado: ", { bold: true }), textRun(v(h2?.name) + (h2?.position ? ` – ${h2.position}` : ""))],
@@ -522,7 +524,7 @@ export const generateLibretoBlob = async (guests: Guest[], selectedDay: string, 
 
   const paragraphs = selectedDay === "tuesday"
     ? buildTuesdayDoc(h1, h2, h3, dateInfo)
-    : buildThursdayDoc(h1, h2, h3, dateInfo);
+    : buildThursdayDoc(h1, h2, h3, dateInfo, dayLabel, selectedDay === "thursday");
 
   const doc = new Document({
     styles: {
