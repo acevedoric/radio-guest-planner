@@ -8,8 +8,6 @@ import { ChevronDown, ChevronRight, AlertTriangle, Printer } from "lucide-react"
 import { Guest } from "@/types/guest";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { generateLibretoBlob } from "./LibretoExport";
-import { saveAs } from "file-saver";
 
 interface LibretoViewProps {
   guests: Guest[];
