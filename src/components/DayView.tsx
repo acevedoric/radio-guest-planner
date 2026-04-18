@@ -57,22 +57,51 @@ const formatDateSpanish = (dateStr?: string | null) => {
   return `${days[d.getDay()]}, ${d.getDate()} de ${months[d.getMonth()]} de ${d.getFullYear()}`;
 };
 
-const buildGuestMailto = (guest: Guest, selectedDayDate?: string) => {
-  const subject = encodeURIComponent(`Confirmación de entrevista - ${guest.name}`);
-  const fecha = formatDateSpanish(selectedDayDate);
-  const lines = [
-    `Estimado/a ${guest.name},`,
+const SLOT_HOURS: Record<number, string> = {
+  1: '10:00 p.m.',
+  2: '11:00 p.m.',
+  3: '12:00 a.m.',
+};
+
+const buildGuestMessageLines = (guest: Guest, selectedDayDate?: string) => {
+  const fechaEmision = formatDateSpanish(selectedDayDate);
+  const horaEmision = SLOT_HOURS[guest.time_slot];
+  const isRecording = guest.recording_status === 'to_record' || guest.recording_status === 'recorded';
+  const fechaGrabacion = isRecording && guest.scheduled_date ? formatDateSpanish(guest.scheduled_date) : '';
+
+  return [
+    `Hola, qué tal ${guest.name},`,
     '',
-    `Le escribimos para confirmar su participación en nuestro programa.`,
+    'Te confirmamos tu participación en Bla Bla Blu.',
+    '',
+    fechaEmision ? `📅 Fecha de emisión: ${fechaEmision}` : '',
+    horaEmision ? `🕙 Hora: ${horaEmision}` : '',
+    fechaGrabacion ? '' : '',
+    fechaGrabacion
+      ? `📹 Grabación: ${fechaGrabacion}${guest.scheduled_time ? ` a las ${guest.scheduled_time}` : ''}`
+      : '',
     '',
     guest.topic ? `Tema: ${guest.topic}` : '',
-    fecha ? `Fecha: ${fecha}` : '',
     '',
-    'Quedamos atentos a su confirmación.',
-    '',
-    'Saludos cordiales.',
-  ].filter(Boolean);
-  return `mailto:${guest.email}?subject=${subject}&body=${encodeURIComponent(lines.join('\n'))}`;
+    '¡Te esperamos!',
+    'Equipo Bla Bla Blu',
+  ].filter((line, idx, arr) => {
+    // keep empty strings only if surrounded by content (avoid double blanks)
+    if (line !== '') return true;
+    return arr[idx - 1] !== '';
+  });
+};
+
+const buildGuestMailto = (guest: Guest, selectedDayDate?: string) => {
+  const subject = encodeURIComponent(`Confirmación de entrevista - ${guest.name}`);
+  const body = buildGuestMessageLines(guest, selectedDayDate).join('\n');
+  return `mailto:${guest.email}?subject=${subject}&body=${encodeURIComponent(body)}`;
+};
+
+const buildGuestWhatsApp = (guest: Guest, selectedDayDate?: string) => {
+  const clean = (guest.phone || '').replace(/\s|-|\(|\)/g, '');
+  const text = encodeURIComponent(buildGuestMessageLines(guest, selectedDayDate).join('\n'));
+  return `https://wa.me/${clean}?text=${text}`;
 };
 
 const buildPRMailto = (guest: Guest, selectedDayDate?: string) => {
@@ -455,8 +484,7 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
                                 className="text-xs"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  const clean = guest.phone!.replace(/\s|-|\(|\)/g, "");
-                                  window.open(`https://wa.me/${clean}`, "_blank");
+                                  window.open(buildGuestWhatsApp(guest, selectedDayDate), "_blank");
                                 }}
                               >
                                 <MessageCircle className="w-3 h-3 mr-1" />
