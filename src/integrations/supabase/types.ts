@@ -14,6 +14,54 @@ export type Database = {
   }
   public: {
     Tables: {
+      access_requests: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          message: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          message?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          message?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
+      allowed_emails: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          email: string
+          id: string
+          note: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          email: string
+          id?: string
+          note?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          email?: string
+          id?: string
+          note?: string | null
+        }
+        Relationships: []
+      }
       guests: {
         Row: {
           avance_h2: string | null
@@ -206,6 +254,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_email_allowed: { Args: { _email: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "producer" | "viewer"
