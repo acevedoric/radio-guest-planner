@@ -225,8 +225,8 @@ export const LibretoView: React.FC<LibretoViewProps> = ({ guests, selectedDay, s
         <Spacer />
 
         {/* Segments */}
-        <Line>{isTuesday ? "1. Canción." : "1. Clip 1 COMEDIANTE"} {h1?.h1_canciones && <span className="text-muted-foreground italic text-sm"> — {h1.h1_canciones}</span>}</Line>
-        <Line>{isTuesday ? "2" : "2"}. Primer segmento: <Bold>Bienvenida.</Bold></Line>
+        <Line>{(isTuesday || isMonOrWed) ? "1. Canción." : "1. Clip 1 COMEDIANTE"} {h1?.h1_canciones && <span className="text-muted-foreground italic text-sm"> — {h1.h1_canciones}</span>}</Line>
+        <Line>2. Primer segmento: <Bold>Bienvenida.</Bold></Line>
         <div className="pl-4 border-l-2 border-primary/20">
           {F(h1, "tema_principal", "TEMA PRINCIPAL", true)}
         </div>
@@ -238,19 +238,19 @@ export const LibretoView: React.FC<LibretoViewProps> = ({ guests, selectedDay, s
         </div>
         <Spacer />
 
-        <Line>{isTuesday ? "4. Canción." : "3. Clip 2 COMEDIANTE"}</Line>
+        <Line>{(isTuesday || isMonOrWed) ? "4. Canción." : "3. Clip 2 COMEDIANTE"}</Line>
         <Spacer />
 
-        <Line>{isTuesday ? "5" : "4"}. Segundo segmento: <Bold>Carrera</Bold></Line>
+        <Line>{(isTuesday || isMonOrWed) ? "5" : "4"}. Segundo segmento: <Bold>Carrera</Bold></Line>
         <div className="pl-4 border-l-2 border-primary/20">
           {F(h1, "carrera_profesional", "CARRERA ARTÍSTICA O PROFESIONAL", true)}
         </div>
         <Spacer />
 
-        {!isTuesday && <Line>5. Clip 3 COMEDIANTE</Line>}
+        {!(isTuesday || isMonOrWed) && <Line>5. Clip 3 COMEDIANTE</Line>}
 
         {/* Avance + Encuesta */}
-        <Line>{isTuesday ? "6" : "6"}. Avance segunda hora. Pregunta para el invitado que nos recuerde el tema de la segunda hora. A propósito del tema de esta noche, cuéntenos:</Line>
+        <Line>6. Avance segunda hora. Pregunta para el invitado que nos recuerde el tema de la segunda hora. A propósito del tema de esta noche, cuéntenos:</Line>
         <div className="pl-4 border-l-2 border-amber-400/40 bg-amber-100/30 dark:bg-amber-900/10 p-2 rounded">
           {F(h1, "encuesta_pregunta", "PREGUNTA DE LA ENCUESTA")}
           <Line className="text-sm">Sí / No</Line>
@@ -258,24 +258,24 @@ export const LibretoView: React.FC<LibretoViewProps> = ({ guests, selectedDay, s
         </div>
         <Spacer />
 
-        <Line>{isTuesday ? "7. Canción." : ""}</Line>
+        {(isTuesday || isMonOrWed) && <Line>7. Canción.</Line>}
 
-        <Line>{isTuesday ? "8" : "7"}. Tercer segmento: <Bold>Datos curiosos</Bold></Line>
+        <Line>{(isTuesday || isMonOrWed) ? "8" : "7"}. Tercer segmento: <Bold>Datos curiosos</Bold></Line>
         <div className="pl-4 border-l-2 border-primary/20">
           {F(h1, "datos_curiosos", "DATOS CURIOSOS", true)}
         </div>
         <Spacer />
 
-        {!isTuesday && <Line>8. Clip 4 COMEDIANTE</Line>}
-        <Line>{isTuesday ? "9" : "9"}. {isTuesday ? "Cuarto" : "Tercer"} segmento: <Bold>Proyectos 2026 y despedida.</Bold></Line>
-        {isTuesday && <Line>10. Canción.</Line>}
+        {!(isTuesday || isMonOrWed) && <Line>8. Clip 4 COMEDIANTE</Line>}
+        <Line>{(isTuesday || isMonOrWed) ? "9" : "9"}. {(isTuesday || isMonOrWed) ? "Cuarto" : "Tercer"} segmento: <Bold>Proyectos 2026 y despedida.</Bold></Line>
+        {(isTuesday || isMonOrWed) && <Line>10. Canción.</Line>}
 
         {h1?.h1_canciones && (
           <>
             <Spacer />
-            <Line><Bold>{isTuesday ? "Canciones en stock:" : "Clips de comediante:"}</Bold></Line>
+            <Line><Bold>{(isTuesday || isMonOrWed) ? "Canciones en stock:" : "Clips de comediante:"}</Bold></Line>
             <div className="pl-4 border-l-2 border-primary/20">
-              {F(h1, "h1_canciones", isTuesday ? "CANCIONES" : "CLIPS", true)}
+              {F(h1, "h1_canciones", (isTuesday || isMonOrWed) ? "CANCIONES" : "CLIPS", true)}
             </div>
           </>
         )}
@@ -321,10 +321,13 @@ export const LibretoView: React.FC<LibretoViewProps> = ({ guests, selectedDay, s
 
         <Line><Bold>Invitado: </Bold>{F(h2, "name", "INVITADO SEGUNDA HORA")}{h2?.position ? ` – ${h2.position}` : ""}</Line>
 
-        {h2?.h2_info_personal && (
-          <div className="pl-4 border-l-2 border-primary/20">
-            {F(h2, "h2_info_personal", "INFO PERSONAL H2", true)}
-          </div>
+        {(h2?.h2_info_personal || editMode) && (
+          <>
+            <Line><Bold>Información personal:</Bold></Line>
+            <div className="pl-4 border-l-2 border-primary/20">
+              {F(h2, "h2_info_personal", "INFO PERSONAL H2", true)}
+            </div>
+          </>
         )}
         <Spacer />
 
@@ -343,9 +346,9 @@ export const LibretoView: React.FC<LibretoViewProps> = ({ guests, selectedDay, s
         </div>
         <Spacer />
 
-        {h2?.h2_preguntas_sugeridas && (
+        {(h2?.h2_preguntas_sugeridas || editMode) && (
           <>
-            <Line><Bold>PREGUNTAS SUGERIDAS SEGÚN EL TEMA A TRATAR</Bold></Line>
+            <Line><Bold>Preguntas sugeridas según el tema a tratar:</Bold></Line>
             <div className="pl-4 border-l-2 border-primary/20">
               {F(h2, "h2_preguntas_sugeridas", "PREGUNTAS SUGERIDAS", true)}
             </div>
@@ -410,6 +413,8 @@ export const LibretoView: React.FC<LibretoViewProps> = ({ guests, selectedDay, s
 
         <Line><Bold>Invitado: </Bold>{F(h3, "name", "INVITADO TERCERA HORA")}</Line>
         <Line><Bold>Tema: </Bold>{F(h3, "topic", "TEMA TERCERA HORA")}</Line>
+        <Line>X: <Bold>{getSocial(h3, "twitter") || "—"}</Bold></Line>
+        <Line>IG: <Bold>{getSocial(h3, "instagram") || "—"}</Bold></Line>
         <Spacer />
 
         {(h3?.h3_datos_personales || editMode) && (
