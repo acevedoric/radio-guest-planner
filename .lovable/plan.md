@@ -1,66 +1,45 @@
 
 
-## Plan: Acceso restringido por correo electrónico autorizado
+## Plan: Ajustes libreto Lunes y Miércoles
 
-### Contexto
+Aplicar solo cuando `isMonOrWed === true`. No afecta martes/jueves.
 
-Hoy cualquiera con cuenta puede registrarse en `/auth` y entrar a la app. La imagen muestra el patrón deseado: **solo correos previamente autorizados** pueden acceder; el resto ve "Access denied" con opción de "Solicitar acceso".
+### H1 — Cambiar "Clip COMEDIANTE" por "Canción"
 
-La app ya usa Supabase Auth (login/registro/recuperación) y RLS sobre `guests` con roles producer/admin. Vamos a añadir una **lista blanca (allowlist) de correos autorizados** gestionada en BD + un guard de ruta que bloquea a usuarios no autorizados.
+En `LibretoView.tsx` (líneas 228, 241, 250, 261, 269, 271, 276, 278), la condición actual es `isTuesday ? "Canción" : "Clip COMEDIANTE"`. Cambiarla a `(isTuesday || isMonOrWed) ? "Canción" : "Clip COMEDIANTE"` para que Lun/Mié usen la **misma numeración con canciones que el martes** (1. Canción, 4. Canción, 7. Canción, 10. Canción), eliminando los "Clip 1/2/3/4 COMEDIANTE" y la línea suelta de jueves.
 
-### Diseño
+Etiquetas auxiliares ("Canciones en stock" / "Clips de comediante" en el bloque de stock) → usar "Canciones en stock" para Lun/Mié.
 
-**1. Tabla `allowed_emails`** (nueva)
-- `id uuid pk`, `email text unique not null` (lowercased), `note text`, `created_at`, `created_by uuid`.
-- RLS: solo `admin` puede `select/insert/update/delete` (vía `has_role`).
+### H2 — Garantizar bloque de Información Personal y Preguntas Sugeridas
 
-**2. Tabla `access_requests`** (nueva, para "Solicitar acceso")
-- `id`, `email`, `message text`, `status text default 'pending'` (`pending|approved|rejected`), `created_at`.
-- RLS: cualquiera autenticado puede `insert` su propio email; solo `admin` puede `select/update`.
+Hoy `h2_info_personal` y `h2_preguntas_sugeridas` solo se renderizan si tienen contenido (`if (h2?.h2_info_personal && …)`). Para Lun/Mié (y por consistencia también martes/jueves) cambiar la condición a `(value || editMode)` igual que ya se hace en H3, mostrando siempre el bloque editable con etiqueta:
 
-**3. Función SQL `is_email_allowed(_email text) returns boolean`** (`security definer`, search_path `public`)
-- Devuelve `true` si el correo está en `allowed_emails` (case-insensitive) **o** si el usuario ya tiene rol admin/producer en `user_roles`.
+- **"Información personal:"** → campo `h2_info_personal`
+- **"Preguntas sugeridas según el tema a tratar:"** → campo `h2_preguntas_sugeridas`
 
-**4. Bloqueo en signup (server-side)**
-- Trigger `before insert on auth.users` → si `is_email_allowed(NEW.email)` es false → `raise exception 'EMAIL_NOT_ALLOWED'`.
-- Esto impide que se creen cuentas no autorizadas aunque alguien intente registrarse directo.
+Las 4 canciones de H2 ya están presentes en el bloque de jueves/Lun/Mié (líneas 365–367), no se tocan.
 
-**5. Guard en cliente (`AuthGuard`)**
-- Nuevo componente que envuelve rutas privadas (`/`, `/search`).
-- Flujo:
-  1. Si no hay sesión → redirige a `/auth`.
-  2. Si hay sesión → consulta `is_email_allowed(session.user.email)` vía RPC.
-  3. Si `false` → muestra pantalla **"Acceso denegado"** (mismo estilo de la imagen: card centrada, mensaje con su email, botones "Solicitar acceso" y "Cerrar sesión").
-  4. Si `true` → renderiza children.
+### H3 — Mostrar redes sociales del invitado + secciones existentes
 
-**6. Pantalla "Acceso denegado"** (`src/components/AccessDenied.tsx`)
-- Card con: título "Acceso denegado", texto "Tú ([email]) no tienes acceso a este proyecto. Solicita acceso al equipo.", botón **"Solicitar acceso"** (abre dialog con textarea opcional → inserta en `access_requests`) y botón **"Cerrar sesión"**.
+Actualmente H3 no imprime redes del invitado de la 3ra hora. Añadir tras la línea de "Tema:" (después de línea 413):
 
-**7. Manejo de error en `Auth.tsx`**
-- Si `signUp` devuelve error con mensaje `EMAIL_NOT_ALLOWED` → toast: "Este correo no está autorizado. Solicita acceso al administrador." + botón que lleva al formulario de solicitud (reutiliza `access_requests`).
+```
+X: <twitter h3>
+IG: <instagram h3>
+```
 
-**8. (Opcional, no incluido por defecto)** Página admin `/admin/access` para gestionar `allowed_emails` y aprobar `access_requests`. Lo dejo fuera de este plan salvo que lo pidas — por ahora la gestión inicial se hace insertando filas vía migración o directamente en BD.
+usando el helper `getSocial(h3, …)` igual que se hace en H1/H2 (mostrar "—" si no hay).
 
-### Bootstrapping
+Las secciones **DATOS PERSONALES** (`h3_datos_personales`) y **COMUNICADO DE PRENSA** (`h3_comunicado_prensa`) ya existen (líneas 415–433); no se modifican. Se mantienen visibles en `editMode` o cuando tienen contenido, lo que aplica para todos los días incluyendo Lun/Mié.
 
-En la misma migración, insertar tu correo (`racevedo@caracoltv.com.co`, visto en logs) en `allowed_emails` para no quedar bloqueado. Confirmar si quieres añadir otros correos iniciales.
-
-### Archivos
+### Archivo único modificado
 
 | Archivo | Cambio |
 |---|---|
-| Migración SQL (nueva) | Tablas `allowed_emails`, `access_requests`, función `is_email_allowed`, trigger en `auth.users`, RLS, seed inicial |
-| `src/components/AuthGuard.tsx` | Nuevo: chequea sesión + allowlist vía RPC |
-| `src/components/AccessDenied.tsx` | Nuevo: pantalla estilo imagen + dialog "Solicitar acceso" |
-| `src/App.tsx` | Envolver `/`, `/search` con `<AuthGuard>` |
-| `src/pages/Auth.tsx` | Capturar error `EMAIL_NOT_ALLOWED` y ofrecer solicitar acceso |
+| `src/components/LibretoView.tsx` | H1: `isTuesday \|\| isMonOrWed` para usar canciones. H2: bloque info personal y preguntas sugeridas siempre visibles (valor o editMode). H3: añadir líneas X / IG con `getSocial(h3, …)` |
 
-### Lo que NO incluye
+### No se toca
 
-- UI de admin para aprobar solicitudes (puede ser un siguiente paso).
-- Notificación por email al admin cuando llega una nueva solicitud (requeriría edge function + Resend; lo planteamos aparte si lo quieres).
-
-### Pregunta antes de implementar
-
-¿Qué correos quieres pre-autorizar en la migración inicial? Mínimo el tuyo (`racevedo@caracoltv.com.co`). Si me confirmas la lista, los incluyo; si no, solo agrego el tuyo y los demás se gestionan después.
+- `LibretoExport.tsx` (Word) — si quieres que el export Word refleje los mismos cambios, dímelo y lo añado en una segunda pasada.
+- Schema de BD, martes, jueves (mantienen su lógica actual).
 
