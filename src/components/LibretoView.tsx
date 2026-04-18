@@ -8,8 +8,6 @@ import { ChevronDown, ChevronRight, AlertTriangle, Printer } from "lucide-react"
 import { Guest } from "@/types/guest";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { generateLibretoBlob } from "./LibretoExport";
-import { saveAs } from "file-saver";
 
 interface LibretoViewProps {
   guests: Guest[];
@@ -113,8 +111,10 @@ const getSocial = (guest: Guest | undefined, platform: string): string | null =>
 };
 
 // ── Section wrapper ────────────────────────────────────────────────
-const HourSection = ({ title, defaultOpen = false, children }: { title: string; defaultOpen?: boolean; children: React.ReactNode }) => {
-  const [open, setOpen] = useState(defaultOpen);
+const HourSection = ({ title, defaultOpen = false, open: openProp, onOpenChange, children }: { title: string; defaultOpen?: boolean; open?: boolean; onOpenChange?: (o: boolean) => void; children: React.ReactNode }) => {
+  const [internalOpen, setInternalOpen] = useState(defaultOpen);
+  const open = openProp !== undefined ? openProp : internalOpen;
+  const setOpen = onOpenChange ?? setInternalOpen;
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
       <CollapsibleTrigger className="flex items-center gap-2 w-full py-3 px-4 bg-primary/10 rounded-lg hover:bg-primary/20 transition-colors print:bg-transparent">
@@ -141,6 +141,9 @@ const Spacer = () => <div className="h-2" />;
 
 // ── Main component ─────────────────────────────────────────────────
 export const LibretoView: React.FC<LibretoViewProps> = ({ guests, selectedDay, selectedDayDate, editMode, onGuestUpdate }) => {
+  const [h1Open, setH1Open] = useState(false);
+  const [h2Open, setH2Open] = useState(false);
+  const [h3Open, setH3Open] = useState(false);
   const isTuesdayOrThursday = selectedDay === "tuesday" || selectedDay === "thursday";
   if (!isTuesdayOrThursday) return null;
 
@@ -177,19 +180,13 @@ export const LibretoView: React.FC<LibretoViewProps> = ({ guests, selectedDay, s
     />
   );
 
-  const handlePrint = async () => {
-    try {
-      const result = await generateLibretoBlob(guests, selectedDay, selectedDayDate);
-      if (!result) {
-        toast.error("No hay invitados para imprimir");
-        return;
-      }
-      saveAs(result.blob, result.fileName);
-      toast.success("Libreto descargado para impresión");
-    } catch (error) {
-      console.error("Error generating libreto:", error);
-      toast.error("Error al generar el libreto");
-    }
+  const handlePrint = () => {
+    setH1Open(true);
+    setH2Open(true);
+    setH3Open(true);
+    setTimeout(() => {
+      window.print();
+    }, 200);
   };
 
   const isTuesday = selectedDay === "tuesday";
@@ -208,7 +205,7 @@ export const LibretoView: React.FC<LibretoViewProps> = ({ guests, selectedDay, s
       </div>
 
       {/* ═══ PRIMERA HORA ═══ */}
-      <HourSection title="1. Primera Hora, en vivo">
+      <HourSection title="1. Primera Hora, en vivo" open={h1Open} onOpenChange={setH1Open}>
         <Line>
           <Bold>Programa con: </Bold>
           {F(h1, "name", "INVITADO")} – {F(h1, "position", "Cargo")}
@@ -290,7 +287,7 @@ export const LibretoView: React.FC<LibretoViewProps> = ({ guests, selectedDay, s
       </HourSection>
 
       {/* ═══ SEGUNDA HORA ═══ */}
-      <HourSection title={`2. Segunda Hora, en vivo${isTuesday ? " — Puerta al Universo" : " — #TBT"}`}>
+      <HourSection title={`2. Segunda Hora, en vivo${isTuesday ? " — Puerta al Universo" : " — #TBT"}`} open={h2Open} onOpenChange={setH2Open}>
         <Line>En la casa: <Bold>Mauricio Quintero.</Bold></Line>
         <Line><Bold>Tema: </Bold>{isTuesday ? F(h2, "topic", "TEMA SEGUNDA HORA") : "#tbt"}</Line>
         <Spacer />
@@ -395,7 +392,7 @@ export const LibretoView: React.FC<LibretoViewProps> = ({ guests, selectedDay, s
       </HourSection>
 
       {/* ═══ TERCERA HORA ═══ */}
-      <HourSection title="3. Tercera Hora">
+      <HourSection title="3. Tercera Hora" open={h3Open} onOpenChange={setH3Open}>
         <Line>En la casa: <Bold>Mauricio Quintero.</Bold></Line>
         <Spacer />
         <Line>1. Canción.</Line>
