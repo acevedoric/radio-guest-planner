@@ -321,10 +321,13 @@ export const LibretoView: React.FC<LibretoViewProps> = ({ guests, selectedDay, s
 
         <Line><Bold>Invitado: </Bold>{F(h2, "name", "INVITADO SEGUNDA HORA")}{h2?.position ? ` – ${h2.position}` : ""}</Line>
 
-        {h2?.h2_info_personal && (
-          <div className="pl-4 border-l-2 border-primary/20">
-            {F(h2, "h2_info_personal", "INFO PERSONAL H2", true)}
-          </div>
+        {(h2?.h2_info_personal || editMode) && (
+          <>
+            <Line><Bold>Información personal:</Bold></Line>
+            <div className="pl-4 border-l-2 border-primary/20">
+              {F(h2, "h2_info_personal", "INFO PERSONAL H2", true)}
+            </div>
+          </>
         )}
         <Spacer />
 
@@ -343,9 +346,9 @@ export const LibretoView: React.FC<LibretoViewProps> = ({ guests, selectedDay, s
         </div>
         <Spacer />
 
-        {h2?.h2_preguntas_sugeridas && (
+        {(h2?.h2_preguntas_sugeridas || editMode) && (
           <>
-            <Line><Bold>PREGUNTAS SUGERIDAS SEGÚN EL TEMA A TRATAR</Bold></Line>
+            <Line><Bold>Preguntas sugeridas según el tema a tratar:</Bold></Line>
             <div className="pl-4 border-l-2 border-primary/20">
               {F(h2, "h2_preguntas_sugeridas", "PREGUNTAS SUGERIDAS", true)}
             </div>
@@ -410,6 +413,8 @@ export const LibretoView: React.FC<LibretoViewProps> = ({ guests, selectedDay, s
 
         <Line><Bold>Invitado: </Bold>{F(h3, "name", "INVITADO TERCERA HORA")}</Line>
         <Line><Bold>Tema: </Bold>{F(h3, "topic", "TEMA TERCERA HORA")}</Line>
+        <Line>X: <Bold>{getSocial(h3, "twitter") || "—"}</Bold></Line>
+        <Line>IG: <Bold>{getSocial(h3, "instagram") || "—"}</Bold></Line>
         <Spacer />
 
         {(h3?.h3_datos_personales || editMode) && (
