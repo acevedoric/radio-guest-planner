@@ -1,65 +1,61 @@
 
 
-## Plan: Mejorar correo al invitado (fecha, hora, saludo neutro)
+## Plan: Libreto para Lunes y Miércoles
 
 ### Contexto
 
-Actualmente la función "ENVIAR CORREO" al invitado se construye en `DayView.tsx` (o componente similar) usando `mailto:` con un cuerpo prellenado. Hay que:
+Hoy `LibretoView` solo se renderiza para Martes y Jueves (`isTuesdayOrThursday`). El usuario quiere replicar el mismo libreto para Lunes y Miércoles, **sin** el bloque fijo de "Puerta al Universo / Germán Puerta" (que es exclusivo del martes).
 
-1. Cambiar saludo de "Estimado/a [nombre]" → "Hola, qué tal [nombre]".
-2. Incluir siempre **fecha y hora**:
-   - Si el invitado es **EN VIVO** (`recording_status='live'`) → fecha de emisión (`week_date`+`day_of_week`) + hora del bloque (`time_slot`: 22:00 / 23:00 / 00:00).
-   - Si es **A GRABAR / GRABADO** (`recording_status='to_record'` o `'recorded'`) → además incluir `scheduled_date` + `scheduled_time` con etiqueta clara "Fecha y hora de grabación".
+### Estructura por día (referencia)
 
-### Exploración necesaria
-
-- Localizar dónde se arma el `mailto:` actual del invitado (probablemente `DayView.tsx` o un helper). Confirmar que también existe el de WhatsApp para aplicar el mismo cambio de tono.
-- Verificar el mapeo `time_slot → hora` ya usado en el proyecto (10 PM, 11 PM, 12 AM según memoria de patrones recurrentes).
+| Día | H2 fija | Texto introductorio |
+|---|---|---|
+| Martes | Puerta al Universo (Germán Puerta) | Sí (texto fijo "Todas las noches de los martes...") |
+| Jueves | #TBT | Sí (contexto editable + "Jueves de TBT...") |
+| **Lunes** (nuevo) | Libre | Sin texto fijo |
+| **Miércoles** (nuevo) | Libre | Sin texto fijo |
 
 ### Cambios
 
-**Archivo: `src/components/DayView.tsx`** (y/o helper de mensajes)
+**1. `src/components/LibretoView.tsx`**
 
-- Función `buildGuestEmailBody(guest)`:
-  - Saludo: `Hola, qué tal ${guest.name}`
-  - Fecha de emisión formateada en español: `EEEE d 'de' MMMM 'de' yyyy` (date-fns + locale `es`).
-  - Hora de emisión según `time_slot`: 1→10:00 p.m., 2→11:00 p.m., 3→12:00 a.m.
-  - Si `recording_status` ∈ {`to_record`,`recorded`} y existe `scheduled_date`:
-    - Añadir bloque: "📹 Grabación: [fecha] a las [scheduled_time]"
-  - Mantener referencia al tema (`topic`) y firma del programa.
+- Quitar el guard `if (!isTuesdayOrThursday) return null;` → permitir Lun/Mar/Mié/Jue.
+- Reemplazar `isTuesday` (boolean) por una clasificación más explícita:
+  - `isTuesday` → mantiene bloque Germán Puerta + numeración con canciones (martes original).
+  - `isThursday` → mantiene bloque #TBT (jueves original).
+  - `isMondayOrWednesday` (nuevo) → usa el **mismo molde que jueves** (numeración con clips/segmentos genéricos) **pero sin** la línea "Jueves de TBT" ni el campo `h2_contexto` específico de #TBT. En su lugar, H2 muestra solo:
+    - "Tema:" → `topic` editable
+    - "Contexto:" → campo libre editable (reutilizamos `h2_contexto` como campo genérico de contexto de la 2ª hora; ya existe en el schema).
+- Encabezado del día (`DAYS_ES`): añadir `monday: "LUNES"` y `wednesday: "MIÉRCOLES"`.
+- Título de la sección H2: 
+  - Martes → "— Puerta al Universo"
+  - Jueves → "— #TBT"
+  - Lun/Mié → sin sufijo (solo "Segunda Hora, en vivo").
+- Bloque condicional de H2:
+  - Si `isTuesday` → renderiza el texto fijo de Puerta al Universo (igual que ahora).
+  - Si `isThursday` → renderiza "Contexto #TBT" + "Jueves de TBT...".
+  - Si `isMondayOrWednesday` → renderiza solo "Contexto:" (campo editable) + "Tema:" (sin la frase fija de "jueves para recordar").
+- Numeración de segmentos: Lun/Mié usan la **misma lista** que jueves (1. Canción, 2. Avance, 3. Primer segmento, …, 10. Canción).
 
-- Aplicar el mismo saludo neutro al cuerpo de **WhatsApp** del invitado para coherencia.
-- **No** modificar los mensajes a contactos de prensa (esos pueden conservar tono formal salvo que el usuario indique lo contrario).
+**2. `src/components/DayView.tsx`**
 
-### Ejemplo de cuerpo resultante
+- Donde se decide mostrar `<LibretoView>` y los botones "Ver Libreto" / "Exportar Libreto" / "Imprimir Libreto", ampliar la condición de `tuesday|thursday` a `monday|tuesday|wednesday|thursday`.
 
-```
-Hola, qué tal Juan,
+**3. `src/components/LibretoExport.tsx`** (Word export)
 
-Te confirmamos tu participación en Bla Bla Blu.
+- Replicar la misma lógica: permitir export para Lun/Mié usando el molde de jueves sin la sección Germán Puerta. Igual tratamiento de `h2_contexto` como contexto genérico.
 
-📅 Fecha de emisión: martes 22 de abril de 2025
-🕙 Hora: 10:00 p.m.
+### Lo que NO cambia
 
-📹 Grabación: lunes 21 de abril de 2025 a las 3:00 p.m.
+- Schema de BD (reutilizamos campos existentes: `h2_contexto`, `topic`, etc.).
+- Lógica de impresión, colapsables, edición inline, encuesta, avances H2/H3.
+- Endpoint `get-libreto` (ya soporta cualquier día Lun–Jue).
 
-Tema: Lanzamiento del nuevo álbum.
-
-¡Te esperamos!
-Equipo Bla Bla Blu
-```
-
-(El bloque "Grabación" solo aparece si aplica.)
-
-### Archivos a modificar
+### Archivos
 
 | Archivo | Cambio |
 |---|---|
-| `src/components/DayView.tsx` | Reescribir constructor de cuerpo de email/WhatsApp del invitado: saludo neutro + fecha/hora emisión + (condicional) fecha/hora grabación |
-
-### Lo que NO incluye
-
-- No cambia los mensajes al contacto de prensa.
-- No envía emails desde el servidor (sigue siendo `mailto:` que abre el cliente del usuario).
-- No toca plantillas de auth/transaccional.
+| `src/components/LibretoView.tsx` | Soportar Lun/Mié con molde de jueves sin bloque Germán Puerta ni frase #TBT |
+| `src/components/DayView.tsx` | Habilitar libreto y botones para Lun/Mié |
+| `src/components/LibretoExport.tsx` | Mismo molde en Word para Lun/Mié |
 
