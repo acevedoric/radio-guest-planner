@@ -180,19 +180,13 @@ export const LibretoView: React.FC<LibretoViewProps> = ({ guests, selectedDay, s
     />
   );
 
-  const handlePrint = async () => {
-    try {
-      const result = await generateLibretoBlob(guests, selectedDay, selectedDayDate);
-      if (!result) {
-        toast.error("No hay invitados para imprimir");
-        return;
-      }
-      saveAs(result.blob, result.fileName);
-      toast.success("Libreto descargado para impresión");
-    } catch (error) {
-      console.error("Error generating libreto:", error);
-      toast.error("Error al generar el libreto");
-    }
+  const handlePrint = () => {
+    setH1Open(true);
+    setH2Open(true);
+    setH3Open(true);
+    setTimeout(() => {
+      window.print();
+    }, 200);
   };
 
   const isTuesday = selectedDay === "tuesday";
