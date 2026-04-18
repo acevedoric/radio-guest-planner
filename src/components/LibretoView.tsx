@@ -205,7 +205,7 @@ export const LibretoView: React.FC<LibretoViewProps> = ({ guests, selectedDay, s
       </div>
 
       {/* ═══ PRIMERA HORA ═══ */}
-      <HourSection title="1. Primera Hora, en vivo">
+      <HourSection title="1. Primera Hora, en vivo" open={h1Open} onOpenChange={setH1Open}>
         <Line>
           <Bold>Programa con: </Bold>
           {F(h1, "name", "INVITADO")} – {F(h1, "position", "Cargo")}
