@@ -287,7 +287,7 @@ export const LibretoView: React.FC<LibretoViewProps> = ({ guests, selectedDay, s
       </HourSection>
 
       {/* ═══ SEGUNDA HORA ═══ */}
-      <HourSection title={`2. Segunda Hora, en vivo${isTuesday ? " — Puerta al Universo" : " — #TBT"}`}>
+      <HourSection title={`2. Segunda Hora, en vivo${isTuesday ? " — Puerta al Universo" : " — #TBT"}`} open={h2Open} onOpenChange={setH2Open}>
         <Line>En la casa: <Bold>Mauricio Quintero.</Bold></Line>
         <Line><Bold>Tema: </Bold>{isTuesday ? F(h2, "topic", "TEMA SEGUNDA HORA") : "#tbt"}</Line>
         <Spacer />
