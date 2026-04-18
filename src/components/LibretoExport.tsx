@@ -18,7 +18,9 @@ const MONTHS_ES = [
 ];
 
 const DAYS_ES: Record<string, string> = {
+  monday: "LUNES",
   tuesday: "MARTES",
+  wednesday: "MIÉRCOLES",
   thursday: "JUEVES",
 };
 
@@ -549,8 +551,8 @@ export const generateLibretoBlob = async (guests: Guest[], selectedDay: string, 
 };
 
 export const LibretoExport: React.FC<LibretoExportProps> = ({ guests, selectedDay, selectedDayDate }) => {
-  const isTuesdayOrThursday = selectedDay === "tuesday" || selectedDay === "thursday";
-  if (!isTuesdayOrThursday) return null;
+  const validDays = ["monday", "tuesday", "wednesday", "thursday"];
+  if (!validDays.includes(selectedDay)) return null;
 
   const handleExport = async () => {
     try {

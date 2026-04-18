@@ -196,7 +196,7 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
             );
           })}
         </div>
-        {(selectedDay === "tuesday" || selectedDay === "thursday") && (
+        {["monday", "tuesday", "wednesday", "thursday"].includes(selectedDay) && (
           <div className="flex gap-2">
             <Button
               variant={showLibreto ? "default" : "outline"}
@@ -240,7 +240,7 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
       </Card>
 
       {/* Libreto interactivo (Martes/Jueves) - toggled */}
-      {showLibreto && (selectedDay === "tuesday" || selectedDay === "thursday") && (
+      {showLibreto && ["monday", "tuesday", "wednesday", "thursday"].includes(selectedDay) && (
         <LibretoView
           guests={guests}
           selectedDay={selectedDay}
