@@ -477,6 +477,16 @@ const Index = () => {
   }, []);
 
   const handleGlobalResultClick = (guest: Guest) => {
+    // Si no tiene fecha asignada, abrir directamente el modal sin navegar
+    if (!guest.week_date || !guest.day_of_week) {
+      setSelectedGuest(guest);
+      setNewGuestSlot(null);
+      setIsModalOpen(true);
+      setSearchQuery("");
+      setGlobalSearchResults({ guests: [], press: [] });
+      return;
+    }
+
     // Navegar a la semana/día del invitado
     const weekDate = new Date(guest.week_date + 'T12:00:00');
     const weekStart = startOfWeek(weekDate, { weekStartsOn: 1 });
