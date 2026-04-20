@@ -49,7 +49,7 @@ export const ProposedView = ({ guests, onGuestClick, onCreateNew, editMode }: Pr
           {guests.map((guest) => (
             <Card
               key={guest.id}
-              className="p-4 cursor-pointer hover:shadow-md transition-shadow border-l-4 border-l-blue-500 bg-blue-500/5"
+              className="p-4 cursor-pointer hover:shadow-md transition-shadow border-l-4 border-l-primary bg-primary/5"
               onClick={() => onGuestClick(guest)}
             >
               <div className="space-y-2">
@@ -60,7 +60,7 @@ export const ProposedView = ({ guests, onGuestClick, onCreateNew, editMode }: Pr
                       <p className="text-xs text-muted-foreground truncate">{guest.position}</p>
                     )}
                   </div>
-                  <Badge variant="secondary" className="bg-blue-500 text-white shrink-0">
+                  <Badge variant="secondary" className="bg-primary text-primary-foreground shrink-0">
                     PROPUESTO
                   </Badge>
                 </div>
