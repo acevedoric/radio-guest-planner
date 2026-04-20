@@ -10,6 +10,7 @@ import { DayView } from "@/components/DayView";
 import { MonthView } from "@/components/MonthView";
 import { GuestDetailModal } from "@/components/GuestDetailModal";
 import { FilterBar } from "@/components/FilterBar";
+import { ProposedView } from "@/components/ProposedView";
 import { Guest } from "@/types/guest";
 import logo from "@/assets/bla-bla-blu-logo.png";
 import { LogOut, Undo2, Redo2 } from "lucide-react";
@@ -429,6 +430,20 @@ const Index = () => {
     setNewGuestSlot(null);
     setIsModalOpen(true);
   };
+
+  const handleCreateProposed = () => {
+    setNewGuestSlot(null);
+    setSelectedGuest({
+      name: "",
+      topic: "",
+      recording_status: "proposed",
+      day_of_week: null,
+      time_slot: null,
+      week_date: null,
+    });
+    setIsModalOpen(true);
+  };
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     toast.success("Sesión cerrada");
@@ -661,6 +676,25 @@ const Index = () => {
               setSelectedDay(["monday", "tuesday", "wednesday", "thursday"][day.getDay() - 1]);
               setViewMode("day");
             }}
+            onScheduledDateClick={handleScheduledDateClick}
+            onAddGuest={handleAddGuest}
+            onMoveGuest={handleMoveGuest}
+            editMode={editMode}
+            onRecordingGuestClick={handleGlobalResultClick}
+          />
+        )}
+
+        {viewMode === "proposed" && (
+          <ProposedView
+            guests={proposedGuests.filter(g => {
+              const q = searchQuery.toLowerCase();
+              return !q || g.name?.toLowerCase().includes(q) || g.topic?.toLowerCase().includes(q);
+            })}
+            onGuestClick={handleGuestClick}
+            onCreateNew={handleCreateProposed}
+            editMode={editMode}
+          />
+        )}
             onScheduledDateClick={handleScheduledDateClick}
             onAddGuest={handleAddGuest}
             onMoveGuest={handleMoveGuest}
