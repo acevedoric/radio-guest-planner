@@ -695,13 +695,7 @@ const Index = () => {
             editMode={editMode}
           />
         )}
-            onScheduledDateClick={handleScheduledDateClick}
-            onAddGuest={handleAddGuest}
-            onMoveGuest={handleMoveGuest}
-            editMode={editMode}
-            onRecordingGuestClick={handleGlobalResultClick}
-          />
-        )}
+
 
         <GuestDetailModal 
           guest={selectedGuest} 
