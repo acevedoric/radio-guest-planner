@@ -71,7 +71,7 @@ export type Database = {
           confirmed_pr: boolean
           created_at: string
           datos_curiosos: string | null
-          day_of_week: string
+          day_of_week: string | null
           email: string | null
           encuesta_hashtag: string | null
           encuesta_pregunta: string | null
@@ -113,10 +113,10 @@ export type Database = {
           tema_principal: string | null
           tema_principal_documento_nombre: string | null
           tema_principal_documento_url: string | null
-          time_slot: number
+          time_slot: number | null
           topic: string
           updated_at: string
-          week_date: string
+          week_date: string | null
         }
         Insert: {
           avance_h2?: string | null
@@ -126,7 +126,7 @@ export type Database = {
           confirmed_pr?: boolean
           created_at?: string
           datos_curiosos?: string | null
-          day_of_week: string
+          day_of_week?: string | null
           email?: string | null
           encuesta_hashtag?: string | null
           encuesta_pregunta?: string | null
@@ -168,10 +168,10 @@ export type Database = {
           tema_principal?: string | null
           tema_principal_documento_nombre?: string | null
           tema_principal_documento_url?: string | null
-          time_slot: number
+          time_slot?: number | null
           topic: string
           updated_at?: string
-          week_date: string
+          week_date?: string | null
         }
         Update: {
           avance_h2?: string | null
@@ -181,7 +181,7 @@ export type Database = {
           confirmed_pr?: boolean
           created_at?: string
           datos_curiosos?: string | null
-          day_of_week?: string
+          day_of_week?: string | null
           email?: string | null
           encuesta_hashtag?: string | null
           encuesta_pregunta?: string | null
@@ -223,10 +223,10 @@ export type Database = {
           tema_principal?: string | null
           tema_principal_documento_nombre?: string | null
           tema_principal_documento_url?: string | null
-          time_slot?: number
+          time_slot?: number | null
           topic?: string
           updated_at?: string
-          week_date?: string
+          week_date?: string | null
         }
         Relationships: []
       }

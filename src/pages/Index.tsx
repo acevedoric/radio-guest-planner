@@ -10,6 +10,7 @@ import { DayView } from "@/components/DayView";
 import { MonthView } from "@/components/MonthView";
 import { GuestDetailModal } from "@/components/GuestDetailModal";
 import { FilterBar } from "@/components/FilterBar";
+import { ProposedView } from "@/components/ProposedView";
 import { Guest } from "@/types/guest";
 import logo from "@/assets/bla-bla-blu-logo.png";
 import { LogOut, Undo2, Redo2 } from "lucide-react";
@@ -20,7 +21,8 @@ const Index = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [guests, setGuests] = useState<Guest[]>([]);
-  const [viewMode, setViewMode] = useState<"day" | "week" | "month">("week");
+  const [viewMode, setViewMode] = useState<"day" | "week" | "month" | "proposed">("week");
+  const [proposedGuests, setProposedGuests] = useState<Guest[]>([]);
   const [selectedWeek, setSelectedWeek] = useState(startOfWeek(new Date(), {
     weekStartsOn: 1
   }));
@@ -42,6 +44,7 @@ const Index = () => {
   const refreshData = useCallback(() => {
     fetchGuests();
     fetchAllRecordingGuests();
+    fetchProposedGuests();
   }, []);
 
   const { undo, redo, pushAction, canUndo, canRedo } = useUndoRedo(refreshData);
@@ -67,6 +70,7 @@ const Index = () => {
     if (session) {
       fetchGuests();
       fetchAllRecordingGuests();
+      fetchProposedGuests();
 
       // Setup realtime subscription
       const channel = supabase.channel('schema-db-changes').on('postgres_changes', {
@@ -76,6 +80,7 @@ const Index = () => {
       }, () => {
         fetchGuests();
         fetchAllRecordingGuests();
+        fetchProposedGuests();
       }).subscribe();
       
       return () => {
@@ -91,6 +96,18 @@ const Index = () => {
       .in('recording_status', ['to_record', 'postponed', 'proposed'])
       .not('scheduled_date', 'is', null);
     setAllRecordingGuests((data || []) as Guest[]);
+  };
+
+  const fetchProposedGuests = async () => {
+    const { data, error } = await supabase
+      .from('guests')
+      .select('*')
+      .eq('recording_status', 'proposed')
+      .is('week_date', null)
+      .order('created_at', { ascending: false });
+    if (!error) {
+      setProposedGuests((data || []) as Guest[]);
+    }
   };
 
   const fetchGuests = async () => {
@@ -127,12 +144,20 @@ const Index = () => {
     }
   };
   const handleSaveGuest = async (guest: Guest): Promise<boolean> => {
-    const guestData = {
-      ...guest,
-      week_date: guest.week_date || format(selectedWeek, "yyyy-MM-dd"),
-      day_of_week: newGuestSlot?.day || guest.day_of_week,
-      time_slot: newGuestSlot?.slot ?? guest.time_slot
-    };
+    const isProposedNoDate = guest.recording_status === "proposed" && !guest.week_date && !newGuestSlot;
+    const guestData: any = isProposedNoDate
+      ? {
+          ...guest,
+          week_date: null,
+          day_of_week: null,
+          time_slot: null,
+        }
+      : {
+          ...guest,
+          week_date: guest.week_date || format(selectedWeek, "yyyy-MM-dd"),
+          day_of_week: newGuestSlot?.day || guest.day_of_week,
+          time_slot: newGuestSlot?.slot ?? guest.time_slot,
+        };
 
     // Si el estado es de grabación y hay scheduled_date, mover al nuevo día
     const statusesWithRelocation = ["postponed", "proposed", "to_record"];
@@ -405,6 +430,20 @@ const Index = () => {
     setNewGuestSlot(null);
     setIsModalOpen(true);
   };
+
+  const handleCreateProposed = () => {
+    setNewGuestSlot(null);
+    setSelectedGuest({
+      name: "",
+      topic: "",
+      recording_status: "proposed",
+      day_of_week: null,
+      time_slot: null,
+      week_date: null,
+    });
+    setIsModalOpen(true);
+  };
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     toast.success("Sesión cerrada");
@@ -644,6 +683,19 @@ const Index = () => {
             onRecordingGuestClick={handleGlobalResultClick}
           />
         )}
+
+        {viewMode === "proposed" && (
+          <ProposedView
+            guests={proposedGuests.filter(g => {
+              const q = searchQuery.toLowerCase();
+              return !q || g.name?.toLowerCase().includes(q) || g.topic?.toLowerCase().includes(q);
+            })}
+            onGuestClick={handleGuestClick}
+            onCreateNew={handleCreateProposed}
+            editMode={editMode}
+          />
+        )}
+
 
         <GuestDetailModal 
           guest={selectedGuest} 
