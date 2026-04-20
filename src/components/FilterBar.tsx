@@ -318,8 +318,8 @@ export const FilterBar = ({
                     <span className="text-xs text-muted-foreground">({globalSearchResults.guests.length})</span>
                   </div>
                   {globalSearchResults.guests.slice(0, 4).map((guest) => {
-                    const weekDate = new Date(guest.week_date + 'T12:00:00');
-                    const dateLabel = format(weekDate, "d 'de' MMMM yyyy", { locale: es });
+                    const weekDate = guest.week_date ? new Date(guest.week_date + 'T12:00:00') : null;
+                    const dateLabel = weekDate ? format(weekDate, "d 'de' MMMM yyyy", { locale: es }) : "Sin fecha";
                     return (
                       <button
                         key={guest.id}
@@ -353,8 +353,8 @@ export const FilterBar = ({
                     <span className="text-xs text-muted-foreground">({globalSearchResults.press.length})</span>
                   </div>
                   {globalSearchResults.press.slice(0, 4).map((guest) => {
-                    const weekDate = new Date(guest.week_date + 'T12:00:00');
-                    const dateLabel = format(weekDate, "d 'de' MMMM yyyy", { locale: es });
+                    const weekDate = guest.week_date ? new Date(guest.week_date + 'T12:00:00') : null;
+                    const dateLabel = weekDate ? format(weekDate, "d 'de' MMMM yyyy", { locale: es }) : "Sin fecha";
                     return (
                       <button
                         key={`press-${guest.id}`}
