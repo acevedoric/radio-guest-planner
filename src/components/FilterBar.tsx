@@ -21,8 +21,8 @@ interface FilterBarProps {
   onMonthChange: (date: Date) => void;
   selectedDay: string;
   onDayChange: (day: string) => void;
-  viewMode: "day" | "week" | "month";
-  onViewModeChange: (mode: "day" | "week" | "month") => void;
+  viewMode: "day" | "week" | "month" | "proposed";
+  onViewModeChange: (mode: "day" | "week" | "month" | "proposed") => void;
   editMode: boolean;
   onEditModeChange: (mode: boolean) => void;
   globalSearchResults: { guests: Guest[]; press: Guest[] };
@@ -199,31 +199,37 @@ export const FilterBar = ({
       {/* Navigation and View Selector */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={handlePrevious}>
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          
+          {viewMode !== "proposed" && (
+            <Button variant="outline" size="icon" onClick={handlePrevious}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+          )}
+
           <div className="min-w-[320px] text-center px-4 py-2 bg-primary/5 rounded-lg border border-primary/20">
             <div className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
               {viewMode === "day" && "Día"}
               {viewMode === "week" && "Semana"}
               {viewMode === "month" && "Mes"}
+              {viewMode === "proposed" && "Bandeja"}
             </div>
             <span className="text-2xl font-bold capitalize text-primary">
-              {getDateLabel()}
+              {viewMode === "proposed" ? "Propuestos" : getDateLabel()}
             </span>
           </div>
-          
-          <Button variant="outline" size="icon" onClick={handleNext}>
-            <ChevronRight className="h-4 w-4" />
-          </Button>
+
+          {viewMode !== "proposed" && (
+            <Button variant="outline" size="icon" onClick={handleNext}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          )}
         </div>
 
         {/* View Mode Selector */}
         <div className="flex gap-2 items-center">
           <Button variant={viewMode === "day" ? "default" : "outline"} onClick={() => onViewModeChange("day")}>Día</Button>
-          <Button variant={viewMode === "week" ? "default" : "outline"} onClick={() => onViewModeChange("week")}>Semana</Button>
+          <Button variant={viewMode === "week" ? "default" : "outline"} onClick={() => onViewModeChange("week")}>Sem</Button>
           <Button variant={viewMode === "month" ? "default" : "outline"} onClick={() => onViewModeChange("month")}>Mes</Button>
+          <Button variant={viewMode === "proposed" ? "default" : "outline"} onClick={() => onViewModeChange("proposed")} title="Propuestos sin fecha">P</Button>
           
           <div className="h-6 w-px bg-border mx-2" />
           

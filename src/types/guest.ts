@@ -11,9 +11,9 @@ export interface Guest {
   press_contact?: string | null;
   press_phone?: string | null;
   notes?: string | null;
-  day_of_week: string;
-  time_slot: number;
-  week_date: string;
+  day_of_week?: string | null;
+  time_slot?: number | null;
+  week_date?: string | null;
   scheduled_date?: string | null;
   scheduled_time?: string | null;
   confirmed_blu?: boolean;
