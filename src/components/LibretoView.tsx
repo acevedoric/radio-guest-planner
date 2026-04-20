@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, ChevronRight, AlertTriangle, Printer } from "lucide-react";
+import { ChevronDown, ChevronRight, AlertTriangle, Printer, Pencil } from "lucide-react";
 import { Guest } from "@/types/guest";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -113,22 +113,63 @@ const getSocial = (guest: Guest | undefined, platform: string): string | null =>
 };
 
 // ── Section wrapper ────────────────────────────────────────────────
-const HourSection = ({ title, defaultOpen = false, open: openProp, onOpenChange, children }: { title: string; defaultOpen?: boolean; open?: boolean; onOpenChange?: (o: boolean) => void; children: React.ReactNode }) => {
+const HourSection = ({ title, defaultOpen = false, open: openProp, onOpenChange, editMode, onEditNotes, children }: { title: string; defaultOpen?: boolean; open?: boolean; onOpenChange?: (o: boolean) => void; editMode?: boolean; onEditNotes?: () => void; children: React.ReactNode }) => {
   const [internalOpen, setInternalOpen] = useState(defaultOpen);
   const open = openProp !== undefined ? openProp : internalOpen;
   const setOpen = onOpenChange ?? setInternalOpen;
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-      <CollapsibleTrigger className="flex items-center gap-2 w-full py-3 px-4 bg-primary/10 rounded-lg hover:bg-primary/20 transition-colors print:bg-transparent">
-        {open ? <ChevronDown className="w-5 h-5 text-primary print:hidden" /> : <ChevronRight className="w-5 h-5 text-primary print:hidden" />}
-        <h2 className="text-lg font-bold text-primary uppercase tracking-wider">{title}</h2>
-      </CollapsibleTrigger>
+      <div className="flex items-center gap-2 w-full py-3 px-4 bg-primary/10 rounded-lg hover:bg-primary/20 transition-colors print:bg-transparent">
+        <CollapsibleTrigger className="flex items-center gap-2 flex-1 text-left">
+          {open ? <ChevronDown className="w-5 h-5 text-primary print:hidden" /> : <ChevronRight className="w-5 h-5 text-primary print:hidden" />}
+          <h2 className="text-lg font-bold text-primary uppercase tracking-wider">{title}</h2>
+        </CollapsibleTrigger>
+        {editMode && onEditNotes && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-primary hover:bg-primary/20 print:hidden"
+            onClick={(e) => { e.stopPropagation(); onEditNotes(); }}
+            title="Añadir notas adicionales"
+          >
+            <Pencil className="w-4 h-4" />
+          </Button>
+        )}
+      </div>
       <CollapsibleContent className="pt-4 pb-2 px-2 space-y-3">
         {children}
       </CollapsibleContent>
     </Collapsible>
   );
 };
+
+// ── Notas adicionales block ────────────────────────────────────────
+const NotasAdicionales = React.forwardRef<HTMLDivElement, {
+  guest: Guest | undefined;
+  field: "h1_notas_adicionales" | "h2_notas_adicionales" | "h3_notas_adicionales";
+  editMode: boolean;
+  onSaved?: (field: string, value: string) => void;
+}>(({ guest, field, editMode, onSaved }, ref) => {
+  const value = guest?.[field] as string | null | undefined;
+  if (!editMode && !value?.trim()) return null;
+  return (
+    <div ref={ref} className="mt-4 p-3 rounded-lg border border-dashed border-primary/40 bg-muted/30 print:border-muted-foreground/40">
+      <Line className="text-xs uppercase tracking-wider text-muted-foreground mb-1">
+        <Bold>Notas adicionales</Bold>
+      </Line>
+      <InlineField
+        guestId={guest?.id}
+        field={field}
+        value={value}
+        label="NOTAS ADICIONALES"
+        editMode={editMode}
+        multiline
+        onSaved={onSaved}
+      />
+    </div>
+  );
+});
+NotasAdicionales.displayName = "NotasAdicionales";
 
 // ── Line helpers ───────────────────────────────────────────────────
 const Line = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
@@ -209,7 +250,18 @@ export const LibretoView: React.FC<LibretoViewProps> = ({ guests, selectedDay, s
       </div>
 
       {/* ═══ PRIMERA HORA ═══ */}
-      <HourSection title="1. Primera Hora, en vivo" open={h1Open} onOpenChange={setH1Open}>
+      <HourSection
+        title="1. Primera Hora, en vivo"
+        open={h1Open}
+        onOpenChange={setH1Open}
+        editMode={editMode}
+        onEditNotes={() => {
+          setH1Open(true);
+          setTimeout(() => {
+            document.getElementById("notas-h1")?.scrollIntoView({ behavior: "smooth", block: "center" });
+          }, 100);
+        }}
+      >
         <Line>
           <Bold>Programa con: </Bold>
           {F(h1, "name", "INVITADO")} – {F(h1, "position", "Cargo")}
@@ -288,10 +340,25 @@ export const LibretoView: React.FC<LibretoViewProps> = ({ guests, selectedDay, s
             <div className="pl-4">{F(h1, "avance_h2", "AVANCE H2", true)}</div>
           </>
         )}
+
+        <div id="notas-h1">
+          <NotasAdicionales guest={h1} field="h1_notas_adicionales" editMode={editMode} onSaved={handleFieldSaved(h1?.id)} />
+        </div>
       </HourSection>
 
       {/* ═══ SEGUNDA HORA ═══ */}
-      <HourSection title={`2. Segunda Hora, en vivo${isTuesday ? " — Puerta al Universo" : isThursday ? " — #TBT" : ""}`} open={h2Open} onOpenChange={setH2Open}>
+      <HourSection
+        title={`2. Segunda Hora, en vivo${isTuesday ? " — Puerta al Universo" : isThursday ? " — #TBT" : ""}`}
+        open={h2Open}
+        onOpenChange={setH2Open}
+        editMode={editMode}
+        onEditNotes={() => {
+          setH2Open(true);
+          setTimeout(() => {
+            document.getElementById("notas-h2")?.scrollIntoView({ behavior: "smooth", block: "center" });
+          }, 100);
+        }}
+      >
         <Line>En la casa: <Bold>Mauricio Quintero.</Bold></Line>
         <Line><Bold>Tema: </Bold>{isThursday ? "#tbt" : F(h2, "topic", "TEMA SEGUNDA HORA")}</Line>
         <Spacer />
@@ -402,10 +469,25 @@ export const LibretoView: React.FC<LibretoViewProps> = ({ guests, selectedDay, s
             <div className="pl-4">{F(h2, "avance_h3", "AVANCE H3", true)}</div>
           </>
         )}
+
+        <div id="notas-h2">
+          <NotasAdicionales guest={h2} field="h2_notas_adicionales" editMode={editMode} onSaved={handleFieldSaved(h2?.id)} />
+        </div>
       </HourSection>
 
       {/* ═══ TERCERA HORA ═══ */}
-      <HourSection title="3. Tercera Hora" open={h3Open} onOpenChange={setH3Open}>
+      <HourSection
+        title="3. Tercera Hora"
+        open={h3Open}
+        onOpenChange={setH3Open}
+        editMode={editMode}
+        onEditNotes={() => {
+          setH3Open(true);
+          setTimeout(() => {
+            document.getElementById("notas-h3")?.scrollIntoView({ behavior: "smooth", block: "center" });
+          }, 100);
+        }}
+      >
         <Line>En la casa: <Bold>Mauricio Quintero.</Bold></Line>
         <Spacer />
         <Line>1. Canción.</Line>
@@ -445,6 +527,10 @@ export const LibretoView: React.FC<LibretoViewProps> = ({ guests, selectedDay, s
             </div>
           </>
         )}
+
+        <div id="notas-h3">
+          <NotasAdicionales guest={h3} field="h3_notas_adicionales" editMode={editMode} onSaved={handleFieldSaved(h3?.id)} />
+        </div>
       </HourSection>
     </Card>
   );
