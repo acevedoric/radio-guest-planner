@@ -55,4 +55,9 @@ export interface Guest {
   h2_contexto?: string | null;
   avance_h2?: string | null;
   avance_h3?: string | null;
+
+  // Notas adicionales por hora (libre, al final de cada sección)
+  h1_notas_adicionales?: string | null;
+  h2_notas_adicionales?: string | null;
+  h3_notas_adicionales?: string | null;
 }

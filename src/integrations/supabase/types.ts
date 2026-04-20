@@ -76,6 +76,7 @@ export type Database = {
           encuesta_hashtag: string | null
           encuesta_pregunta: string | null
           h1_canciones: string | null
+          h1_notas_adicionales: string | null
           h2_canciones: string | null
           h2_contexto: string | null
           h2_documento_nombre: string | null
@@ -83,6 +84,7 @@ export type Database = {
           h2_info_personal: string | null
           h2_link_info: string | null
           h2_n8n_updated_at: string | null
+          h2_notas_adicionales: string | null
           h2_preguntas_sugeridas: string | null
           h3_canciones: string | null
           h3_comunicado_prensa: string | null
@@ -91,6 +93,7 @@ export type Database = {
           h3_documento_url: string | null
           h3_link_info: string | null
           h3_n8n_updated_at: string | null
+          h3_notas_adicionales: string | null
           id: string
           infancia_vida_privada: string | null
           n8n_updated_at: string | null
@@ -128,6 +131,7 @@ export type Database = {
           encuesta_hashtag?: string | null
           encuesta_pregunta?: string | null
           h1_canciones?: string | null
+          h1_notas_adicionales?: string | null
           h2_canciones?: string | null
           h2_contexto?: string | null
           h2_documento_nombre?: string | null
@@ -135,6 +139,7 @@ export type Database = {
           h2_info_personal?: string | null
           h2_link_info?: string | null
           h2_n8n_updated_at?: string | null
+          h2_notas_adicionales?: string | null
           h2_preguntas_sugeridas?: string | null
           h3_canciones?: string | null
           h3_comunicado_prensa?: string | null
@@ -143,6 +148,7 @@ export type Database = {
           h3_documento_url?: string | null
           h3_link_info?: string | null
           h3_n8n_updated_at?: string | null
+          h3_notas_adicionales?: string | null
           id?: string
           infancia_vida_privada?: string | null
           n8n_updated_at?: string | null
@@ -180,6 +186,7 @@ export type Database = {
           encuesta_hashtag?: string | null
           encuesta_pregunta?: string | null
           h1_canciones?: string | null
+          h1_notas_adicionales?: string | null
           h2_canciones?: string | null
           h2_contexto?: string | null
           h2_documento_nombre?: string | null
@@ -187,6 +194,7 @@ export type Database = {
           h2_info_personal?: string | null
           h2_link_info?: string | null
           h2_n8n_updated_at?: string | null
+          h2_notas_adicionales?: string | null
           h2_preguntas_sugeridas?: string | null
           h3_canciones?: string | null
           h3_comunicado_prensa?: string | null
@@ -195,6 +203,7 @@ export type Database = {
           h3_documento_url?: string | null
           h3_link_info?: string | null
           h3_n8n_updated_at?: string | null
+          h3_notas_adicionales?: string | null
           id?: string
           infancia_vida_privada?: string | null
           n8n_updated_at?: string | null
