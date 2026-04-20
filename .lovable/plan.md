@@ -1,50 +1,62 @@
 
 
-The user wants the ability to add **extra/additional notes** at the end of each script section (H1, H2, H3) via a pencil icon on the right side, in addition to the existing inline editing.
+## Plan: Sección PROPUESTOS
 
-Looking at `LibretoView.tsx`, each `HourSection` already supports inline editing of structured fields. We need a **free-form notes block** per hour, editable via a dedicated pencil button.
+### Contexto
+El estado `proposed` ya existe en `recording_status` (ver `mem://features/guest-status-system`). Hoy un invitado propuesto vive dentro del calendario en una fecha/slot concreto. El usuario quiere un **bandeja separada** ("PROPUESTOS") para invitados sin fecha asignada, accesible desde un nuevo botón **P** junto a Día/Semana/Mes, y poder asignarles fecha + hora desde ahí.
 
-## Plan
+También pide acortar **SEMANA → SEM** para que quepan los 4 botones (D / SEM / MES / P).
 
-### 1. New DB columns (migration)
+### Cambios
 
-Add three optional text columns to `guests`:
-- `h1_notas_adicionales text`
-- `h2_notas_adicionales text`
-- `h3_notas_adicionales text`
+**1. Modelo de datos (migración)**
+La tabla `guests` exige `week_date NOT NULL`, `day_of_week NOT NULL`, `time_slot NOT NULL`. Para guardar propuestos sin fecha:
+- Hacer estas 3 columnas nullable.
+- Añadir CHECK: si `recording_status <> 'proposed'` entonces los 3 deben ser NOT NULL (vía trigger, no CHECK, por la regla de no usar CHECK con lógica condicional fuerte).
 
-(Stored on the H1/H2/H3 guest row respectively, matching the existing pattern of `h1_canciones`, `h2_canciones`, etc.)
+**2. Tipo `Guest`**
+`day_of_week`, `time_slot`, `week_date` pasan a opcionales.
 
-### 2. Update `src/types/guest.ts`
+**3. FilterBar (`src/components/FilterBar.tsx`)**
+- Añadir cuarto botón **"P"** al selector de vista (`onViewModeChange("proposed")`).
+- Cambiar etiqueta `"Semana"` → `"Sem"` en el botón.
+- Tipo `viewMode`: `"day" | "week" | "month" | "proposed"`.
+- En modo `proposed`, ocultar navegación prev/next y label de fecha (o mostrar "Propuestos" como título).
 
-Add the three optional fields to the `Guest` interface.
+**4. Index (`src/pages/Index.tsx`)**
+- Soportar `viewMode === "proposed"`.
+- Renderizar nuevo `<ProposedView />` cuando aplique.
+- Query: en lugar de filtrar por semana, traer `recording_status = 'proposed' AND week_date IS NULL`.
 
-### 3. Update `src/components/LibretoView.tsx`
+**5. Nuevo componente `src/components/ProposedView.tsx`**
+- Lista vertical de tarjetas de propuestos (reusa estilo de `GuestCard` ya existente en DayView).
+- Cada tarjeta muestra: nombre, posición, tema, propuesto por, contacto.
+- Botón **"Asignar fecha"** por tarjeta → abre `GuestDetailModal` en modo edición con foco en los nuevos campos: 
+  - Date picker (Shadcn Popover + Calendar, lun–jue solo) → setea `week_date` (lunes de esa semana) y `day_of_week`.
+  - Selector hora (1, 2, 3) → setea `time_slot`.
+  - Al guardar, si los 3 campos están completos, se permite cambiar también `recording_status` a otro estado o mantener `proposed`.
+- Botón "Eliminar" reutilizando flujo existente.
+- Vacío: mensaje "No hay invitados propuestos sin fecha".
 
-- Add a pencil button (`Pencil` icon from lucide-react) to the right side of each `HourSection` trigger header, visible only when `editMode` is true.
-- Clicking the pencil:
-  - Stops propagation (doesn't toggle the collapsible).
-  - Opens the section if closed and focuses a new "NOTAS ADICIONALES" block at the bottom.
-- At the end of each section's content, render a **"Notas adicionales"** block:
-  - Always visible if it has content; in `editMode` always visible (even if empty) with placeholder.
-  - Uses the existing `InlineField` component (multiline) bound to `h1_notas_adicionales` / `h2_notas_adicionales` / `h3_notas_adicionales` on the corresponding hour's guest row.
-  - Styled distinctively (e.g., dashed border + muted background) so it reads as "extra info" not part of the canonical script.
-- Header layout change: wrap trigger title + pencil in a flex row; pencil is `print:hidden`.
+**6. Crear propuesto sin fecha**
+Añadir botón flotante "+ Nuevo propuesto" en `ProposedView` que abre el modal con `recording_status = 'proposed'` y campos de fecha vacíos.
 
-### 4. (Optional) Word export
+**7. GuestDetailModal**
+- Permitir guardar con fecha vacía SOLO si `recording_status === 'proposed'`.
+- Si el usuario cambia el estado a otro y los campos de fecha están vacíos → bloquear guardado y mostrar error.
 
-`LibretoExport.tsx` not modified in this step. Mention it as a follow-up if user wants the notes in the printed/Word output.
-
-### Files
+### Archivos
 
 | Archivo | Cambio |
 |---|---|
-| Migración SQL (nueva) | Añadir `h1_notas_adicionales`, `h2_notas_adicionales`, `h3_notas_adicionales` a `guests` |
-| `src/types/guest.ts` | Añadir las 3 propiedades opcionales |
-| `src/components/LibretoView.tsx` | Botón lápiz por sección (solo edit mode) + bloque "Notas adicionales" editable al final de H1/H2/H3 |
+| Migración SQL | `week_date/day_of_week/time_slot` nullable + trigger que exige los 3 si status ≠ `proposed` |
+| `src/types/guest.ts` | Hacer los 3 campos opcionales |
+| `src/components/FilterBar.tsx` | Botón "P", "Semana" → "Sem", tipo viewMode |
+| `src/pages/Index.tsx` | Manejar viewMode `proposed`, query separada |
+| `src/components/ProposedView.tsx` (nuevo) | Lista de propuestos sin fecha + botón asignar + crear |
+| `src/components/GuestDetailModal.tsx` | Permitir guardar sin fecha si status=proposed; date+hora picker |
 
 ### No incluye
-
-- Export Word (`LibretoExport.tsx`) — pregúntame si quieres reflejar las notas también allí.
-- Notas por sub-segmento (solo una por hora, al final). Si quieres notas por cada bloque (Infancia, Carrera, etc.), dímelo y lo amplío.
+- Migración de propuestos ya existentes (con fecha) a la bandeja sin fecha. Quedan donde están; los nuevos sin fecha aparecen en la bandeja P.
+- Drag & drop desde la bandeja P al calendario (asignación es vía modal).
 
