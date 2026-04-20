@@ -94,6 +94,14 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
       return;
     }
 
+    // If status is not "proposed", scheduling fields are required
+    if (formData.recording_status !== "proposed") {
+      if (!formData.week_date || !formData.day_of_week || formData.time_slot == null) {
+        toast.error("Para este estado debes asignar fecha, día y hora (1, 2 o 3)");
+        return;
+      }
+    }
+
     // Combinar todas las redes sociales
     const allSocialNetworks = {
       ...socialNetworks,
