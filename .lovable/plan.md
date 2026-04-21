@@ -1,62 +1,50 @@
 
 
-## Plan: Sección PROPUESTOS
+## Plan: Mejorar la generación del libreto en vista DÍA con prompt especializado
 
-### Contexto
-El estado `proposed` ya existe en `recording_status` (ver `mem://features/guest-status-system`). Hoy un invitado propuesto vive dentro del calendario en una fecha/slot concreto. El usuario quiere un **bandeja separada** ("PROPUESTOS") para invitados sin fecha asignada, accesible desde un nuevo botón **P** junto a Día/Semana/Mes, y poder asignarles fecha + hora desde ahí.
-
-También pide acortar **SEMANA → SEM** para que quepan los 4 botones (D / SEM / MES / P).
+El usuario tiene un prompt detallado para producir libretos de **Bla Bla BLU**. Lo integraremos como un asistente IA dentro de la vista DÍA que genere/sugiera el libreto a partir de los invitados ya cargados ese día.
 
 ### Cambios
 
-**1. Modelo de datos (migración)**
-La tabla `guests` exige `week_date NOT NULL`, `day_of_week NOT NULL`, `time_slot NOT NULL`. Para guardar propuestos sin fecha:
-- Hacer estas 3 columnas nullable.
-- Añadir CHECK: si `recording_status <> 'proposed'` entonces los 3 deben ser NOT NULL (vía trigger, no CHECK, por la regla de no usar CHECK con lógica condicional fuerte).
+**1. Nueva edge function `generate-libreto`**
+- Input: `{ date: 'yyyy-MM-dd' }`.
+- Server-side: lee de `guests` los 3 invitados de ese día (slots 1/2/3) con todos sus campos (nombre, cargo, tema, redes sociales, press contact, datos curiosos, etc.).
+- Detecta el día de la semana → escoge la plantilla (Lun/Mar/Mié/Jue) del prompt.
+- Construye el `system prompt` con las **REGLAS GENERALES + ESTRUCTURA POR DÍA + CIERRE 2H** literales del mensaje del usuario.
+- Construye el `user prompt` con los datos reales: día, fecha, invitados con redes/seguidores/motivo, periodista de Voces y Sonidos, lanzamiento musical (si están guardados; si faltan, instruir al modelo a marcar `[FALTA: …]` en lugar de inventar).
+- Llama a `google/gemini-2.5-pro` (mejor para texto largo estructurado en español) vía Lovable AI Gateway.
+- Devuelve `{ libreto: string }`.
+- Auth: requiere JWT del usuario (igual que `chat-guests`).
 
-**2. Tipo `Guest`**
-`day_of_week`, `time_slot`, `week_date` pasan a opcionales.
+**2. UI en `DayView.tsx`**
+- Nuevo botón **"Generar libreto IA"** (icono `Sparkles`) en la cabecera de la vista DÍA, junto al título de TITULARES, visible solo en `editMode` (mantiene el patrón de `mem://features/ai-action-buttons-modules`).
+- Al hacer clic:
+  - Llama a la edge function con la fecha actual.
+  - Muestra un `Dialog` con el libreto generado, scrollable, con botones **"Copiar"** y **"Descargar .docx"**.
+  - Estado de carga con spinner; manejo de 429/402 con toast.
+- Si faltan invitados clave (ej. ningún invitado en slot 1), muestra un toast "Asigna al menos el invitado de la primera hora" y no llama a la IA.
 
-**3. FilterBar (`src/components/FilterBar.tsx`)**
-- Añadir cuarto botón **"P"** al selector de vista (`onViewModeChange("proposed")`).
-- Cambiar etiqueta `"Semana"` → `"Sem"` en el botón.
-- Tipo `viewMode`: `"day" | "week" | "month" | "proposed"`.
-- En modo `proposed`, ocultar navegación prev/next y label de fecha (o mostrar "Propuestos" como título).
+**3. Campos opcionales del día (mini-formulario antes de generar)**
+Antes de llamar a la IA, abrir un pequeño modal pidiendo los datos que NO viven en la tabla `guests`:
+- Periodista de Voces y Sonidos (texto)
+- Canción/artista de lanzamiento musical (texto)
+- (Miércoles) Canciones 90s opcionales
 
-**4. Index (`src/pages/Index.tsx`)**
-- Soportar `viewMode === "proposed"`.
-- Renderizar nuevo `<ProposedView />` cuando aplique.
-- Query: en lugar de filtrar por semana, traer `recording_status = 'proposed' AND week_date IS NULL`.
+Estos no se persisten todavía (se pasan solo al prompt). Si el usuario quiere guardarlos por día, lo añadimos en una segunda iteración.
 
-**5. Nuevo componente `src/components/ProposedView.tsx`**
-- Lista vertical de tarjetas de propuestos (reusa estilo de `GuestCard` ya existente en DayView).
-- Cada tarjeta muestra: nombre, posición, tema, propuesto por, contacto.
-- Botón **"Asignar fecha"** por tarjeta → abre `GuestDetailModal` en modo edición con foco en los nuevos campos: 
-  - Date picker (Shadcn Popover + Calendar, lun–jue solo) → setea `week_date` (lunes de esa semana) y `day_of_week`.
-  - Selector hora (1, 2, 3) → setea `time_slot`.
-  - Al guardar, si los 3 campos están completos, se permite cambiar también `recording_status` a otro estado o mantener `proposed`.
-- Botón "Eliminar" reutilizando flujo existente.
-- Vacío: mensaje "No hay invitados propuestos sin fecha".
-
-**6. Crear propuesto sin fecha**
-Añadir botón flotante "+ Nuevo propuesto" en `ProposedView` que abre el modal con `recording_status = 'proposed'` y campos de fecha vacíos.
-
-**7. GuestDetailModal**
-- Permitir guardar con fecha vacía SOLO si `recording_status === 'proposed'`.
-- Si el usuario cambia el estado a otro y los campos de fecha están vacíos → bloquear guardado y mostrar error.
+**4. Descarga .docx**
+- Usar la librería ya disponible `docx` en cliente (la misma que usa `LibretoExport.tsx`) para empaquetar el texto plano del libreto en un `.docx` con encabezado y estructura básica de párrafos. No requiere reformatear: el modelo ya devuelve texto estructurado.
 
 ### Archivos
 
 | Archivo | Cambio |
 |---|---|
-| Migración SQL | `week_date/day_of_week/time_slot` nullable + trigger que exige los 3 si status ≠ `proposed` |
-| `src/types/guest.ts` | Hacer los 3 campos opcionales |
-| `src/components/FilterBar.tsx` | Botón "P", "Semana" → "Sem", tipo viewMode |
-| `src/pages/Index.tsx` | Manejar viewMode `proposed`, query separada |
-| `src/components/ProposedView.tsx` (nuevo) | Lista de propuestos sin fecha + botón asignar + crear |
-| `src/components/GuestDetailModal.tsx` | Permitir guardar sin fecha si status=proposed; date+hora picker |
+| `supabase/functions/generate-libreto/index.ts` (nuevo) | Edge function: lee invitados del día, construye prompt con plantilla por día, llama a Gemini 2.5 Pro |
+| `src/components/DayView.tsx` | Botón "Generar libreto IA" + Dialog con resultado + copiar/descargar |
+| `src/components/LibretoAIDialog.tsx` (nuevo) | Modal con mini-form (periodista, lanzamiento), llamada a la función, render del libreto, copiar y export .docx |
 
 ### No incluye
-- Migración de propuestos ya existentes (con fecha) a la bandeja sin fecha. Quedan donde están; los nuevos sin fecha aparecen en la bandeja P.
-- Drag & drop desde la bandeja P al calendario (asignación es vía modal).
+- Persistir el libreto generado en BD (queda en memoria del modal). Si quieres guardarlo por día, lo añadimos como segunda fase con una tabla `libretos_generados`.
+- Editor enriquecido del libreto generado (sale como texto plano editable en `<Textarea>`).
+- Base de datos de canciones en vivo / canciones 90s estructurada: si no la tienes en una tabla, el modelo escribirá `cortinilla BBB` o pedirá los datos como indica tu prompt.
 
