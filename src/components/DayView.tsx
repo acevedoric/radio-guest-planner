@@ -13,8 +13,6 @@ import { SocialNetworkLink } from "./SocialNetworkLink";
 import { GuestInfoModules } from "./GuestInfoModules";
 import { LibretoExport } from "./LibretoExport";
 import { LibretoView } from "./LibretoView";
-import { LibretoAIDialog } from "./LibretoAIDialog";
-import { Sparkles } from "lucide-react";
 import { parse, addDays, format } from "date-fns";
 
 interface DayViewProps {
@@ -127,7 +125,6 @@ const buildPRMailto = (guest: Guest, selectedDayDate?: string) => {
 
 export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedDay, onDayChange, editMode, onGuestUpdate, selectedDayDate, onRecordingGuestClick }: DayViewProps) => {
   const [showLibreto, setShowLibreto] = useState(false);
-  const [aiDialogOpen, setAiDialogOpen] = useState(false);
 
   const getGuestForSlot = (slot: number) => {
     return guests.find(g => g.day_of_week === selectedDay && g.time_slot === slot);
@@ -211,35 +208,9 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
               {showLibreto ? "Ocultar Libreto" : "Ver Libreto"}
             </Button>
             <LibretoExport guests={guests} selectedDay={selectedDay} selectedDayDate={selectedDayDate} />
-            {editMode && selectedDayDate && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  if (!getGuestForSlot(1)) {
-                    toast.error("Asigna al menos el invitado de la primera hora");
-                    return;
-                  }
-                  setAiDialogOpen(true);
-                }}
-                className="gap-2"
-              >
-                <Sparkles className="w-4 h-4" />
-                Generar libreto IA
-              </Button>
-            )}
           </div>
         )}
       </div>
-
-      {selectedDayDate && (
-        <LibretoAIDialog
-          open={aiDialogOpen}
-          onOpenChange={setAiDialogOpen}
-          date={selectedDayDate}
-          dayKey={selectedDay}
-        />
-      )}
 
       {/* TITULARES */}
       <Card className="p-4 bg-muted/50 border-primary/20">

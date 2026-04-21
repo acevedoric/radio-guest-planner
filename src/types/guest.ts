@@ -60,4 +60,10 @@ export interface Guest {
   h1_notas_adicionales?: string | null;
   h2_notas_adicionales?: string | null;
   h3_notas_adicionales?: string | null;
+
+  // Datos de cierre / producción por hora (periodista Voces y Sonidos + lanzamiento musical)
+  h1_periodista_voces_sonidos?: string | null;
+  h1_lanzamiento_musical?: string | null;
+  h2_periodista_voces_sonidos?: string | null;
+  h2_lanzamiento_musical?: string | null;
 }

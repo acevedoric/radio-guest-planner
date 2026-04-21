@@ -341,6 +341,22 @@ export const LibretoView: React.FC<LibretoViewProps> = ({ guests, selectedDay, s
           </>
         )}
 
+        {/* Datos de cierre / producción H1 */}
+        <Spacer />
+        <div className="mt-2 p-3 rounded-lg border border-primary/20 bg-primary/5 print:border-muted-foreground/40 space-y-2">
+          <Line className="text-xs uppercase tracking-wider text-muted-foreground">
+            <Bold>Datos de cierre / producción</Bold>
+          </Line>
+          <Line>
+            <Bold>Periodista Voces y Sonidos: </Bold>
+            {F(h1, "h1_periodista_voces_sonidos", "PERIODISTA VOCES Y SONIDOS")}
+          </Line>
+          <Line>
+            <Bold>Lanzamiento musical: </Bold>
+            {F(h1, "h1_lanzamiento_musical", "LANZAMIENTO MUSICAL (ARTISTA — CANCIÓN)")}
+          </Line>
+        </div>
+
         <div id="notas-h1">
           <NotasAdicionales guest={h1} field="h1_notas_adicionales" editMode={editMode} onSaved={handleFieldSaved(h1?.id)} />
         </div>
@@ -469,6 +485,50 @@ export const LibretoView: React.FC<LibretoViewProps> = ({ guests, selectedDay, s
             <div className="pl-4">{F(h2, "avance_h3", "AVANCE H3", true)}</div>
           </>
         )}
+
+        {/* Datos de cierre / producción H2 (eco H1 si vacío) */}
+        <Spacer />
+        <div className="mt-2 p-3 rounded-lg border border-primary/20 bg-primary/5 print:border-muted-foreground/40 space-y-2">
+          <Line className="text-xs uppercase tracking-wider text-muted-foreground">
+            <Bold>Datos de cierre / producción</Bold>
+          </Line>
+          <Line className="text-xs text-muted-foreground italic">
+            Encuesta del día (definida en H1): <Bold>{h1?.encuesta_pregunta || "—"}</Bold>{" "}
+            {h1?.encuesta_hashtag ? <span>· {h1.encuesta_hashtag}</span> : null}
+          </Line>
+          <Line>
+            <Bold>Periodista Voces y Sonidos: </Bold>
+            {h2?.h2_periodista_voces_sonidos?.trim()
+              ? F(h2, "h2_periodista_voces_sonidos", "PERIODISTA VOCES Y SONIDOS")
+              : (
+                <>
+                  <span className="text-foreground">{h1?.h1_periodista_voces_sonidos || <span className="text-muted-foreground italic">—</span>}</span>
+                  {h1?.h1_periodista_voces_sonidos && <span className="ml-2 text-xs text-muted-foreground italic">(tomado de H1)</span>}
+                  {editMode && (
+                    <span className="ml-2 text-xs">
+                      {F(h2, "h2_periodista_voces_sonidos", "Sobrescribir para H2")}
+                    </span>
+                  )}
+                </>
+              )}
+          </Line>
+          <Line>
+            <Bold>Lanzamiento musical: </Bold>
+            {h2?.h2_lanzamiento_musical?.trim()
+              ? F(h2, "h2_lanzamiento_musical", "LANZAMIENTO MUSICAL (ARTISTA — CANCIÓN)")
+              : (
+                <>
+                  <span className="text-foreground">{h1?.h1_lanzamiento_musical || <span className="text-muted-foreground italic">—</span>}</span>
+                  {h1?.h1_lanzamiento_musical && <span className="ml-2 text-xs text-muted-foreground italic">(tomado de H1)</span>}
+                  {editMode && (
+                    <span className="ml-2 text-xs">
+                      {F(h2, "h2_lanzamiento_musical", "Sobrescribir para H2")}
+                    </span>
+                  )}
+                </>
+              )}
+          </Line>
+        </div>
 
         <div id="notas-h2">
           <NotasAdicionales guest={h2} field="h2_notas_adicionales" editMode={editMode} onSaved={handleFieldSaved(h2?.id)} />
