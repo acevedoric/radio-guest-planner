@@ -177,6 +177,16 @@ const buildTuesdayDoc = (h1: Guest | undefined, h2: Guest | undefined, h3: Guest
     paragraphs.push(emptyLine());
   }
 
+  // Datos de cierre / producción H1
+  paragraphs.push(new Paragraph({ children: [textRun("DATOS DE CIERRE / PRODUCCIÓN", { bold: true })] }));
+  paragraphs.push(new Paragraph({
+    children: [textRun("Periodista Voces y Sonidos: ", { bold: true }), textRun(v(h1?.h1_periodista_voces_sonidos))],
+  }));
+  paragraphs.push(new Paragraph({
+    children: [textRun("Lanzamiento musical: ", { bold: true }), textRun(v(h1?.h1_lanzamiento_musical))],
+  }));
+  paragraphs.push(emptyLine());
+
   // === SEGUNDA HORA ===
   paragraphs.push(heading("2. SEGUNDA HORA, EN VIVO:"));
   paragraphs.push(new Paragraph({ children: [textRun("En la casa: ", { bold: true }), textRun("Mauricio Quintero.")] }));
@@ -270,6 +280,16 @@ const buildTuesdayDoc = (h1: Guest | undefined, h2: Guest | undefined, h3: Guest
     paragraphs.push(new Paragraph({ children: [textRun(h2.h2_canciones)] }));
     paragraphs.push(emptyLine());
   }
+
+  // Datos de cierre / producción H2 (eco H1 si vacío)
+  paragraphs.push(new Paragraph({ children: [textRun("DATOS DE CIERRE / PRODUCCIÓN", { bold: true })] }));
+  paragraphs.push(new Paragraph({
+    children: [textRun("Periodista Voces y Sonidos: ", { bold: true }), textRun(v(h2?.h2_periodista_voces_sonidos || h1?.h1_periodista_voces_sonidos))],
+  }));
+  paragraphs.push(new Paragraph({
+    children: [textRun("Lanzamiento musical: ", { bold: true }), textRun(v(h2?.h2_lanzamiento_musical || h1?.h1_lanzamiento_musical))],
+  }));
+  paragraphs.push(emptyLine());
 
   // === TERCERA HORA ===
   paragraphs.push(heading("3. TERCERA HORA:"));
@@ -398,6 +418,16 @@ const buildThursdayDoc = (h1: Guest | undefined, h2: Guest | undefined, h3: Gues
     paragraphs.push(emptyLine());
   }
 
+  // Datos de cierre / producción H1
+  paragraphs.push(new Paragraph({ children: [textRun("DATOS DE CIERRE / PRODUCCIÓN", { bold: true })] }));
+  paragraphs.push(new Paragraph({
+    children: [textRun("Periodista Voces y Sonidos: ", { bold: true }), textRun(v(h1?.h1_periodista_voces_sonidos))],
+  }));
+  paragraphs.push(new Paragraph({
+    children: [textRun("Lanzamiento musical: ", { bold: true }), textRun(v(h1?.h1_lanzamiento_musical))],
+  }));
+  paragraphs.push(emptyLine());
+
   // === SEGUNDA HORA (TBT) ===
   paragraphs.push(heading("2. SEGUNDA HORA, EN VIVO:"));
   paragraphs.push(new Paragraph({ children: [textRun("En la casa: Mauricio Quintero.")] }));
@@ -463,6 +493,16 @@ const buildThursdayDoc = (h1: Guest | undefined, h2: Guest | undefined, h3: Gues
     paragraphs.push(new Paragraph({ children: [textRun(h2.h2_canciones)] }));
     paragraphs.push(emptyLine());
   }
+
+  // Datos de cierre / producción H2 (eco H1 si vacío)
+  paragraphs.push(new Paragraph({ children: [textRun("DATOS DE CIERRE / PRODUCCIÓN", { bold: true })] }));
+  paragraphs.push(new Paragraph({
+    children: [textRun("Periodista Voces y Sonidos: ", { bold: true }), textRun(v(h2?.h2_periodista_voces_sonidos || h1?.h1_periodista_voces_sonidos))],
+  }));
+  paragraphs.push(new Paragraph({
+    children: [textRun("Lanzamiento musical: ", { bold: true }), textRun(v(h2?.h2_lanzamiento_musical || h1?.h1_lanzamiento_musical))],
+  }));
+  paragraphs.push(emptyLine());
 
   // Avance tercera hora
   paragraphs.push(new Paragraph({
