@@ -1,50 +1,53 @@
 
 
-## Plan: Mejorar la generación del libreto en vista DÍA con prompt especializado
+## Plan: Reemplazar "Generar libreto IA" por campos editables al final de H1 y H2
 
-El usuario tiene un prompt detallado para producir libretos de **Bla Bla BLU**. Lo integraremos como un asistente IA dentro de la vista DÍA que genere/sugiera el libreto a partir de los invitados ya cargados ese día.
+Entendido: NO se requiere IA. Simplemente añadir campos editables al final de los bloques de **Hora 1** y **Hora 2** del libreto para que el productor los rellene a mano. La encuesta se captura UNA sola vez (ya existe `encuesta_pregunta` / `encuesta_hashtag` en el invitado de H1) y se muestra también en H2 como solo-lectura/eco.
 
 ### Cambios
 
-**1. Nueva edge function `generate-libreto`**
-- Input: `{ date: 'yyyy-MM-dd' }`.
-- Server-side: lee de `guests` los 3 invitados de ese día (slots 1/2/3) con todos sus campos (nombre, cargo, tema, redes sociales, press contact, datos curiosos, etc.).
-- Detecta el día de la semana → escoge la plantilla (Lun/Mar/Mié/Jue) del prompt.
-- Construye el `system prompt` con las **REGLAS GENERALES + ESTRUCTURA POR DÍA + CIERRE 2H** literales del mensaje del usuario.
-- Construye el `user prompt` con los datos reales: día, fecha, invitados con redes/seguidores/motivo, periodista de Voces y Sonidos, lanzamiento musical (si están guardados; si faltan, instruir al modelo a marcar `[FALTA: …]` en lugar de inventar).
-- Llama a `google/gemini-2.5-pro` (mejor para texto largo estructurado en español) vía Lovable AI Gateway.
-- Devuelve `{ libreto: string }`.
-- Auth: requiere JWT del usuario (igual que `chat-guests`).
+**1. Eliminar el botón "Generar libreto IA" de `DayView.tsx`**
+- Quitar el botón Sparkles, el import, el estado `libretoOpen` y el componente `<LibretoAIDialog>`.
+- Borrar `src/components/LibretoAIDialog.tsx` y la edge function `supabase/functions/generate-libreto/index.ts` (no se usan).
 
-**2. UI en `DayView.tsx`**
-- Nuevo botón **"Generar libreto IA"** (icono `Sparkles`) en la cabecera de la vista DÍA, junto al título de TITULARES, visible solo en `editMode` (mantiene el patrón de `mem://features/ai-action-buttons-modules`).
-- Al hacer clic:
-  - Llama a la edge function con la fecha actual.
-  - Muestra un `Dialog` con el libreto generado, scrollable, con botones **"Copiar"** y **"Descargar .docx"**.
-  - Estado de carga con spinner; manejo de 429/402 con toast.
-- Si faltan invitados clave (ej. ningún invitado en slot 1), muestra un toast "Asigna al menos el invitado de la primera hora" y no llama a la IA.
+**2. Nuevos campos en `guests` (migración)**
+Añadir a la tabla `guests` (se guardan en la fila del invitado de la hora correspondiente):
 
-**3. Campos opcionales del día (mini-formulario antes de generar)**
-Antes de llamar a la IA, abrir un pequeño modal pidiendo los datos que NO viven en la tabla `guests`:
-- Periodista de Voces y Sonidos (texto)
-- Canción/artista de lanzamiento musical (texto)
-- (Miércoles) Canciones 90s opcionales
+- `h1_periodista_voces_sonidos text` — nombre del periodista de Voces y Sonidos
+- `h1_lanzamiento_musical text` — artista + canción del cierre musical
+- `h2_periodista_voces_sonidos text` — opcional, normalmente repetirá H1
+- `h2_lanzamiento_musical text` — opcional
 
-Estos no se persisten todavía (se pasan solo al prompt). Si el usuario quiere guardarlos por día, lo añadimos en una segunda iteración.
+Ya existen `encuesta_pregunta` y `encuesta_hashtag` en el invitado de H1, así que la encuesta NO se duplica: se introduce en H1 y en H2 se muestra como referencia (solo lectura).
 
-**4. Descarga .docx**
-- Usar la librería ya disponible `docx` en cliente (la misma que usa `LibretoExport.tsx`) para empaquetar el texto plano del libreto en un `.docx` con encabezado y estructura básica de párrafos. No requiere reformatear: el modelo ya devuelve texto estructurado.
+**3. Tipos (`src/types/guest.ts`)**
+Añadir las 4 propiedades opcionales nuevas.
+
+**4. `LibretoView.tsx`**
+- Al final del bloque **HORA 1**, antes de "Notas adicionales", añadir un sub-bloque **"DATOS DE CIERRE / PRODUCCIÓN"** con dos `InlineField` editables:
+  - "Periodista Voces y Sonidos" → `h1_periodista_voces_sonidos`
+  - "Lanzamiento musical (artista — canción)" → `h1_lanzamiento_musical`
+- Al final del bloque **HORA 2**, añadir el mismo sub-bloque pero:
+  - Mostrar (solo lectura, en gris suave) la **encuesta** que viene de H1 (`encuesta_pregunta` + `encuesta_hashtag`) con el texto "Encuesta del día (definida en H1)".
+  - Mostrar (solo lectura) el periodista y lanzamiento de H1 con etiqueta "Tomado de H1" Y permitir sobrescribir con `h2_periodista_voces_sonidos` / `h2_lanzamiento_musical` si el usuario quiere algo distinto. Si esos campos están vacíos → se muestra el de H1.
+- Sin cambios en HORA 3.
+
+**5. Export Word (`LibretoExport.tsx`)**
+Incluir los nuevos campos al final de cada hora correspondiente para que aparezcan en el `.docx` exportado.
 
 ### Archivos
 
 | Archivo | Cambio |
 |---|---|
-| `supabase/functions/generate-libreto/index.ts` (nuevo) | Edge function: lee invitados del día, construye prompt con plantilla por día, llama a Gemini 2.5 Pro |
-| `src/components/DayView.tsx` | Botón "Generar libreto IA" + Dialog con resultado + copiar/descargar |
-| `src/components/LibretoAIDialog.tsx` (nuevo) | Modal con mini-form (periodista, lanzamiento), llamada a la función, render del libreto, copiar y export .docx |
+| Migración SQL | + 4 columnas opcionales en `guests` |
+| `src/types/guest.ts` | + 4 propiedades opcionales |
+| `src/components/DayView.tsx` | Quitar botón "Generar libreto IA" y dialog asociado |
+| `src/components/LibretoView.tsx` | Sub-bloque editable al final de H1 y H2 con periodista + lanzamiento; eco de encuesta H1 en H2 |
+| `src/components/LibretoExport.tsx` | Incluir nuevos campos en la exportación Word |
+| `src/components/LibretoAIDialog.tsx` | Eliminado |
+| `supabase/functions/generate-libreto/index.ts` | Eliminado |
 
 ### No incluye
-- Persistir el libreto generado en BD (queda en memoria del modal). Si quieres guardarlo por día, lo añadimos como segunda fase con una tabla `libretos_generados`.
-- Editor enriquecido del libreto generado (sale como texto plano editable en `<Textarea>`).
-- Base de datos de canciones en vivo / canciones 90s estructurada: si no la tienes en una tabla, el modelo escribirá `cortinilla BBB` o pedirá los datos como indica tu prompt.
+- Llamadas a IA (descartado).
+- Duplicar encuesta en H2 (queda como eco solo-lectura de H1).
 
