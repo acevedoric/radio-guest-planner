@@ -600,16 +600,26 @@ const Index = () => {
               onClick={handleLogoClick}
             />
             <div className="flex items-center gap-1">
-              <Button variant="ghost" size="sm" onClick={undo} disabled={!canUndo} title="Deshacer (Ctrl+Z)">
-                <Undo2 className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="sm" onClick={redo} disabled={!canRedo} title="Rehacer (Ctrl+Y)">
-                <Redo2 className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="sm" onClick={handleLogout}>
-                <LogOut className="h-4 w-4 mr-2" />
-                Salir
-              </Button>
+              {!isPublic && (
+                <>
+                  <Button variant="ghost" size="sm" onClick={undo} disabled={!canUndo} title="Deshacer (Ctrl+Z)">
+                    <Undo2 className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={redo} disabled={!canRedo} title="Rehacer (Ctrl+Y)">
+                    <Redo2 className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={handleLogout}>
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Salir
+                  </Button>
+                </>
+              )}
+              {isPublic && (
+                <Button variant="default" size="sm" onClick={() => navigate("/auth")}>
+                  <LogIn className="h-4 w-4 mr-2" />
+                  Login
+                </Button>
+              )}
             </div>
           </div>
         </div>
