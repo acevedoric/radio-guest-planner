@@ -25,6 +25,7 @@ interface FilterBarProps {
   onViewModeChange: (mode: "day" | "week" | "month" | "proposed") => void;
   editMode: boolean;
   onEditModeChange: (mode: boolean) => void;
+  canEdit?: boolean;
   globalSearchResults: { guests: Guest[]; press: Guest[] };
   isSearching: boolean;
   onGlobalResultClick: (guest: Guest) => void;
