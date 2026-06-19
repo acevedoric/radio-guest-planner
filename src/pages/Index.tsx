@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { startOfWeek, startOfMonth, addDays, addWeeks, endOfMonth, format } from "date-fns";
 import { es } from "date-fns/locale";
 import { toast } from "sonner";
@@ -13,11 +13,12 @@ import { FilterBar } from "@/components/FilterBar";
 import { ProposedView } from "@/components/ProposedView";
 import { Guest } from "@/types/guest";
 import logo from "@/assets/bla-bla-blu-logo.png";
-import { LogOut, Undo2, Redo2 } from "lucide-react";
+import { LogOut, LogIn, Undo2, Redo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useUndoRedo } from "@/hooks/useUndoRedo";
 
 const Index = () => {
+  const navigate = useNavigate();
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [guests, setGuests] = useState<Guest[]>([]);
@@ -67,27 +68,27 @@ const Index = () => {
   }, []);
 
   useEffect(() => {
-    if (session) {
+    if (loading) return;
+    fetchGuests();
+    fetchAllRecordingGuests();
+    fetchProposedGuests();
+
+    // Setup realtime subscription (solo para usuarios autenticados)
+    if (!session) return;
+    const channel = supabase.channel('schema-db-changes').on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'guests'
+    }, () => {
       fetchGuests();
       fetchAllRecordingGuests();
       fetchProposedGuests();
+    }).subscribe();
 
-      // Setup realtime subscription
-      const channel = supabase.channel('schema-db-changes').on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'guests'
-      }, () => {
-        fetchGuests();
-        fetchAllRecordingGuests();
-        fetchProposedGuests();
-      }).subscribe();
-      
-      return () => {
-        supabase.removeChannel(channel);
-      };
-    }
-  }, [selectedWeek, selectedMonth, viewMode, session]);
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [selectedWeek, selectedMonth, viewMode, session, loading]);
 
   const fetchAllRecordingGuests = async () => {
     const { data } = await supabase
@@ -583,9 +584,11 @@ const Index = () => {
     );
   }
 
-  if (!session) {
-    return <Navigate to="/auth" />;
+  const isPublic = !session;
+  if (isPublic && editMode) {
+    setEditMode(false);
   }
+
 
   return <div className="min-h-screen bg-background">
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
@@ -598,16 +601,26 @@ const Index = () => {
               onClick={handleLogoClick}
             />
             <div className="flex items-center gap-1">
-              <Button variant="ghost" size="sm" onClick={undo} disabled={!canUndo} title="Deshacer (Ctrl+Z)">
-                <Undo2 className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="sm" onClick={redo} disabled={!canRedo} title="Rehacer (Ctrl+Y)">
-                <Redo2 className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="sm" onClick={handleLogout}>
-                <LogOut className="h-4 w-4 mr-2" />
-                Salir
-              </Button>
+              {!isPublic && (
+                <>
+                  <Button variant="ghost" size="sm" onClick={undo} disabled={!canUndo} title="Deshacer (Ctrl+Z)">
+                    <Undo2 className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={redo} disabled={!canRedo} title="Rehacer (Ctrl+Y)">
+                    <Redo2 className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={handleLogout}>
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Salir
+                  </Button>
+                </>
+              )}
+              {isPublic && (
+                <Button variant="default" size="sm" onClick={() => navigate("/auth")}>
+                  <LogIn className="h-4 w-4 mr-2" />
+                  Login
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -632,6 +645,7 @@ const Index = () => {
           onViewModeChange={setViewMode}
           editMode={editMode}
           onEditModeChange={setEditMode}
+          canEdit={!isPublic}
           globalSearchResults={globalSearchResults}
           isSearching={isSearching}
           onGlobalResultClick={handleGlobalResultClick}

@@ -25,6 +25,7 @@ interface FilterBarProps {
   onViewModeChange: (mode: "day" | "week" | "month" | "proposed") => void;
   editMode: boolean;
   onEditModeChange: (mode: boolean) => void;
+  canEdit?: boolean;
   globalSearchResults: { guests: Guest[]; press: Guest[] };
   isSearching: boolean;
   onGlobalResultClick: (guest: Guest) => void;
@@ -84,6 +85,7 @@ export const FilterBar = ({
   onViewModeChange,
   editMode,
   onEditModeChange,
+  canEdit = true,
   globalSearchResults,
   isSearching,
   onGlobalResultClick,
@@ -231,15 +233,18 @@ export const FilterBar = ({
           <Button variant={viewMode === "month" ? "default" : "outline"} onClick={() => onViewModeChange("month")}>Mes</Button>
           <Button variant={viewMode === "proposed" ? "default" : "outline"} onClick={() => onViewModeChange("proposed")} title="Propuestos sin fecha">P</Button>
           
-          <div className="h-6 w-px bg-border mx-2" />
-          
-          <div className="flex items-center gap-2">
-            {editMode ? <Unlock className="h-4 w-4 text-primary" /> : <Lock className="h-4 w-4 text-muted-foreground" />}
-            <Switch checked={editMode} onCheckedChange={onEditModeChange} />
-            <span className="text-sm font-medium whitespace-nowrap">
-              {editMode ? "Editar" : "Presentar"}
-            </span>
-          </div>
+          {canEdit && (
+            <>
+              <div className="h-6 w-px bg-border mx-2" />
+              <div className="flex items-center gap-2">
+                {editMode ? <Unlock className="h-4 w-4 text-primary" /> : <Lock className="h-4 w-4 text-muted-foreground" />}
+                <Switch checked={editMode} onCheckedChange={onEditModeChange} />
+                <span className="text-sm font-medium whitespace-nowrap">
+                  {editMode ? "Editar" : "Presentar"}
+                </span>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
