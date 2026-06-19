@@ -17,7 +17,9 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
 
     const check = async (session: any) => {
       if (!session) {
-        navigate("/auth");
+        // Acceso público de solo lectura
+        setEmail("");
+        setStatus("allowed");
         return;
       }
       const userEmail = session.user.email ?? "";
