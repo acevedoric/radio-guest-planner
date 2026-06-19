@@ -1,53 +1,46 @@
 
+## Plan: Restringir registro al dominio @caracoltv.com.co
 
-## Plan: Reemplazar "Generar libreto IA" por campos editables al final de H1 y H2
+### Diagnóstico
+El error "Database error saving new user" viene del trigger `enforce_email_allowlist` sobre `auth.users`, que llama a `is_email_allowed(email)`. Esa función solo permite emails que estén en la tabla `allowed_emails` o que ya tengan rol `admin`/`producer`. Cualquier email nuevo fuera de esa lista (incluido el que intentaste) rompe el signup con `EMAIL_NOT_ALLOWED`.
 
-Entendido: NO se requiere IA. Simplemente añadir campos editables al final de los bloques de **Hora 1** y **Hora 2** del libreto para que el productor los rellene a mano. La encuesta se captura UNA sola vez (ya existe `encuesta_pregunta` / `encuesta_hashtag` en el invitado de H1) y se muestra también en H2 como solo-lectura/eco.
+### Recomendación
+**No** desactivar el registro por completo: actualmente la app depende de `auth.users` + `user_roles`, y sin signup no hay forma de añadir productores nuevos sin entrar a la consola. Mejor dejar el signup abierto **solo** para correos `@caracoltv.com.co`, que es lo que pediste como alternativa. Los emails sueltos en `allowed_emails` siguen funcionando como excepción (invitados externos).
 
 ### Cambios
 
-**1. Eliminar el botón "Generar libreto IA" de `DayView.tsx`**
-- Quitar el botón Sparkles, el import, el estado `libretoOpen` y el componente `<LibretoAIDialog>`.
-- Borrar `src/components/LibretoAIDialog.tsx` y la edge function `supabase/functions/generate-libreto/index.ts` (no se usan).
+**Migración SQL** (modifica únicamente la función `is_email_allowed`):
 
-**2. Nuevos campos en `guests` (migración)**
-Añadir a la tabla `guests` (se guardan en la fila del invitado de la hora correspondiente):
+```sql
+CREATE OR REPLACE FUNCTION public.is_email_allowed(_email text)
+RETURNS boolean
+LANGUAGE sql
+STABLE SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT
+    -- 1) Dominio corporativo permitido por defecto
+    lower(trim(_email)) LIKE '%@caracoltv.com.co'
+    -- 2) Excepciones individuales en allowed_emails
+    OR EXISTS (
+      SELECT 1 FROM public.allowed_emails
+      WHERE email = lower(trim(_email))
+    )
+    -- 3) Usuarios ya con rol admin/producer
+    OR EXISTS (
+      SELECT 1 FROM public.user_roles ur
+      JOIN auth.users u ON u.id = ur.user_id
+      WHERE lower(u.email) = lower(trim(_email))
+        AND ur.role IN ('admin'::app_role, 'producer'::app_role)
+    );
+$$;
+```
 
-- `h1_periodista_voces_sonidos text` — nombre del periodista de Voces y Sonidos
-- `h1_lanzamiento_musical text` — artista + canción del cierre musical
-- `h2_periodista_voces_sonidos text` — opcional, normalmente repetirá H1
-- `h2_lanzamiento_musical text` — opcional
+No se tocan tablas, RLS, ni el frontend. El trigger `enforce_email_allowlist` sigue rechazando cualquier email que no cumpla ninguna de las 3 condiciones, con el mismo mensaje `EMAIL_NOT_ALLOWED`.
 
-Ya existen `encuesta_pregunta` y `encuesta_hashtag` en el invitado de H1, así que la encuesta NO se duplica: se introduce en H1 y en H2 se muestra como referencia (solo lectura).
-
-**3. Tipos (`src/types/guest.ts`)**
-Añadir las 4 propiedades opcionales nuevas.
-
-**4. `LibretoView.tsx`**
-- Al final del bloque **HORA 1**, antes de "Notas adicionales", añadir un sub-bloque **"DATOS DE CIERRE / PRODUCCIÓN"** con dos `InlineField` editables:
-  - "Periodista Voces y Sonidos" → `h1_periodista_voces_sonidos`
-  - "Lanzamiento musical (artista — canción)" → `h1_lanzamiento_musical`
-- Al final del bloque **HORA 2**, añadir el mismo sub-bloque pero:
-  - Mostrar (solo lectura, en gris suave) la **encuesta** que viene de H1 (`encuesta_pregunta` + `encuesta_hashtag`) con el texto "Encuesta del día (definida en H1)".
-  - Mostrar (solo lectura) el periodista y lanzamiento de H1 con etiqueta "Tomado de H1" Y permitir sobrescribir con `h2_periodista_voces_sonidos` / `h2_lanzamiento_musical` si el usuario quiere algo distinto. Si esos campos están vacíos → se muestra el de H1.
-- Sin cambios en HORA 3.
-
-**5. Export Word (`LibretoExport.tsx`)**
-Incluir los nuevos campos al final de cada hora correspondiente para que aparezcan en el `.docx` exportado.
-
-### Archivos
-
-| Archivo | Cambio |
-|---|---|
-| Migración SQL | + 4 columnas opcionales en `guests` |
-| `src/types/guest.ts` | + 4 propiedades opcionales |
-| `src/components/DayView.tsx` | Quitar botón "Generar libreto IA" y dialog asociado |
-| `src/components/LibretoView.tsx` | Sub-bloque editable al final de H1 y H2 con periodista + lanzamiento; eco de encuesta H1 en H2 |
-| `src/components/LibretoExport.tsx` | Incluir nuevos campos en la exportación Word |
-| `src/components/LibretoAIDialog.tsx` | Eliminado |
-| `supabase/functions/generate-libreto/index.ts` | Eliminado |
+### UX del error
+Opcional: en `src/pages/Auth.tsx` (o equivalente), detectar el mensaje `EMAIL_NOT_ALLOWED` / `Database error saving new user` y mostrar un toast más claro: *"Solo se permiten correos @caracoltv.com.co"*. Lo incluyo en esta misma tanda si lo apruebas; si no, queda solo la migración.
 
 ### No incluye
-- Llamadas a IA (descartado).
-- Duplicar encuesta en H2 (queda como eco solo-lectura de H1).
-
+- Desactivar el signup (descartado por la recomendación arriba; si lo prefieres igual, lo hacemos con `configure_auth { disable_signup: true }` y administras altas vía `allowed_emails` + invitación manual).
+- Migrar usuarios existentes ni tocar `allowed_emails`.
