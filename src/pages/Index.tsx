@@ -583,9 +583,11 @@ const Index = () => {
     );
   }
 
-  if (!session) {
-    return <Navigate to="/auth" />;
+  const isPublic = !session;
+  if (isPublic && editMode) {
+    setEditMode(false);
   }
+
 
   return <div className="min-h-screen bg-background">
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
