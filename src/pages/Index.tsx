@@ -73,7 +73,8 @@ const Index = () => {
     fetchAllRecordingGuests();
     fetchProposedGuests();
 
-    // Setup realtime subscription
+    // Setup realtime subscription (solo para usuarios autenticados)
+    if (!session) return;
     const channel = supabase.channel('schema-db-changes').on('postgres_changes', {
       event: '*',
       schema: 'public',
