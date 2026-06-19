@@ -13,7 +13,7 @@ import { FilterBar } from "@/components/FilterBar";
 import { ProposedView } from "@/components/ProposedView";
 import { Guest } from "@/types/guest";
 import logo from "@/assets/bla-bla-blu-logo.png";
-import { LogOut, Undo2, Redo2 } from "lucide-react";
+import { LogOut, LogIn, Undo2, Redo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useUndoRedo } from "@/hooks/useUndoRedo";
 
