@@ -68,27 +68,26 @@ const Index = () => {
   }, []);
 
   useEffect(() => {
-    if (session) {
+    if (loading) return;
+    fetchGuests();
+    fetchAllRecordingGuests();
+    fetchProposedGuests();
+
+    // Setup realtime subscription
+    const channel = supabase.channel('schema-db-changes').on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'guests'
+    }, () => {
       fetchGuests();
       fetchAllRecordingGuests();
       fetchProposedGuests();
+    }).subscribe();
 
-      // Setup realtime subscription
-      const channel = supabase.channel('schema-db-changes').on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'guests'
-      }, () => {
-        fetchGuests();
-        fetchAllRecordingGuests();
-        fetchProposedGuests();
-      }).subscribe();
-      
-      return () => {
-        supabase.removeChannel(channel);
-      };
-    }
-  }, [selectedWeek, selectedMonth, viewMode, session]);
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [selectedWeek, selectedMonth, viewMode, session, loading]);
 
   const fetchAllRecordingGuests = async () => {
     const { data } = await supabase
