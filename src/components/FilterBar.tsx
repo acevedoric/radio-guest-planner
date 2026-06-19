@@ -85,6 +85,7 @@ export const FilterBar = ({
   onViewModeChange,
   editMode,
   onEditModeChange,
+  canEdit = true,
   globalSearchResults,
   isSearching,
   onGlobalResultClick,
