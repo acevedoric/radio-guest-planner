@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { startOfWeek, startOfMonth, addDays, addWeeks, endOfMonth, format } from "date-fns";
 import { es } from "date-fns/locale";
 import { toast } from "sonner";
