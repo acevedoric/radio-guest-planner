@@ -644,6 +644,7 @@ const Index = () => {
           onViewModeChange={setViewMode}
           editMode={editMode}
           onEditModeChange={setEditMode}
+          canEdit={!isPublic}
           globalSearchResults={globalSearchResults}
           isSearching={isSearching}
           onGlobalResultClick={handleGlobalResultClick}
