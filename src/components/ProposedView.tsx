@@ -2,7 +2,9 @@ import { Guest } from "@/types/guest";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, CalendarPlus, User, Phone, Mail } from "lucide-react";
+import { Plus, CalendarPlus, User, Phone, Mail, Calendar } from "lucide-react";
+import { format, parseISO } from "date-fns";
+import { es } from "date-fns/locale";
 
 interface ProposedViewProps {
   guests: Guest[];
@@ -12,6 +14,14 @@ interface ProposedViewProps {
 }
 
 export const ProposedView = ({ guests, onGuestClick, onCreateNew, editMode }: ProposedViewProps) => {
+  const sortedGuests = [...guests].sort((a, b) => {
+    if (!a.scheduled_date && !b.scheduled_date) return 0;
+    if (!a.scheduled_date) return 1;
+    if (!b.scheduled_date) return -1;
+    return a.scheduled_date.localeCompare(b.scheduled_date);
+  });
+
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
