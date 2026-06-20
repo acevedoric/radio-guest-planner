@@ -16,6 +16,7 @@ import logo from "@/assets/bla-bla-blu-logo.png";
 import { LogOut, LogIn, Undo2, Redo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useUndoRedo } from "@/hooks/useUndoRedo";
+import { guestsReadFrom } from "@/lib/guestsSource";
 
 const Index = () => {
   const navigate = useNavigate();
