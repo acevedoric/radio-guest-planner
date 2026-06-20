@@ -92,8 +92,8 @@ const Index = () => {
   }, [selectedWeek, selectedMonth, viewMode, session, loading]);
 
   const fetchAllRecordingGuests = async () => {
-    const { data } = await supabase
-      .from('guests')
+    const { data } = await (supabase as any)
+      .from(guestsReadFrom(session))
       .select('*')
       .in('recording_status', ['to_record', 'postponed', 'proposed'])
       .not('scheduled_date', 'is', null);
@@ -101,8 +101,8 @@ const Index = () => {
   };
 
   const fetchProposedGuests = async () => {
-    const { data, error } = await supabase
-      .from('guests')
+    const { data, error } = await (supabase as any)
+      .from(guestsReadFrom(session))
       .select('*')
       .eq('recording_status', 'proposed')
       .is('week_date', null)
@@ -113,7 +113,7 @@ const Index = () => {
   };
 
   const fetchGuests = async () => {
-    let query = supabase.from('guests').select('*');
+    let query = (supabase as any).from(guestsReadFrom(session)).select('*');
     
     if (viewMode === "day" || viewMode === "week") {
       const weekStart = format(selectedWeek, "yyyy-MM-dd");
