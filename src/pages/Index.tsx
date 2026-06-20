@@ -459,17 +459,21 @@ const Index = () => {
     setIsSearching(true);
 
     const readFrom = guestsReadFrom(session);
-    const orPress = session
-      ? `press_contact.ilike.%${query}%,press_phone.ilike.%${query}%,press_email.ilike.%${query}%`
-      : null;
+    const guestOr = session
+      ? `name.ilike.%${query}%,topic.ilike.%${query}%,position.ilike.%${query}%,notes.ilike.%${query}%,program_type.ilike.%${query}%,tema_principal.ilike.%${query}%`
+      : `name.ilike.%${query}%,topic.ilike.%${query}%,position.ilike.%${query}%,program_type.ilike.%${query}%,tema_principal.ilike.%${query}%`;
     const [guestsRes, pressRes] = await Promise.all([
       (supabase as any)
         .from(readFrom)
         .select('*')
-        .or(`name.ilike.%${query}%,topic.ilike.%${query}%,position.ilike.%${query}%,program_type.ilike.%${query}%,tema_principal.ilike.%${query}%`)
+        .or(guestOr)
         .limit(20),
-      orPress
-        ? (supabase as any).from(readFrom).select('*').or(orPress).limit(20)
+      session
+        ? supabase
+            .from('guests')
+            .select('*')
+            .or(`press_contact.ilike.%${query}%,press_phone.ilike.%${query}%,press_email.ilike.%${query}%`)
+            .limit(20)
         : Promise.resolve({ data: [] as Guest[] }),
     ]);
 
