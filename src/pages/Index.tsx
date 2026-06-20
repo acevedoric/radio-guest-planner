@@ -16,6 +16,7 @@ import logo from "@/assets/bla-bla-blu-logo.png";
 import { LogOut, LogIn, Undo2, Redo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useUndoRedo } from "@/hooks/useUndoRedo";
+import { guestsReadFrom } from "@/lib/guestsSource";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -91,8 +92,8 @@ const Index = () => {
   }, [selectedWeek, selectedMonth, viewMode, session, loading]);
 
   const fetchAllRecordingGuests = async () => {
-    const { data } = await supabase
-      .from('guests')
+    const { data } = await (supabase as any)
+      .from(guestsReadFrom(session))
       .select('*')
       .in('recording_status', ['to_record', 'postponed', 'proposed'])
       .not('scheduled_date', 'is', null);
@@ -100,8 +101,8 @@ const Index = () => {
   };
 
   const fetchProposedGuests = async () => {
-    const { data, error } = await supabase
-      .from('guests')
+    const { data, error } = await (supabase as any)
+      .from(guestsReadFrom(session))
       .select('*')
       .eq('recording_status', 'proposed')
       .is('week_date', null)
@@ -112,7 +113,7 @@ const Index = () => {
   };
 
   const fetchGuests = async () => {
-    let query = supabase.from('guests').select('*');
+    let query = (supabase as any).from(guestsReadFrom(session)).select('*');
     
     if (viewMode === "day" || viewMode === "week") {
       const weekStart = format(selectedWeek, "yyyy-MM-dd");
@@ -457,17 +458,23 @@ const Index = () => {
     }
     setIsSearching(true);
 
+    const readFrom = guestsReadFrom(session);
+    const guestOr = session
+      ? `name.ilike.%${query}%,topic.ilike.%${query}%,position.ilike.%${query}%,notes.ilike.%${query}%,program_type.ilike.%${query}%,tema_principal.ilike.%${query}%`
+      : `name.ilike.%${query}%,topic.ilike.%${query}%,position.ilike.%${query}%,program_type.ilike.%${query}%,tema_principal.ilike.%${query}%`;
     const [guestsRes, pressRes] = await Promise.all([
-      supabase
-        .from('guests')
+      (supabase as any)
+        .from(readFrom)
         .select('*')
-        .or(`name.ilike.%${query}%,topic.ilike.%${query}%,position.ilike.%${query}%,notes.ilike.%${query}%,program_type.ilike.%${query}%,tema_principal.ilike.%${query}%`)
+        .or(guestOr)
         .limit(20),
-      supabase
-        .from('guests')
-        .select('*')
-        .or(`press_contact.ilike.%${query}%,press_phone.ilike.%${query}%,press_email.ilike.%${query}%`)
-        .limit(20),
+      session
+        ? supabase
+            .from('guests')
+            .select('*')
+            .or(`press_contact.ilike.%${query}%,press_phone.ilike.%${query}%,press_email.ilike.%${query}%`)
+            .limit(20)
+        : Promise.resolve({ data: [] as Guest[] }),
     ]);
 
     setIsSearching(false);
