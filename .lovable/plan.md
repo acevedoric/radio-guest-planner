@@ -1,54 +1,31 @@
-## Plan: Ocultar datos sensibles en modo público (sin autenticar)
+## Cambios al estado PROPUESTO
 
-Actualmente los usuarios anónimos ven TODA la tabla `guests`, incluyendo teléfonos y correos del invitado y del jefe de prensa/PR/Manager. Vamos a ocultar esos campos para anónimos manteniendo acceso completo para usuarios autenticados (productor/admin).
+### 1. Vista MES (`src/components/MonthView.tsx`)
 
-### Campos sensibles a ocultar para anónimos
-- `phone`, `email` (invitado)
-- `press_contact`, `press_phone`, `press_email` (prensa/PR/Manager)
-- Notas internas que puedan contener contactos: `internal_notes`
+Hoy, cualquier invitado con `scheduled_date` (incluido `proposed`) se pinta como una franja **roja** y muestra un badge **REC rojo**. Hay que separar visualmente PROPUESTO de las grabaciones reales.
 
-### Estrategia: política RLS dual + vista pública
+- Separar `getScheduledRecordingsForDay` en dos listas:
+  - `scheduledRecordings`: solo `to_record` y `postponed` (los que sí se van a grabar) → siguen en **rojo** con badge **REC**.
+  - `proposedForDay`: solo `proposed` → se renderiza en **azul** con badge **PROPUESTO**.
+- Renderizar ambos grupos en la cabecera del día:
+  - Badge azul `PROPUESTO` (con contador si hay más de uno) al lado/abajo del badge REC, usando los tokens azules ya existentes (`bg-blue-500/20`, `text-blue-700`, etc., consistentes con `getStatusColor("proposed")`).
+  - Las "tiras" de nombre debajo del número de día también en azul para los propuestos (borde y texto azul, fondo `bg-blue-500/10`), en rojo para los de grabación.
+- Ajustar el cálculo de `recordingSectionMinHeight` para considerar ambos grupos (suma de tiras visibles, máx 2 por grupo).
+- Click en badge azul `PROPUESTO` o en una tira azul: abre el detalle del invitado propuesto (`onRecordingGuestClick` o equivalente). Mantener el click en REC tal cual.
 
-Mantenemos la app leyendo de `public.guests` como hoy (un solo path de código), y a nivel SQL devolvemos `NULL` en los campos sensibles cuando el lector es anónimo.
+### 2. Bandeja de Propuestos (`src/components/ProposedView.tsx`)
 
-### Migración SQL
+- Mostrar la **fecha propuesta** en cada tarjeta (campo `scheduled_date`), formateada en español: `"Propuesta: 11 jun 2026"`. Si no tiene fecha, mostrar `"Sin fecha asignada"`.
+- **Ordenar la lista** por `scheduled_date` ascendente (próximas primero). Los invitados sin fecha quedan al final.
+- Mantener el botón "Asignar fecha" como hoy.
 
-1. **Reemplazar la policy SELECT para `anon`** sobre `guests`:
-   - Borrar `"Anyone can view guests"` (FOR SELECT TO anon USING (true)).
-   - Crear una vista `public.guests_public` con `security_invoker=on` que seleccione todas las columnas EXCEPTO las sensibles (devolviendo `NULL` en su lugar para mantener el shape del tipo TS).
-   - **Alternativa más limpia (elegida):** mantener la policy SELECT para anon, pero la app anónima leerá de la vista. Para que sea seguro, también haremos que la policy de anon en la tabla base siga permitiendo SELECT de todas las columnas — lo cual NO oculta nada. 
-   
-   → Por eso usaremos enfoque real: **revocar SELECT a `anon` en columnas sensibles** mediante column-level privileges:
-   ```sql
-   REVOKE SELECT ON public.guests FROM anon;
-   GRANT SELECT (id, name, position, theme, week_date, day_of_week, time_slot, hour, recording_status, scheduled_date, scheduled_time, confirmado_blu, confirmado_pr, social_links, modules, encuesta_pregunta, encuesta_hashtag, periodista_h1, lanzamiento_h1, periodista_h2, lanzamiento_h2, proposed_by, created_at, updated_at /* ... resto de columnas no sensibles */) ON public.guests TO anon;
-   ```
-   Las columnas `phone`, `email`, `press_contact`, `press_phone`, `press_email`, `internal_notes` NO se otorgan a `anon`.
+### Notas técnicas
 
-2. **Ajustar el SELECT del cliente anónimo:** Supabase JS por defecto hace `select('*')`, lo cual fallará para anon porque pedirá columnas sin permiso. Para resolverlo sin duplicar código, crear una **vista `public.guests_anon`** que expone solo columnas seguras + `NULL as phone`, `NULL as email`, etc., con `security_invoker=on`, y `GRANT SELECT` a `anon`.
+- Tokens semánticos: usar las clases azules ya presentes en `getStatusColor` (no hardcodear hex).
+- `date-fns` ya está disponible (`format(date, "d MMM yyyy", { locale: es })`); reutilizar el locale ya importado en otros archivos del proyecto.
+- Sin cambios de base de datos ni de RLS. Sin cambios en el modal de edición.
 
-3. **En el cliente:** detectar `!session` y leer de `guests_anon` en lugar de `guests`. Un único helper `getGuestsTable()` que retorna `'guests'` o `'guests_anon'`. Aplicar en:
-   - `src/pages/Index.tsx` (fetch principal)
-   - `src/pages/SearchResults.tsx`
-   - cualquier otro `from('guests').select(...)` de solo lectura.
-   Las mutaciones (`insert/update/delete`) siguen apuntando a `guests` y solo las usan usuarios autenticados.
+### Archivos a modificar
 
-4. **UI en modo público (readonly):** en `GuestDetailModal` y vistas, los campos sensibles llegarán como `null`/vacío y simplemente no se renderizarán (ya hay checks `guest.phone && ...`). Confirmar que ContactLink/secciones de prensa se ocultan cuando todos los campos son null.
-
-### Archivos modificados
-
-| Archivo | Cambio |
-|---|---|
-| Nueva migración SQL | Crea vista `public.guests_anon` (security_invoker), revoca SELECT amplio a `anon` en `guests`, otorga SELECT solo a columnas no sensibles, GRANT SELECT en `guests_anon` a `anon`. Borra policy `"Anyone can view guests"` y crea policy equivalente sobre la vista si hace falta. |
-| `src/lib/guestsSource.ts` (nuevo) | Helper `guestsReadTable(session)` → `'guests' \| 'guests_anon'`. |
-| `src/pages/Index.tsx` | Usar helper en el fetch y en realtime (anon ya no se suscribe — no cambia). |
-| `src/pages/SearchResults.tsx` | Usar helper. |
-| `src/components/GuestDetailModal.tsx` | Verificar que renderiza condicionalmente cuando los campos sensibles son null (en modo público se abrirá readonly). |
-
-### No incluye
-- Cambios al login `@caracoltv.com.co`.
-- Ocultar nombres de invitados (los nombres siguen siendo públicos — confírmame si también deben ocultarse).
-- Filtrar contenido sensible dentro de `internal_notes` o `modules` más allá de excluir la columna entera.
-
-### Pregunta para confirmar
-¿`internal_notes` debe ocultarse también para anónimos? (Asumo que sí, por ser nota interna del productor.) ¿Y los `modules` —COYUNTURA/INFANCIA/CARRERA/CURIOSIDADES— deben verse en público o solo el `theme` principal?
+- `src/components/MonthView.tsx`
+- `src/components/ProposedView.tsx`

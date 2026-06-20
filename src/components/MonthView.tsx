@@ -64,11 +64,20 @@ export const MonthView = ({ guests, allGuests, onGuestClick, selectedMonth, onDa
   const getScheduledRecordingsForDay = (day: Date): Guest[] => {
     const dayStr = format(day, "yyyy-MM-dd");
     return allGuests
-      .filter(g => 
+      .filter(g =>
         g.scheduled_date === dayStr &&
-        (g.recording_status === "to_record" || 
-         g.recording_status === "postponed" || 
-         g.recording_status === "proposed")
+        (g.recording_status === "to_record" ||
+         g.recording_status === "postponed")
+      )
+      .sort((a, b) => (a.scheduled_time || '').localeCompare(b.scheduled_time || ''));
+  };
+
+  const getProposedForDay = (day: Date): Guest[] => {
+    const dayStr = format(day, "yyyy-MM-dd");
+    return allGuests
+      .filter(g =>
+        g.scheduled_date === dayStr &&
+        g.recording_status === "proposed"
       )
       .sort((a, b) => (a.scheduled_time || '').localeCompare(b.scheduled_time || ''));
   };
@@ -150,16 +159,17 @@ export const MonthView = ({ guests, allGuests, onGuestClick, selectedMonth, onDa
           
           return rows.map((row, rowIndex) => {
             const maxRecordings = Math.max(0, ...row.map(day => Math.min(getScheduledRecordingsForDay(day).length, 2)));
-            const hasAnyRecButton = row.some(day => getScheduledRecordingsForDay(day).length > 0);
-            // Height for REC button row + strips: button ~24px, each strip ~18px, spacing ~4px
-            const recButtonHeight = hasAnyRecButton ? 24 : 0;
-            const stripsHeight = maxRecordings * 20;
-            const recordingSectionMinHeight = recButtonHeight + stripsHeight + (maxRecordings > 0 ? 4 : 0);
+            const maxProposed = Math.max(0, ...row.map(day => Math.min(getProposedForDay(day).length, 2)));
+            const hasAnyBadge = row.some(day => getScheduledRecordingsForDay(day).length > 0 || getProposedForDay(day).length > 0);
+            const badgeRowHeight = hasAnyBadge ? 24 : 0;
+            const stripsHeight = (maxRecordings + maxProposed) * 20;
+            const recordingSectionMinHeight = badgeRowHeight + stripsHeight + ((maxRecordings + maxProposed) > 0 ? 4 : 0);
             
             return row.map((day, colIndex) => {
               const isInMonth = isCurrentMonth(day);
               const past = isPastDay(day);
               const scheduledRecordings = getScheduledRecordingsForDay(day);
+              const proposedGuests = getProposedForDay(day);
 
               return (
                 <Card
@@ -178,27 +188,44 @@ export const MonthView = ({ guests, allGuests, onGuestClick, selectedMonth, onDa
                   }}
                 >
                   <div className="space-y-2">
-                    {/* Day number and REC button - fixed height section */}
+                    {/* Day number and badges - fixed height section */}
                     <div style={{ minHeight: `${recordingSectionMinHeight}px` }}>
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between gap-1">
                         <div className="text-sm font-semibold text-foreground">
                           {format(day, "d")}
                         </div>
-                        
-                        {scheduledRecordings.length > 0 && (
-                          <div
-                            className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-600 hover:bg-red-700 text-white text-xs font-bold cursor-pointer transition-all hover:scale-105 shadow-sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onScheduledDateClick(day);
-                            }}
-                            title={`${scheduledRecordings.length} grabación(es) pendiente(s)`}
-                          >
-                            <span className="text-[10px]">●</span>
-                            <span>REC</span>
-                            {scheduledRecordings.length > 1 && <span>{scheduledRecordings.length}</span>}
-                          </div>
-                        )}
+
+                        <div className="flex items-center gap-1">
+                          {proposedGuests.length > 0 && (
+                            <div
+                              className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold cursor-pointer transition-all hover:scale-105 shadow-sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onRecordingGuestClick?.(proposedGuests[0]);
+                              }}
+                              title={`${proposedGuests.length} propuesto(s)`}
+                            >
+                              <span className="text-[10px]">●</span>
+                              <span>PROPUESTO</span>
+                              {proposedGuests.length > 1 && <span>{proposedGuests.length}</span>}
+                            </div>
+                          )}
+
+                          {scheduledRecordings.length > 0 && (
+                            <div
+                              className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-600 hover:bg-red-700 text-white text-xs font-bold cursor-pointer transition-all hover:scale-105 shadow-sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onScheduledDateClick(day);
+                              }}
+                              title={`${scheduledRecordings.length} grabación(es) pendiente(s)`}
+                            >
+                              <span className="text-[10px]">●</span>
+                              <span>REC</span>
+                              {scheduledRecordings.length > 1 && <span>{scheduledRecordings.length}</span>}
+                            </div>
+                          )}
+                        </div>
                       </div>
 
                       {/* Recording strips */}
@@ -222,7 +249,30 @@ export const MonthView = ({ guests, allGuests, onGuestClick, selectedMonth, onDa
                           )}
                         </div>
                       )}
+
+                      {/* Proposed strips */}
+                      {proposedGuests.length > 0 && (
+                        <div className="space-y-0.5 mt-1">
+                          {proposedGuests.slice(0, 2).map((g) => (
+                            <div
+                              key={g.id}
+                              className="text-[9px] px-1 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 truncate cursor-pointer hover:bg-blue-500/20 border-l-2 border-blue-500"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onRecordingGuestClick?.(g);
+                              }}
+                              title={`Propuesto: ${g.name}`}
+                            >
+                              🔵 {g.name}
+                            </div>
+                          ))}
+                          {proposedGuests.length > 2 && (
+                            <div className="text-[9px] text-blue-500 px-1">+{proposedGuests.length - 2} más</div>
+                          )}
+                        </div>
+                      )}
                     </div>
+
 
                     {/* Guest slots - now aligned across the row */}
                     <div className="space-y-1">

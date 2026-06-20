@@ -2,7 +2,9 @@ import { Guest } from "@/types/guest";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, CalendarPlus, User, Phone, Mail } from "lucide-react";
+import { Plus, CalendarPlus, User, Phone, Mail, Calendar } from "lucide-react";
+import { format, parseISO } from "date-fns";
+import { es } from "date-fns/locale";
 
 interface ProposedViewProps {
   guests: Guest[];
@@ -12,6 +14,14 @@ interface ProposedViewProps {
 }
 
 export const ProposedView = ({ guests, onGuestClick, onCreateNew, editMode }: ProposedViewProps) => {
+  const sortedGuests = [...guests].sort((a, b) => {
+    if (!a.scheduled_date && !b.scheduled_date) return 0;
+    if (!a.scheduled_date) return 1;
+    if (!b.scheduled_date) return -1;
+    return a.scheduled_date.localeCompare(b.scheduled_date);
+  });
+
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -46,7 +56,7 @@ export const ProposedView = ({ guests, onGuestClick, onCreateNew, editMode }: Pr
         </Card>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {guests.map((guest) => (
+          {sortedGuests.map((guest) => (
             <Card
               key={guest.id}
               className="p-4 cursor-pointer hover:shadow-md transition-shadow border-l-4 border-l-primary bg-primary/5"
@@ -63,6 +73,17 @@ export const ProposedView = ({ guests, onGuestClick, onCreateNew, editMode }: Pr
                   <Badge variant="secondary" className="bg-primary text-primary-foreground shrink-0">
                     PROPUESTO
                   </Badge>
+                </div>
+
+                <div className="flex items-center gap-1 text-xs font-medium">
+                  <Calendar className="h-3 w-3 text-blue-600" />
+                  {guest.scheduled_date ? (
+                    <span className="text-blue-700 dark:text-blue-400">
+                      Propuesta: {format(parseISO(guest.scheduled_date), "d MMM yyyy", { locale: es })}
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground italic">Sin fecha asignada</span>
+                  )}
                 </div>
 
                 {guest.topic && (
