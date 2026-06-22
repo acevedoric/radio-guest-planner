@@ -158,8 +158,8 @@ export const MonthView = ({ guests, allGuests, onGuestClick, selectedMonth, onDa
           }
           
           return rows.map((row, rowIndex) => {
-            const maxRecordings = Math.max(0, ...row.map(day => Math.min(getScheduledRecordingsForDay(day).length, 2)));
-            const maxProposed = Math.max(0, ...row.map(day => Math.min(getProposedForDay(day).length, 2)));
+            const maxRecordings = Math.max(0, ...row.map(day => getScheduledRecordingsForDay(day).length));
+            const maxProposed = Math.max(0, ...row.map(day => getProposedForDay(day).length));
             const hasAnyBadge = row.some(day => getScheduledRecordingsForDay(day).length > 0 || getProposedForDay(day).length > 0);
             const badgeRowHeight = hasAnyBadge ? 24 : 0;
             const stripsHeight = (maxRecordings + maxProposed) * 20;
@@ -231,7 +231,7 @@ export const MonthView = ({ guests, allGuests, onGuestClick, selectedMonth, onDa
                       {/* Recording strips */}
                       {scheduledRecordings.length > 0 && (
                         <div className="space-y-0.5 mt-1">
-                          {scheduledRecordings.slice(0, 2).map((g) => (
+                          {scheduledRecordings.map((g) => (
                             <div
                               key={g.id}
                               className="text-[9px] px-1 py-0.5 rounded bg-red-500/10 text-red-600 dark:text-red-400 truncate cursor-pointer hover:bg-red-500/20 border-l-2 border-red-500"
@@ -244,16 +244,13 @@ export const MonthView = ({ guests, allGuests, onGuestClick, selectedMonth, onDa
                               🔴 {g.name}
                             </div>
                           ))}
-                          {scheduledRecordings.length > 2 && (
-                            <div className="text-[9px] text-red-500 px-1">+{scheduledRecordings.length - 2} más</div>
-                          )}
                         </div>
                       )}
 
                       {/* Proposed strips */}
                       {proposedGuests.length > 0 && (
                         <div className="space-y-0.5 mt-1">
-                          {proposedGuests.slice(0, 2).map((g) => (
+                          {proposedGuests.map((g) => (
                             <div
                               key={g.id}
                               className="text-[9px] px-1 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 truncate cursor-pointer hover:bg-blue-500/20 border-l-2 border-blue-500"
@@ -266,9 +263,6 @@ export const MonthView = ({ guests, allGuests, onGuestClick, selectedMonth, onDa
                               🔵 {g.name}
                             </div>
                           ))}
-                          {proposedGuests.length > 2 && (
-                            <div className="text-[9px] text-blue-500 px-1">+{proposedGuests.length - 2} más</div>
-                          )}
                         </div>
                       )}
                     </div>
