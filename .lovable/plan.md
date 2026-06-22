@@ -1,31 +1,28 @@
-## Cambios al estado PROPUESTO
+## Problema
+En las vistas **Semana** y **Día**, los invitados con estado `proposed` aparecen en banners rojos con etiqueta `🔴 Grab:` / `● REC`, igual que los que se van a grabar. Deben distinguirse en **azul** con etiqueta `PROPUESTO`, como ya se hace en la vista Mes.
 
-### 1. Vista MES (`src/components/MonthView.tsx`)
+## Cambios
 
-Hoy, cualquier invitado con `scheduled_date` (incluido `proposed`) se pinta como una franja **roja** y muestra un badge **REC rojo**. Hay que separar visualmente PROPUESTO de las grabaciones reales.
+### 1. `src/components/WeeklyCalendar.tsx` — Separar PROPUESTO de REC en las tiras del día
+- En `getRecordingsForDay`, dejar solo `to_record` y `postponed` (rojo/REC).
+- Añadir `getProposedForDay` que filtre solo `proposed`.
+- En el bloque de "Recording strips per day" (líneas 108-130), renderizar **dos grupos**:
+  - Rojo existente: `🔴 Grab: {name}` para grabaciones.
+  - Nuevo azul: `🔵 Prop: {name}` con clases `bg-blue-500/10 text-blue-600 dark:text-blue-400 border-l-2 border-blue-500 hover:bg-blue-500/20`, click llama a `onRecordingGuestClick?.(g)`.
+- Mantener el límite de 2 visibles + contador "+N más" por grupo.
 
-- Separar `getScheduledRecordingsForDay` en dos listas:
-  - `scheduledRecordings`: solo `to_record` y `postponed` (los que sí se van a grabar) → siguen en **rojo** con badge **REC**.
-  - `proposedForDay`: solo `proposed` → se renderiza en **azul** con badge **PROPUESTO**.
-- Renderizar ambos grupos en la cabecera del día:
-  - Badge azul `PROPUESTO` (con contador si hay más de uno) al lado/abajo del badge REC, usando los tokens azules ya existentes (`bg-blue-500/20`, `text-blue-700`, etc., consistentes con `getStatusColor("proposed")`).
-  - Las "tiras" de nombre debajo del número de día también en azul para los propuestos (borde y texto azul, fondo `bg-blue-500/10`), en rojo para los de grabación.
-- Ajustar el cálculo de `recordingSectionMinHeight` para considerar ambos grupos (suma de tiras visibles, máx 2 por grupo).
-- Click en badge azul `PROPUESTO` o en una tira azul: abre el detalle del invitado propuesto (`onRecordingGuestClick` o equivalente). Mantener el click en REC tal cual.
+### 2. `src/components/DayView.tsx` — Separar el banner PROPUESTO del banner REC
+- Dividir `scheduledRecordings` (líneas 136-143) en dos listas:
+  - `scheduledRecordings`: `to_record` + `postponed` (rojo, `● REC`, "Grabación programada:").
+  - `proposedForDay`: `proposed` (azul, `● PROPUESTO`, "Propuesto para grabar:").
+- En el banner (líneas 254-270), renderizar ambas listas. Para `proposedForDay` usar `bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/20`, texto `text-blue-600 dark:text-blue-400`.
+- Mantener el `onClick` que abre el detalle del invitado.
 
-### 2. Bandeja de Propuestos (`src/components/ProposedView.tsx`)
+## Notas técnicas
+- Sin cambios en DB ni RLS.
+- Reutiliza los mismos tokens azules ya usados en MonthView para consistencia.
+- No se tocan otras vistas ni el modal de edición.
 
-- Mostrar la **fecha propuesta** en cada tarjeta (campo `scheduled_date`), formateada en español: `"Propuesta: 11 jun 2026"`. Si no tiene fecha, mostrar `"Sin fecha asignada"`.
-- **Ordenar la lista** por `scheduled_date` ascendente (próximas primero). Los invitados sin fecha quedan al final.
-- Mantener el botón "Asignar fecha" como hoy.
-
-### Notas técnicas
-
-- Tokens semánticos: usar las clases azules ya presentes en `getStatusColor` (no hardcodear hex).
-- `date-fns` ya está disponible (`format(date, "d MMM yyyy", { locale: es })`); reutilizar el locale ya importado en otros archivos del proyecto.
-- Sin cambios de base de datos ni de RLS. Sin cambios en el modal de edición.
-
-### Archivos a modificar
-
-- `src/components/MonthView.tsx`
-- `src/components/ProposedView.tsx`
+## Archivos a modificar
+- `src/components/WeeklyCalendar.tsx`
+- `src/components/DayView.tsx`

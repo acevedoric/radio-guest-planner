@@ -137,7 +137,16 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
     ? allGuests
         .filter(g =>
           g.scheduled_date === selectedDayDate &&
-          (g.recording_status === "to_record" || g.recording_status === "postponed" || g.recording_status === "proposed")
+          (g.recording_status === "to_record" || g.recording_status === "postponed")
+        )
+        .sort((a, b) => (a.scheduled_time || '').localeCompare(b.scheduled_time || ''))
+    : [];
+
+  const proposedForDay = selectedDayDate
+    ? allGuests
+        .filter(g =>
+          g.scheduled_date === selectedDayDate &&
+          g.recording_status === "proposed"
         )
         .sort((a, b) => (a.scheduled_time || '').localeCompare(b.scheduled_time || ''))
     : [];
@@ -251,7 +260,7 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
       )}
 
       {/* Recording banner */}
-      {scheduledRecordings.length > 0 && (
+      {(scheduledRecordings.length > 0 || proposedForDay.length > 0) && (
         <div className="space-y-2">
           {scheduledRecordings.map((g) => (
             <div
@@ -262,6 +271,19 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
               <span className="text-red-600 dark:text-red-400 font-bold text-sm">● REC</span>
               <span className="text-sm text-foreground font-medium">
                 Grabación programada: {g.name}
+                {g.scheduled_time && ` - ${g.scheduled_time}`}
+              </span>
+            </div>
+          ))}
+          {proposedForDay.map((g) => (
+            <div
+              key={g.id}
+              className="flex items-center gap-3 px-4 py-2 rounded-lg bg-blue-500/10 border border-blue-500/20 cursor-pointer hover:bg-blue-500/20 transition-all"
+              onClick={() => onRecordingGuestClick?.(g)}
+            >
+              <span className="text-blue-600 dark:text-blue-400 font-bold text-sm">● PROPUESTO</span>
+              <span className="text-sm text-foreground font-medium">
+                Propuesto para grabar: {g.name}
                 {g.scheduled_time && ` - ${g.scheduled_time}`}
               </span>
             </div>
