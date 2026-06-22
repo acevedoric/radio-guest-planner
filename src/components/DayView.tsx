@@ -137,7 +137,16 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
     ? allGuests
         .filter(g =>
           g.scheduled_date === selectedDayDate &&
-          (g.recording_status === "to_record" || g.recording_status === "postponed" || g.recording_status === "proposed")
+          (g.recording_status === "to_record" || g.recording_status === "postponed")
+        )
+        .sort((a, b) => (a.scheduled_time || '').localeCompare(b.scheduled_time || ''))
+    : [];
+
+  const proposedForDay = selectedDayDate
+    ? allGuests
+        .filter(g =>
+          g.scheduled_date === selectedDayDate &&
+          g.recording_status === "proposed"
         )
         .sort((a, b) => (a.scheduled_time || '').localeCompare(b.scheduled_time || ''))
     : [];
