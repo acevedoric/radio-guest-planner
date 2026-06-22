@@ -129,11 +129,39 @@ export const WeeklyCalendar = ({ guests, allGuests, onGuestClick, onAddGuest, se
                     onClick={() => onRecordingGuestClick?.(g)}
                     title={`Grabación: ${g.name}`}
                   >
+        {/* Recording strips per day */}
+        <div className="grid gap-4 mb-2" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
+          {DAYS.map(day => {
+            const recordings = getRecordingsForDay(day.offset);
+            const proposed = getProposedForDay(day.offset);
+            if (recordings.length === 0 && proposed.length === 0) return <div key={day.key} />;
+            return (
+              <div key={day.key} className="space-y-0.5">
+                {recordings.slice(0, 2).map((g) => (
+                  <div
+                    key={g.id}
+                    className="text-[10px] px-2 py-0.5 rounded bg-red-500/10 text-red-600 dark:text-red-400 truncate cursor-pointer hover:bg-red-500/20 border-l-2 border-red-500"
+                    onClick={() => onRecordingGuestClick?.(g)}
+                    title={`Grabación: ${g.name}`}
+                  >
                     🔴 Grab: {g.name}
                   </div>
                 ))}
                 {recordings.length > 2 && (
                   <div className="text-[10px] text-red-500 px-2">+{recordings.length - 2} más</div>
+                )}
+                {proposed.slice(0, 2).map((g) => (
+                  <div
+                    key={g.id}
+                    className="text-[10px] px-2 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 truncate cursor-pointer hover:bg-blue-500/20 border-l-2 border-blue-500"
+                    onClick={() => onRecordingGuestClick?.(g)}
+                    title={`Propuesto: ${g.name}`}
+                  >
+                    🔵 Prop: {g.name}
+                  </div>
+                ))}
+                {proposed.length > 2 && (
+                  <div className="text-[10px] text-blue-500 px-2">+{proposed.length - 2} más</div>
                 )}
               </div>
             );
