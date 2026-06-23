@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { format } from "date-fns";
+import { format, parseISO, startOfWeek, getDay } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
@@ -43,6 +43,7 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
     instagram: ""
   });
   const [customFields, setCustomFields] = useState<{[key: string]: string}>({});
+  const [proposedHour, setProposedHour] = useState<string>("");
 
   const {
     guestSuggestions,
@@ -84,7 +85,43 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
       setSocialNetworks({ twitter: "", instagram: "" });
       setCustomFields({});
     }
+    setProposedHour("");
   }, [guest]);
+
+  const handleAssignProposed = () => {
+    if (!formData.scheduled_date) {
+      toast.error("Selecciona primero la fecha propuesta");
+      return;
+    }
+    if (!proposedHour) {
+      toast.error("Selecciona la hora (1ra, 2da o 3ra)");
+      return;
+    }
+    const date = parseISO(formData.scheduled_date);
+    const dayIdx = getDay(date); // 0=Sun..6=Sat
+    const dayMap: Record<number, string> = {
+      1: "monday",
+      2: "tuesday",
+      3: "wednesday",
+      4: "thursday",
+    };
+    const dayName = dayMap[dayIdx];
+    if (!dayName) {
+      toast.error("La fecha propuesta debe caer entre lunes y jueves");
+      return;
+    }
+    const weekStart = startOfWeek(date, { weekStartsOn: 1 });
+    const weekDate = format(weekStart, "yyyy-MM-dd");
+    setFormData({
+      ...formData,
+      week_date: weekDate,
+      day_of_week: dayName,
+      time_slot: Number(proposedHour),
+    });
+    const hourLabel = proposedHour === "1" ? "1ra" : proposedHour === "2" ? "2da" : "3ra";
+    toast.success(`Slot asignado: ${dayName} · ${hourLabel} hora. Pulsa Guardar para confirmar.`);
+  };
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -271,10 +308,18 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
           </div>
 
           {/* Campo condicional para fecha según estado */}
-          {(formData.recording_status === "to_record" || 
-            formData.recording_status === "postponed" || 
+          {(formData.recording_status === "to_record" ||
+            formData.recording_status === "postponed" ||
             formData.recording_status === "proposed") && (
-            <div className={formData.recording_status === "to_record" ? "grid grid-cols-2 gap-4" : ""}>
+            <div
+              className={
+                formData.recording_status === "to_record"
+                  ? "grid grid-cols-2 gap-4"
+                  : formData.recording_status === "proposed"
+                  ? "grid grid-cols-[1fr_1fr_auto] gap-3 items-end"
+                  : ""
+              }
+            >
               <div className="space-y-2">
                 <Label htmlFor="scheduled_date">
                   {formData.recording_status === "to_record" && "Fecha para Grabar"}
@@ -303,8 +348,37 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
                   />
                 </div>
               )}
+              {formData.recording_status === "proposed" && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="proposed_hour">Hora</Label>
+                    <Select
+                      value={proposedHour}
+                      onValueChange={setProposedHour}
+                      disabled={readOnly}
+                    >
+                      <SelectTrigger id="proposed_hour">
+                        <SelectValue placeholder="Selecciona hora" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">1ra hora</SelectItem>
+                        <SelectItem value="2">2da hora</SelectItem>
+                        <SelectItem value="3">3ra hora</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={handleAssignProposed}
+                    disabled={readOnly || !formData.scheduled_date || !proposedHour}
+                  >
+                    ASIGNAR
+                  </Button>
+                </>
+              )}
             </div>
           )}
+
 
           <div className="space-y-2">
             <Label htmlFor="topic">Tema a Tratar *</Label>
