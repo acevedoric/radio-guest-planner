@@ -43,6 +43,7 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
     instagram: ""
   });
   const [customFields, setCustomFields] = useState<{[key: string]: string}>({});
+  const [proposedHour, setProposedHour] = useState<string>("");
 
   const {
     guestSuggestions,
