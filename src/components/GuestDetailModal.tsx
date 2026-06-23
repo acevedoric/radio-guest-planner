@@ -85,7 +85,43 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
       setSocialNetworks({ twitter: "", instagram: "" });
       setCustomFields({});
     }
+    setProposedHour("");
   }, [guest]);
+
+  const handleAssignProposed = () => {
+    if (!formData.scheduled_date) {
+      toast.error("Selecciona primero la fecha propuesta");
+      return;
+    }
+    if (!proposedHour) {
+      toast.error("Selecciona la hora (1ra, 2da o 3ra)");
+      return;
+    }
+    const date = parseISO(formData.scheduled_date);
+    const dayIdx = getDay(date); // 0=Sun..6=Sat
+    const dayMap: Record<number, string> = {
+      1: "monday",
+      2: "tuesday",
+      3: "wednesday",
+      4: "thursday",
+    };
+    const dayName = dayMap[dayIdx];
+    if (!dayName) {
+      toast.error("La fecha propuesta debe caer entre lunes y jueves");
+      return;
+    }
+    const weekStart = startOfWeek(date, { weekStartsOn: 1 });
+    const weekDate = format(weekStart, "yyyy-MM-dd");
+    setFormData({
+      ...formData,
+      week_date: weekDate,
+      day_of_week: dayName,
+      time_slot: Number(proposedHour),
+    });
+    const hourLabel = proposedHour === "1" ? "1ra" : proposedHour === "2" ? "2da" : "3ra";
+    toast.success(`Slot asignado: ${dayName} · ${hourLabel} hora. Pulsa Guardar para confirmar.`);
+  };
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
