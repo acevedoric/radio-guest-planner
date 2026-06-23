@@ -308,10 +308,18 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
           </div>
 
           {/* Campo condicional para fecha según estado */}
-          {(formData.recording_status === "to_record" || 
-            formData.recording_status === "postponed" || 
+          {(formData.recording_status === "to_record" ||
+            formData.recording_status === "postponed" ||
             formData.recording_status === "proposed") && (
-            <div className={formData.recording_status === "to_record" ? "grid grid-cols-2 gap-4" : ""}>
+            <div
+              className={
+                formData.recording_status === "to_record"
+                  ? "grid grid-cols-2 gap-4"
+                  : formData.recording_status === "proposed"
+                  ? "grid grid-cols-[1fr_1fr_auto] gap-3 items-end"
+                  : ""
+              }
+            >
               <div className="space-y-2">
                 <Label htmlFor="scheduled_date">
                   {formData.recording_status === "to_record" && "Fecha para Grabar"}
@@ -340,8 +348,37 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
                   />
                 </div>
               )}
+              {formData.recording_status === "proposed" && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="proposed_hour">Hora</Label>
+                    <Select
+                      value={proposedHour}
+                      onValueChange={setProposedHour}
+                      disabled={readOnly}
+                    >
+                      <SelectTrigger id="proposed_hour">
+                        <SelectValue placeholder="Selecciona hora" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">1ra hora</SelectItem>
+                        <SelectItem value="2">2da hora</SelectItem>
+                        <SelectItem value="3">3ra hora</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={handleAssignProposed}
+                    disabled={readOnly || !formData.scheduled_date || !proposedHour}
+                  >
+                    ASIGNAR
+                  </Button>
+                </>
+              )}
             </div>
           )}
+
 
           <div className="space-y-2">
             <Label htmlFor="topic">Tema a Tratar *</Label>
