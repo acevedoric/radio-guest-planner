@@ -17,6 +17,7 @@ import { LogOut, LogIn, Undo2, Redo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useUndoRedo } from "@/hooks/useUndoRedo";
 import { guestsReadFrom } from "@/lib/guestsSource";
+import { ImportExcelModal } from "@/components/ImportExcelModal";
 
 const Index = () => {
   const navigate = useNavigate();
