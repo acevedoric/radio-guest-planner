@@ -17,6 +17,7 @@ import { LogOut, LogIn, Undo2, Redo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useUndoRedo } from "@/hooks/useUndoRedo";
 import { guestsReadFrom } from "@/lib/guestsSource";
+import { ImportExcelModal } from "@/components/ImportExcelModal";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -42,6 +43,8 @@ const Index = () => {
   } | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [allRecordingGuests, setAllRecordingGuests] = useState<Guest[]>([]);
+  const [isAdmin, setIsAdmin] = useState(false);
+  
   
   const refreshData = useCallback(() => {
     fetchGuests();
@@ -67,6 +70,14 @@ const Index = () => {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Check admin role
+  useEffect(() => {
+    if (!session) { setIsAdmin(false); return; }
+    (supabase.rpc as any)("has_role", { _user_id: session.user.id, _role: "admin" })
+      .then(({ data }: any) => setIsAdmin(!!data));
+  }, [session]);
+
 
   useEffect(() => {
     if (loading) return;
@@ -616,6 +627,7 @@ const Index = () => {
                   <Button variant="ghost" size="sm" onClick={redo} disabled={!canRedo} title="Rehacer (Ctrl+Y)">
                     <Redo2 className="h-4 w-4" />
                   </Button>
+                  {isAdmin && <ImportExcelModal onImported={refreshData} />}
                   <Button variant="ghost" size="sm" onClick={handleLogout}>
                     <LogOut className="h-4 w-4 mr-2" />
                     Salir
