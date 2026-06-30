@@ -71,6 +71,14 @@ const Index = () => {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Check admin role
+  useEffect(() => {
+    if (!session) { setIsAdmin(false); return; }
+    (supabase.rpc as any)("has_role", { _user_id: session.user.id, _role: "admin" })
+      .then(({ data }: any) => setIsAdmin(!!data));
+  }, [session]);
+
+
   useEffect(() => {
     if (loading) return;
     fetchGuests();
