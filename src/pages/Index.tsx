@@ -43,6 +43,8 @@ const Index = () => {
   } | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [allRecordingGuests, setAllRecordingGuests] = useState<Guest[]>([]);
+  const [isAdmin, setIsAdmin] = useState(false);
+  
   
   const refreshData = useCallback(() => {
     fetchGuests();
