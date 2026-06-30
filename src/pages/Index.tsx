@@ -627,6 +627,7 @@ const Index = () => {
                   <Button variant="ghost" size="sm" onClick={redo} disabled={!canRedo} title="Rehacer (Ctrl+Y)">
                     <Redo2 className="h-4 w-4" />
                   </Button>
+                  {isAdmin && <ImportExcelModal onImported={refreshData} />}
                   <Button variant="ghost" size="sm" onClick={handleLogout}>
                     <LogOut className="h-4 w-4 mr-2" />
                     Salir
