@@ -443,6 +443,35 @@ const SlotCard = ({ guest, coGuest, day, slot, onGuestClick, onAddGuest, getStat
                 </label>
               </div>
             </div>
+            {slot === 3 && coGuest && (
+              <div
+                className={`mt-1 pt-1 border-t border-muted rounded ${getStatusColor(coGuest.recording_status)} px-1`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onGuestClick(coGuest);
+                }}
+                title="Co-invitado"
+              >
+                <div className="text-[8px] uppercase opacity-60 font-semibold">Co-inv.</div>
+                <div className="font-semibold truncate">{coGuest.name}</div>
+                {coGuest.topic && <div className="truncate opacity-80 text-[10px]">{coGuest.topic}</div>}
+              </div>
+            )}
+            {slot === 3 && !coGuest && editMode && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const dayOfWeek = dayOfWeekMap[day.getDay()];
+                  const weekStart = startOfWeek(day, { weekStartsOn: 1 });
+                  const weekDate = format(weekStart, "yyyy-MM-dd");
+                  if (dayOfWeek) onAddGuest(dayOfWeek, 3, weekDate, 2);
+                }}
+                className="mt-1 w-full text-[9px] text-primary border border-dashed border-primary/40 rounded py-0.5 hover:bg-primary/10"
+              >
+                + Co-invitado
+              </button>
+            )}
           </div>
         </GuestTooltip>
       </div>
