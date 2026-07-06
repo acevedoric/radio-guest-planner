@@ -127,7 +127,13 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
   const [showLibreto, setShowLibreto] = useState(false);
 
   const getGuestForSlot = (slot: number) => {
-    return guests.find(g => g.day_of_week === selectedDay && g.time_slot === slot);
+    return guests.find(g => g.day_of_week === selectedDay && g.time_slot === slot && (g.slot_order ?? 1) === 1);
+  };
+
+  const getGuestsForSlot = (slot: number): Guest[] => {
+    return guests
+      .filter(g => g.day_of_week === selectedDay && g.time_slot === slot)
+      .sort((a, b) => (a.slot_order ?? 1) - (b.slot_order ?? 1));
   };
 
   const currentDayLabel = DAYS.find(d => d.value === selectedDay)?.label || "Día";
