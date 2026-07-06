@@ -1,90 +1,63 @@
 ## Objetivo
 
-Importación única (one-off) de los archivos `CALENDARIO BBB 2025/2026` al planner. Sin UI permanente para usuarios finales: un botón discreto en el header (solo admin) que abre un modal de import con preview y confirmación. Sin export por ahora (no es necesario para un import único; se puede añadir luego si lo pides).
+Permitir un segundo invitado dentro de la MISMA 3ra hora (mismo día/semana/franja) sin crear una franja 4. Se comporta como un "invitado 3B" que hereda las características del slot 3 (hora, status por defecto `recorded`, mismo `week_date`/`day_of_week`/`time_slot=3`). Debe ser visible y editable en Día, Semana y Mes.
 
-## Formato detectado en tus archivos
+## Modelo de datos
 
-- 1 hoja por mes (`ENERO`, `FEBRERO`, … o `AGOSTO`, `SEPT`, …) + hojas auxiliares `HORARIO` y `MOLDE` (se ignoran).
-- Cada mes contiene varios **bloques de semana** separados por filas vacías. Estructura de cada bloque:
-  - Fila cabecera: `None, None, "LUNES 29", "MARTES 30", "MIÉRCOLES 31", "JUEVES 1"` (col C–F).
-  - Filas opcionales `GRABA` (col B = "GRABA"): grabaciones programadas que aluden a una franja futura (ej. `"3ra hora del lunes 28 julio"`).
-  - 3 filas `VIVO/GRABADO` con etiqueta de hora (`1ra/2da/3ra hora`) y la fila de datos justo debajo con la celda de invitado.
-- Columna B = tipo (`VIVO`, `GRABA`, `GRABADO`) y hora horaria.
-- Las celdas de invitado son texto libre multilinea. No siempre traen `Invitado:/Tema:/Contacto:`. Pueden contener solo `NO HAY PROGRAMA`, `NO HAY GRABACIÓN`, o texto narrativo.
+Añadir una columna `slot_order` (`smallint`, default `1`) a `guests`. La unicidad lógica de un slot pasa de `(week_date, day_of_week, time_slot)` a `(week_date, day_of_week, time_slot, slot_order)`.
 
-## Mapeo a la tabla `guests`
+- `slot_order = 1` → invitado principal (comportamiento actual).
+- `slot_order = 2` → co-invitado de la 3ra hora.
+- Solo se permite `slot_order = 2` cuando `time_slot = 3` (validado en UI; sin constraint duro para no romper importaciones existentes).
+- Migración: backfill `slot_order = 1` para todas las filas actuales, `NOT NULL DEFAULT 1`. Índice `(week_date, day_of_week, time_slot, slot_order)`.
 
-Por cada celda no vacía:
+No se agregan nuevos campos de contenido: el co-invitado usa las mismas columnas que cualquier invitado (nombre, tema, contacto, redes, checkboxes, módulos H3, etc.).
 
-| Campo Excel | Campo `guests` |
-|---|---|
-| Día de la semana (col index) | `day_of_week` ∈ monday…thursday |
-| Fila franja (1ra/2da/3ra) | `time_slot` 1/2/3 |
-| Día numérico de la cabecera + mes (hoja) + año (filename) | `week_date` = lunes de esa semana |
-| Bloque `VIVO` 1ra/2da hora | `recording_status = "live"` |
-| Bloque `VIVO`/`GRABADO` 3ra hora | `recording_status = "recorded"` |
-| Bloque `GRABA` | `recording_status = "to_record"` + `scheduled_date`/`scheduled_time` desde la hora de col B y la fecha de la cabecera; texto referencia (ej. "3ra hora del lunes 28 julio") → se intenta resolver `day_of_week`/`time_slot`/`week_date` destino con regex |
-| Texto celda | parseo (ver abajo) |
-| `NO HAY PROGRAMA/GRABACIÓN` | se omite |
+## UI
 
-### Parseo de la celda (texto libre)
+### Vista DÍA (`src/components/DayView.tsx`)
+- En la tarjeta de la 3ra hora, si NO existe co-invitado, mostrar un botón `(+) Agregar co-invitado` debajo del bloque del invitado principal.
+- Al pulsar, abre el modal de creación pre-rellenado con `day_of_week`, `week_date`, `time_slot=3`, `slot_order=2`, `recording_status='recorded'`.
+- Si existe co-invitado, renderizar una segunda tarjeta idéntica en estructura al invitado principal (mismos módulos H3, checkboxes CONF. BLU / CONF. PR, contactos, drag opcional deshabilitado entre orders para no romper la lógica actual).
+- Botón para eliminar el co-invitado (solo en Edit mode) que borra la fila `slot_order=2`.
 
-Regex tolerante, sin orden fijo, campos opcionales:
+### Vista SEMANA (`src/components/WeeklyCalendar.tsx`)
+- La celda de la 3ra hora pasa a poder contener 1 o 2 tarjetas apiladas verticalmente. Cuando hay co-invitado, se muestran ambas mini-tarjetas (nombre, posición, tema, checkboxes) con separador.
+- El (+) para agregar co-invitado también aparece aquí en Edit mode si el slot 3 tiene principal pero no co-invitado.
+- El drag & drop actual sigue moviendo únicamente al principal (`slot_order=1`); el co-invitado se mueve solo desde el modal de edición.
 
-- `Invitado[as]?:\s*(.+?)(?=\n[A-ZÁÉ]\w+:|$)` → `name`
-- `Tema:\s*(.+?)(?=\n[A-ZÁÉ]\w+:|$)` → `topic`
-- `Contacto:?\s*(.+?)(?=\n[A-ZÁÉ]\w+:|$)` → desde aquí extraer:
-  - Primer `+?57\s?\d{3}\s?\d{7}` o variantes → `phone`
-  - Texto entre paréntesis `(... Prensa)` → `press_contact`
-- Si la celda no tiene ningún `Invitado:` reconocible, todo el texto va a `topic` y `name = ""`.
+### Vista MES (`src/components/MonthView.tsx`)
+- En la fila del día, la 3ra hora muestra los dos nombres separados por `/` o en dos líneas cortas cuando hay co-invitado. Mismos indicadores de status/REC.
 
-### Pendiente vs confirmado
+### Modales / edición
+- `GuestDetailModal` no cambia funcionalmente; solo respeta `slot_order` al guardar (se pasa como prop desde quien abre el modal).
+- Al crear vía (+), se fuerza `slot_order=2` y `time_slot=3`.
+- Al eliminar el principal (`slot_order=1`) cuando existe co-invitado, se pregunta si promover el co-invitado a principal (UPDATE `slot_order=1`) o borrar ambos.
 
-- `name` vacío después de parseo → `recording_status = "proposed"` (mapea a tu "pendiente" azul existente) + `topic` = texto crudo.
-- `name` presente → status según bloque (live/recorded/to_record).
-- **Protección**: una vez insertado como confirmado, una re-importación nunca lo sobreescribe (ver dedupe).
+## Lecturas / hooks
 
-## Dedupe (al re-importar)
+- `guestsSource.ts` y los queries del planner ya traen todas las filas del `week_date`; solo hay que dejar de asumir "una fila por (day, slot)". Se cambia el helper actual (`getGuestForSlot`) por dos: `getPrimaryForSlot(day, slot)` y `getCoGuestForSlot(day)` (solo aplica al slot 3).
+- Orden estable en frontend: `ORDER BY slot_order`.
 
-Match por `(week_date, day_of_week, time_slot, normalizado(name))`:
+## Import Excel
 
-1. No existe → INSERT.
-2. Existe con mismo nombre → SKIP (no toca confirmados).
-3. Existe en el slot con nombre distinto y el existente es `proposed` (pendiente) → UPDATE.
-4. Existe en el slot con nombre distinto y el existente es confirmado → SKIP + reportar conflicto en el preview.
+No cambia: los imports actuales siguen creando `slot_order=1`. El co-invitado se crea manualmente desde la UI.
 
-Las grabaciones (`to_record`) se deduplican por `(scheduled_date, scheduled_time, name)`.
+## Fuera de alcance
 
-## Inferencia de año
+- Más de 2 invitados por hora.
+- Co-invitado en hora 1 o 2.
+- Cambios en el flujo de grabaciones (`to_record`) ni en `scheduled_date`.
 
-- Del nombre del archivo: regex `/(\d{4})/` sobre `file.name` → 2025 o 2026.
-- Fallback: prompt en el modal (input numérico, default año actual).
+## Detalles técnicos
 
-## UX del importador
-
-Modal con 3 pasos:
-
-1. **Subir archivo** (`<input type="file" accept=".xlsx">`). Confirmar año detectado.
-2. **Preview**: tabla con `Hoja | Semana | Día | Franja | Status | Nombre | Tema | Acción (insert/skip/update/conflict)`. Permite desmarcar filas individuales.
-3. **Importar**: ejecuta inserts/updates con `supabase.from('guests')`, muestra resumen `X creados, Y actualizados, Z omitidos, N conflictos` y refresca el planner.
-
-Botón de acceso: ícono `Upload` en el header del planner, visible solo para `admin` (consultando `user_roles`). Lo dejamos fácil de retirar tras la importación.
-
-## Aspectos técnicos
-
-- Librería: `xlsx` (SheetJS) instalada vía `bun add xlsx`. Parseo 100% en navegador.
-- Nuevo archivo `src/components/ImportExcelModal.tsx` con todo el wizard y la lógica de parsing.
-- Nuevo módulo `src/lib/excelImport.ts`:
-  - `parseWorkbook(file, year): ParsedRow[]`
-  - `mergeWithExisting(rows, currentGuests): PreviewRow[]`
-  - `monthNameToIndex(sheetName)` y `weekDateFor(year, month, monLabel)` usando `date-fns` en zona local (cumple memoria de date formatting).
-- En `src/pages/Index.tsx` (o donde esté el header), añadir botón `<ImportExcelModal />` condicionado a rol admin.
-- Status `proposed` ya existe en `Guest['recording_status']`, no requiere migración.
-- Sin tocar `src/integrations/supabase/client.ts` ni `types.ts`.
-- No se agrega export por ahora.
-
-## Lo que NO se hace (para mantener el alcance acotado)
-
-- No se crea un export Excel (puedo añadirlo después, generando el mismo formato con `XLSX.utils.aoa_to_sheet`).
-- No se persiste el archivo subido en storage.
-- No se modifica RLS de `guests` (los inserts usan el usuario admin actual).
+- Migración SQL:
+  ```sql
+  ALTER TABLE public.guests
+    ADD COLUMN slot_order smallint NOT NULL DEFAULT 1;
+  CREATE INDEX guests_slot_order_idx
+    ON public.guests (week_date, day_of_week, time_slot, slot_order);
+  ```
+- Actualizar `src/types/guest.ts` con `slot_order?: number`.
+- Componentes tocados: `DayView.tsx`, `WeeklyCalendar.tsx`, `MonthView.tsx`, `GuestDetailModal.tsx` (solo props), `Index.tsx` (handlers de creación reciben `slotOrder`).
+- Undo/redo: incluir `slot_order` en el snapshot de la fila.
