@@ -15,7 +15,7 @@ interface MonthViewProps {
   selectedMonth: Date;
   onDayClick: (day: Date) => void;
   onScheduledDateClick: (day: Date) => void;
-  onAddGuest: (day: string, slot: number, weekDate: string) => void;
+  onAddGuest: (day: string, slot: number, weekDate: string, slotOrder?: number) => void;
   onMoveGuest?: (guestId: string, newDay: string, newSlot: number, newWeekDate: string, targetGuestId?: string) => Promise<void>;
   editMode: boolean;
   onRecordingGuestClick?: (guest: Guest) => void;
