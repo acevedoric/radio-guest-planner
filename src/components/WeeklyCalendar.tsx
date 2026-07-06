@@ -158,13 +158,15 @@ export const WeeklyCalendar = ({ guests, allGuests, onGuestClick, onAddGuest, se
           <div key={timeSlot.slot} className="grid gap-4 mb-4" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
             {DAYS.map(day => {
               const guest = getGuestForSlot(day.key, timeSlot.slot);
-              
+              const coGuest = getCoGuestForSlot(day.key, timeSlot.slot);
+
               return (
                 <GuestSlotCard
                   key={`${day.key}-${timeSlot.slot}`}
                   day={day.key}
                   slot={timeSlot.slot}
                   guest={guest}
+                  coGuest={coGuest}
                   onGuestClick={onGuestClick}
                   onAddGuest={onAddGuest}
                   editMode={editMode}
