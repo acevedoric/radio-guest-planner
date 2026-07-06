@@ -48,16 +48,34 @@ export const MonthView = ({ guests, allGuests, onGuestClick, selectedMonth, onDa
       4: "thursday"
     };
     const dayOfWeekKey = dayOfWeekMap[day.getDay()];
-    
+
     if (!dayOfWeekKey) return undefined;
-    
+
     const weekStart = startOfWeek(day, { weekStartsOn: 1 });
     const weekDateStr = format(weekStart, "yyyy-MM-dd");
-    
-    return guests.find(g => 
+
+    return guests.find(g =>
       g.week_date === weekDateStr &&
       g.day_of_week === dayOfWeekKey &&
-      g.time_slot === slot
+      g.time_slot === slot &&
+      (g.slot_order ?? 1) === 1
+    );
+  };
+
+  const getCoGuestForSlot = (day: Date, slot: number): Guest | undefined => {
+    if (slot !== 3) return undefined;
+    const dayOfWeekMap: Record<number, string> = {
+      1: "monday", 2: "tuesday", 3: "wednesday", 4: "thursday"
+    };
+    const dayOfWeekKey = dayOfWeekMap[day.getDay()];
+    if (!dayOfWeekKey) return undefined;
+    const weekStart = startOfWeek(day, { weekStartsOn: 1 });
+    const weekDateStr = format(weekStart, "yyyy-MM-dd");
+    return guests.find(g =>
+      g.week_date === weekDateStr &&
+      g.day_of_week === dayOfWeekKey &&
+      g.time_slot === slot &&
+      (g.slot_order ?? 1) === 2
     );
   };
 
