@@ -329,15 +329,16 @@ export const MonthView = ({ guests, allGuests, onGuestClick, selectedMonth, onDa
 
 interface SlotCardProps {
   guest: Guest | undefined;
+  coGuest?: Guest | undefined;
   day: Date;
   slot: number;
   onGuestClick: (guest: Guest) => void;
-  onAddGuest: (day: string, slot: number, weekDate: string) => void;
+  onAddGuest: (day: string, slot: number, weekDate: string, slotOrder?: number) => void;
   getStatusColor: (status: Guest["recording_status"]) => string;
   editMode: boolean;
 }
 
-const SlotCard = ({ guest, day, slot, onGuestClick, onAddGuest, getStatusColor, editMode }: SlotCardProps) => {
+const SlotCard = ({ guest, coGuest, day, slot, onGuestClick, onAddGuest, getStatusColor, editMode }: SlotCardProps) => {
   const handleCheckboxChange = async (guest: Guest, type: 'blu' | 'pr', checked: boolean) => {
     if (!guest.id) return;
     
