@@ -290,11 +290,13 @@ export const MonthView = ({ guests, allGuests, onGuestClick, selectedMonth, onDa
                     <div className="space-y-1">
                       {[1, 2, 3].map((slot) => {
                         const guest = getGuestForSlot(day, slot);
-                        
+                        const coGuest = getCoGuestForSlot(day, slot);
+
                         return (
                           <SlotCard
                             key={slot}
                             guest={guest}
+                            coGuest={coGuest}
                             day={day}
                             slot={slot}
                             onGuestClick={onGuestClick}
