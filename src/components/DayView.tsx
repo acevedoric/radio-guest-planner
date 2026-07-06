@@ -19,7 +19,7 @@ interface DayViewProps {
   guests: Guest[];
   allGuests: Guest[];
   onGuestClick: (guest: Guest) => void;
-  onAddGuest: (day: string, slot: number) => void;
+  onAddGuest: (day: string, slot: number, weekDate?: string, slotOrder?: number) => void;
   selectedDay: string;
   onDayChange: (day: string) => void;
   editMode: boolean;
