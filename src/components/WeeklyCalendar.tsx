@@ -200,14 +200,15 @@ interface GuestSlotCardProps {
   day: string;
   slot: number;
   guest: Guest | undefined;
+  coGuest?: Guest | undefined;
   onGuestClick: (guest: Guest) => void;
-  onAddGuest: (day: string, slot: number) => void;
+  onAddGuest: (day: string, slot: number, weekDate?: string, slotOrder?: number) => void;
   editMode: boolean;
 }
 
-const GuestSlotCard = ({ day, slot, guest, onGuestClick, onAddGuest, editMode }: GuestSlotCardProps) => {
+const GuestSlotCard = ({ day, slot, guest, coGuest, onGuestClick, onAddGuest, editMode }: GuestSlotCardProps) => {
   const slotId = `slot-${day}-${slot}`;
-  
+
   const { setNodeRef: setDropRef, isOver } = useDroppable({
     id: slotId,
   });
@@ -219,29 +220,73 @@ const GuestSlotCard = ({ day, slot, guest, onGuestClick, onAddGuest, editMode }:
 
   const handleCheckboxChange = async (guest: Guest, type: 'blu' | 'pr', checked: boolean) => {
     if (!guest.id) return;
-    
+
     try {
       let updateData: Partial<Guest> = {};
-      
+
       if (type === 'blu') {
         updateData.confirmed_blu = checked;
       } else if (type === 'pr') {
         updateData.confirmed_pr = checked;
       }
-      
+
       const { error } = await supabase
         .from('guests')
         .update(updateData)
         .eq('id', guest.id);
-      
+
       if (error) throw error;
-      
+
       toast.success("Estado actualizado");
     } catch (error) {
       console.error('Error updating guest:', error);
       toast.error("Error al actualizar");
     }
   };
+
+  const renderCoGuestMini = (g: Guest) => (
+    <div
+      className={cn(
+        "mt-2 pt-2 border-t border-muted cursor-pointer",
+        "rounded p-1 -mx-1",
+        statusCardStyles[g.recording_status]
+      )}
+      onClick={(e) => {
+        e.stopPropagation();
+        onGuestClick(g);
+      }}
+      title="Co-invitado"
+    >
+      <div className="text-[9px] font-semibold text-muted-foreground uppercase mb-0.5">Co-invitado</div>
+      <h4 className="font-semibold text-xs line-clamp-1">{g.name}</h4>
+      {g.position && (
+        <span className="text-[10px] text-muted-foreground">({g.position})</span>
+      )}
+      {g.topic && <p className="text-[10px] text-muted-foreground line-clamp-2">{g.topic}</p>}
+      <div className="flex items-center gap-3 pt-1" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center space-x-1">
+          <Checkbox
+            id={`blu-week-co-${g.id}`}
+            checked={g.confirmed_blu || false}
+            onCheckedChange={(checked) => handleCheckboxChange(g, 'blu', checked as boolean)}
+            disabled={!editMode}
+            className="h-3 w-3"
+          />
+          <label htmlFor={`blu-week-co-${g.id}`} className="text-[9px] font-medium cursor-pointer">BLU</label>
+        </div>
+        <div className="flex items-center space-x-1">
+          <Checkbox
+            id={`pr-week-co-${g.id}`}
+            checked={g.confirmed_pr || false}
+            onCheckedChange={(checked) => handleCheckboxChange(g, 'pr', checked as boolean)}
+            disabled={!editMode}
+            className="h-3 w-3"
+          />
+          <label htmlFor={`pr-week-co-${g.id}`} className="text-[9px] font-medium cursor-pointer">PR</label>
+        </div>
+      </div>
+    </div>
+  );
 
   if (guest) {
     return (
@@ -315,6 +360,19 @@ const GuestSlotCard = ({ day, slot, guest, onGuestClick, onAddGuest, editMode }:
                 </label>
               </div>
             </div>
+            {slot === 3 && coGuest && renderCoGuestMini(coGuest)}
+            {slot === 3 && !coGuest && editMode && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAddGuest(day, 3, undefined, 2);
+                }}
+                className="mt-2 w-full text-[10px] text-primary border border-dashed border-primary/40 rounded py-1 hover:bg-primary/10"
+              >
+                + Co-invitado
+              </button>
+            )}
           </div>
         </Card>
       </div>
