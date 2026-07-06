@@ -426,17 +426,20 @@ const Index = () => {
       }
     }
   };
-  const handleAddGuest = (day: string, slot: number, weekDate?: string) => {
+  const handleAddGuest = (day: string, slot: number, weekDate?: string, slotOrder?: number) => {
+    const order = slotOrder ?? 1;
     setNewGuestSlot({
       day,
-      slot
+      slot,
+      slotOrder: order,
     });
     setSelectedGuest({
       name: "",
       topic: "",
-      recording_status: "proposed",
+      recording_status: order === 2 ? "recorded" : "proposed",
       day_of_week: day,
       time_slot: slot,
+      slot_order: order,
       week_date: weekDate || format(selectedWeek, "yyyy-MM-dd")
     });
     setIsModalOpen(true);
