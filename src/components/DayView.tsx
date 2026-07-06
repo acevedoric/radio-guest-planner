@@ -19,7 +19,7 @@ interface DayViewProps {
   guests: Guest[];
   allGuests: Guest[];
   onGuestClick: (guest: Guest) => void;
-  onAddGuest: (day: string, slot: number) => void;
+  onAddGuest: (day: string, slot: number, weekDate?: string, slotOrder?: number) => void;
   selectedDay: string;
   onDayChange: (day: string) => void;
   editMode: boolean;
@@ -127,7 +127,13 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
   const [showLibreto, setShowLibreto] = useState(false);
 
   const getGuestForSlot = (slot: number) => {
-    return guests.find(g => g.day_of_week === selectedDay && g.time_slot === slot);
+    return guests.find(g => g.day_of_week === selectedDay && g.time_slot === slot && (g.slot_order ?? 1) === 1);
+  };
+
+  const getGuestsForSlot = (slot: number): Guest[] => {
+    return guests
+      .filter(g => g.day_of_week === selectedDay && g.time_slot === slot)
+      .sort((a, b) => (a.slot_order ?? 1) - (b.slot_order ?? 1));
   };
 
   const currentDayLabel = DAYS.find(d => d.value === selectedDay)?.label || "Día";
@@ -294,276 +300,303 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
       {/* Time Slots */}
       <div className="space-y-4">
         {TIME_SLOTS.map(({ slot, label }) => {
-          const guest = getGuestForSlot(slot);
+          const slotGuests = getGuestsForSlot(slot);
+          const primary = slotGuests[0];
+          const coGuest = slot === 3 ? slotGuests[1] : undefined;
 
-          return (
-            <React.Fragment key={slot}>
-            {/* Encuesta del día entre Hora 1 y Hora 2 */}
-            {slot === 2 && (
-              <EncuestaSection guest={getGuestForSlot(1)} selectedDay={selectedDay} editMode={editMode} />
-            )}
+          const renderGuestCard = (guest: Guest, cardLabel: string, isCoGuest: boolean) => (
             <Card
-              key={slot}
+              key={guest.id || `${slot}-${isCoGuest ? 'co' : 'main'}`}
               className={`p-6 transition-all ${
                 editMode ? "hover:shadow-lg cursor-pointer" : "cursor-default"
-              } ${
-                guest ? "bg-card" : "border-dashed hover:border-primary"
-              }`}
-              onClick={() => !guest && editMode && onAddGuest(selectedDay, slot)}
+              } bg-card ${isCoGuest ? "border-l-4 border-l-primary/60" : ""}`}
             >
-              {guest ? (
-                <div className="space-y-4">
-                  {/* Header with time and status */}
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold text-primary">{label}</h3>
-                    <div className="flex items-center gap-2">
-                      <Badge className={statusConfig[guest.recording_status].className}>
-                        {statusConfig[guest.recording_status].label}
-                      </Badge>
-                      {editMode && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onGuestClick(guest);
-                          }}
-                        >
-                          Editar
-                        </Button>
-                      )}
+              <div className="space-y-4">
+                {/* Header with time and status */}
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-primary">
+                    {cardLabel}{isCoGuest && <span className="text-sm text-muted-foreground ml-2">· Co-invitado</span>}
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    <Badge className={statusConfig[guest.recording_status].className}>
+                      {statusConfig[guest.recording_status].label}
+                    </Badge>
+                    {editMode && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onGuestClick(guest);
+                        }}
+                      >
+                        Editar
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Guest name and position */}
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <User className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">Invitado</span>
+                  </div>
+                  <h4 className="text-xl font-bold text-foreground">
+                    {guest.name}
+                    {guest.position && (
+                      <span className="text-sm font-normal text-muted-foreground ml-2">
+                        ({guest.position})
+                      </span>
+                    )}
+                  </h4>
+                </div>
+
+                {/* Topic */}
+                <div>
+                  <span className="text-xs text-muted-foreground">Tema</span>
+                  <p className="text-base text-foreground mt-1">{guest.topic}</p>
+                </div>
+
+                {/* Contact Information */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t">
+                  {guest.phone && <ContactLink type="phone" value={guest.phone} />}
+                  {guest.email && <ContactLink type="email" value={guest.email} />}
+                  {guest.social_networks && Object.keys(guest.social_networks).length > 0 && (
+                    <div className="flex items-start gap-2">
+                      <Globe className="w-4 h-4 text-primary mt-1" />
+                      <div>
+                        <span className="text-xs text-muted-foreground block">Redes Sociales</span>
+                        <div className="text-sm space-y-1">
+                          {Object.entries(guest.social_networks).map(([platform, value]) => (
+                            <SocialNetworkLink
+                              key={platform}
+                              platform={platform}
+                              username={String(value)}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Módulos de información */}
+                {(slot === 1 || slot === 2 || slot === 3) && (
+                  <GuestInfoModules
+                    guest={guest}
+                    editMode={editMode}
+                    slot={slot}
+                    onGuestUpdate={(updates) => {
+                      onGuestUpdate?.({ ...updates, id: guest.id });
+                    }}
+                  />
+                )}
+
+                {/* Contexto H2 (Puerta al Universo / #TBT) - solo para el invitado principal */}
+                {slot === 2 && !isCoGuest && (
+                  <ContextoH2Section guest={guest} selectedDay={selectedDay} editMode={editMode} />
+                )}
+
+                {/* Canciones / Clips - solo para el invitado principal */}
+                {!isCoGuest && (
+                  <CancionesSection guest={guest} slot={slot} selectedDay={selectedDay} editMode={editMode} />
+                )}
+
+                {/* Avance siguiente hora - solo para el invitado principal */}
+                {!isCoGuest && (
+                  <AvanceSection guest={guest} slot={slot} selectedDay={selectedDay} editMode={editMode} />
+                )}
+
+                {/* Additional Info - Prensa */}
+                {(guest.press_contact || guest.press_phone || guest.press_email || guest.program_type || guest.notes) && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
+                    {guest.press_contact && (
+                      <div>
+                        <span className="text-xs text-muted-foreground block">Contacto de Prensa</span>
+                        <span className="text-sm text-foreground">{guest.press_contact}</span>
+                      </div>
+                    )}
+                    {guest.press_phone && (
+                      <ContactLink type="phone" value={guest.press_phone} label="Tel. Prensa" />
+                    )}
+                    {guest.press_email && (
+                      <ContactLink type="email" value={guest.press_email} label="Correo Prensa" />
+                    )}
+                    {guest.program_type && (
+                      <div>
+                        <span className="text-xs text-muted-foreground block">Tipo de Programa</span>
+                        <span className="text-sm text-foreground">{guest.program_type}</span>
+                      </div>
+                    )}
+                    {guest.notes && (
+                      <div className="md:col-span-2">
+                        <span className="text-xs text-muted-foreground block">Notas</span>
+                        <p className="text-sm text-foreground mt-1">{guest.notes}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Checkboxes de confirmación */}
+                <div className="pt-4 border-t space-y-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xs text-muted-foreground font-semibold">Estado de Confirmación</span>
+                    {guest.proposed_by && (
+                      <span className="text-xs text-muted-foreground" title={`Propuesto por: ${guest.proposed_by}`}>
+                        · 📋 {guest.proposed_by}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`blu-${guest.id}`}
+                        checked={guest.confirmed_blu || false}
+                        onCheckedChange={(checked) => handleCheckboxChange(guest, 'blu', checked as boolean)}
+                        disabled={!editMode}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <label
+                        htmlFor={`blu-${guest.id}`}
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                      >
+                        CONFIRMADO BLU
+                      </label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`pr-${guest.id}`}
+                        checked={guest.confirmed_pr || false}
+                        onCheckedChange={(checked) => handleCheckboxChange(guest, 'pr', checked as boolean)}
+                        disabled={!editMode}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <label
+                        htmlFor={`pr-${guest.id}`}
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                      >
+                        CONFIRMADO PR
+                      </label>
                     </div>
                   </div>
+                </div>
 
-                  {/* Guest name and position */}
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <User className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-xs text-muted-foreground">Invitado</span>
-                    </div>
-                    <h4 className="text-xl font-bold text-foreground">
-                      {guest.name}
-                      {guest.position && (
-                        <span className="text-sm font-normal text-muted-foreground ml-2">
-                          ({guest.position})
-                        </span>
-                      )}
-                    </h4>
-                  </div>
+                {/* Botones de contacto */}
+                <div className="pt-4 border-t">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Contactar Invitado */}
+                    {(guest.email || guest.phone) && (
+                      <div className="space-y-2">
+                        <span className="text-xs text-muted-foreground font-semibold">Contactar Invitado</span>
+                        <div className="flex gap-2">
+                          {guest.email && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-xs"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                window.location.href = buildGuestMailto(guest, selectedDayDate);
+                              }}
+                            >
+                              <Mail className="w-3 h-3 mr-1" />
+                              Enviar Correo
+                            </Button>
+                          )}
+                          {guest.phone && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-xs"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                window.open(buildGuestWhatsApp(guest, selectedDayDate), "_blank");
+                              }}
+                            >
+                              <MessageCircle className="w-3 h-3 mr-1" />
+                              Enviar WhatsApp
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    )}
 
-                  {/* Topic */}
-                  <div>
-                    <span className="text-xs text-muted-foreground">Tema</span>
-                    <p className="text-base text-foreground mt-1">{guest.topic}</p>
-                  </div>
-
-                  {/* Contact Information */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t">
-                    {guest.phone && <ContactLink type="phone" value={guest.phone} />}
-                    {guest.email && <ContactLink type="email" value={guest.email} />}
-                    {guest.social_networks && Object.keys(guest.social_networks).length > 0 && (
-                      <div className="flex items-start gap-2">
-                        <Globe className="w-4 h-4 text-primary mt-1" />
-                        <div>
-                          <span className="text-xs text-muted-foreground block">Redes Sociales</span>
-                          <div className="text-sm space-y-1">
-                            {Object.entries(guest.social_networks).map(([platform, value]) => (
-                              <SocialNetworkLink 
-                                key={platform} 
-                                platform={platform} 
-                                username={String(value)} 
-                              />
-                            ))}
-                          </div>
+                    {/* Contactar PR */}
+                    {(guest.press_contact || guest.press_phone || guest.press_email) && (
+                      <div className="space-y-2">
+                        <span className="text-xs text-muted-foreground font-semibold">Contactar PR</span>
+                        <div className="flex gap-2">
+                          {guest.press_email && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-xs"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                window.location.href = buildPRMailto(guest, selectedDayDate);
+                              }}
+                            >
+                              <Mail className="w-3 h-3 mr-1" />
+                              Correo PR
+                            </Button>
+                          )}
+                          {guest.press_phone && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-xs"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const clean = guest.press_phone!.replace(/\s|-|\(|\)/g, "");
+                                window.open(`https://wa.me/${clean}`, "_blank");
+                              }}
+                            >
+                              <MessageCircle className="w-3 h-3 mr-1" />
+                              WhatsApp PR
+                            </Button>
+                          )}
                         </div>
                       </div>
                     )}
                   </div>
-
-                  {/* Módulos de información */}
-                  {(slot === 1 || slot === 2 || slot === 3) && (
-                    <GuestInfoModules
-                      guest={guest}
-                      editMode={editMode}
-                      slot={slot}
-                      onGuestUpdate={(updates) => {
-                        onGuestUpdate?.({ ...updates, id: guest.id });
-                      }}
-                    />
-                  )}
-
-                  {/* Contexto H2 (Puerta al Universo / #TBT) */}
-                  {slot === 2 && (
-                    <ContextoH2Section guest={guest} selectedDay={selectedDay} editMode={editMode} />
-                  )}
-
-                  {/* Canciones / Clips */}
-                  <CancionesSection guest={guest} slot={slot} selectedDay={selectedDay} editMode={editMode} />
-
-                  {/* Avance siguiente hora */}
-                  <AvanceSection guest={guest} slot={slot} selectedDay={selectedDay} editMode={editMode} />
-
-                  {/* Additional Info - Prensa */}
-                  {(guest.press_contact || guest.press_phone || guest.press_email || guest.program_type || guest.notes) && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
-                      {guest.press_contact && (
-                        <div>
-                          <span className="text-xs text-muted-foreground block">Contacto de Prensa</span>
-                          <span className="text-sm text-foreground">{guest.press_contact}</span>
-                        </div>
-                      )}
-                      {guest.press_phone && (
-                        <ContactLink type="phone" value={guest.press_phone} label="Tel. Prensa" />
-                      )}
-                      {guest.press_email && (
-                        <ContactLink type="email" value={guest.press_email} label="Correo Prensa" />
-                      )}
-                      {guest.program_type && (
-                        <div>
-                          <span className="text-xs text-muted-foreground block">Tipo de Programa</span>
-                          <span className="text-sm text-foreground">{guest.program_type}</span>
-                        </div>
-                      )}
-                      {guest.notes && (
-                        <div className="md:col-span-2">
-                          <span className="text-xs text-muted-foreground block">Notas</span>
-                          <p className="text-sm text-foreground mt-1">{guest.notes}</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Checkboxes de confirmación */}
-                  <div className="pt-4 border-t space-y-3">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-xs text-muted-foreground font-semibold">Estado de Confirmación</span>
-                      {guest.proposed_by && (
-                        <span className="text-xs text-muted-foreground" title={`Propuesto por: ${guest.proposed_by}`}>
-                          · 📋 {guest.proposed_by}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`blu-${guest.id}`}
-                          checked={guest.confirmed_blu || false}
-                          onCheckedChange={(checked) => handleCheckboxChange(guest, 'blu', checked as boolean)}
-                          disabled={!editMode}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                        <label
-                          htmlFor={`blu-${guest.id}`}
-                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                        >
-                          CONFIRMADO BLU
-                        </label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`pr-${guest.id}`}
-                          checked={guest.confirmed_pr || false}
-                          onCheckedChange={(checked) => handleCheckboxChange(guest, 'pr', checked as boolean)}
-                          disabled={!editMode}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                        <label
-                          htmlFor={`pr-${guest.id}`}
-                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                        >
-                          CONFIRMADO PR
-                        </label>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Botones de contacto */}
-                  <div className="pt-4 border-t">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Contactar Invitado */}
-                      {(guest.email || guest.phone) && (
-                        <div className="space-y-2">
-                          <span className="text-xs text-muted-foreground font-semibold">Contactar Invitado</span>
-                          <div className="flex gap-2">
-                            {guest.email && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="text-xs"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  window.location.href = buildGuestMailto(guest, selectedDayDate);
-                                }}
-                              >
-                                <Mail className="w-3 h-3 mr-1" />
-                                Enviar Correo
-                              </Button>
-                            )}
-                            {guest.phone && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="text-xs"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  window.open(buildGuestWhatsApp(guest, selectedDayDate), "_blank");
-                                }}
-                              >
-                                <MessageCircle className="w-3 h-3 mr-1" />
-                                Enviar WhatsApp
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Contactar PR */}
-                      {(guest.press_contact || guest.press_phone || guest.press_email) && (
-                        <div className="space-y-2">
-                          <span className="text-xs text-muted-foreground font-semibold">Contactar PR</span>
-                          <div className="flex gap-2">
-                            {guest.press_email && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="text-xs"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  window.location.href = buildPRMailto(guest, selectedDayDate);
-                                }}
-                              >
-                                <Mail className="w-3 h-3 mr-1" />
-                                Correo PR
-                              </Button>
-                            )}
-                            {guest.press_phone && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="text-xs"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  const clean = guest.press_phone!.replace(/\s|-|\(|\)/g, "");
-                                  window.open(`https://wa.me/${clean}`, "_blank");
-                                }}
-                              >
-                                <MessageCircle className="w-3 h-3 mr-1" />
-                                WhatsApp PR
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
                 </div>
-              ) : (
-                <div className="text-center py-8">
-                  <p className="text-muted-foreground mb-2">{label}</p>
-                  <p className="text-sm text-primary">+ Agregar Invitado</p>
-                </div>
-              )}
+              </div>
             </Card>
+          );
+
+          return (
+            <React.Fragment key={slot}>
+              {/* Encuesta del día entre Hora 1 y Hora 2 */}
+              {slot === 2 && (
+                <EncuestaSection guest={getGuestForSlot(1)} selectedDay={selectedDay} editMode={editMode} />
+              )}
+              {primary ? (
+                renderGuestCard(primary, label, false)
+              ) : (
+                <Card
+                  className={`p-6 transition-all ${
+                    editMode ? "hover:shadow-lg cursor-pointer" : "cursor-default"
+                  } border-dashed hover:border-primary`}
+                  onClick={() => editMode && onAddGuest(selectedDay, slot)}
+                >
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground mb-2">{label}</p>
+                    <p className="text-sm text-primary">+ Agregar Invitado</p>
+                  </div>
+                </Card>
+              )}
+              {slot === 3 && coGuest && renderGuestCard(coGuest, label, true)}
+              {slot === 3 && primary && !coGuest && editMode && (
+                <Card
+                  className="p-4 border-dashed hover:border-primary cursor-pointer transition-all"
+                  onClick={() => onAddGuest(selectedDay, 3, undefined, 2)}
+                >
+                  <div className="text-center py-2">
+                    <p className="text-sm text-primary">+ Agregar co-invitado (3ra hora)</p>
+                  </div>
+                </Card>
+              )}
             </React.Fragment>
           );
         })}

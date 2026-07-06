@@ -113,6 +113,7 @@ export type Database = {
           recording_status: string
           scheduled_date: string | null
           scheduled_time: string | null
+          slot_order: number
           social_networks: Json | null
           tema_principal: string | null
           tema_principal_documento_nombre: string | null
@@ -172,6 +173,7 @@ export type Database = {
           recording_status?: string
           scheduled_date?: string | null
           scheduled_time?: string | null
+          slot_order?: number
           social_networks?: Json | null
           tema_principal?: string | null
           tema_principal_documento_nombre?: string | null
@@ -231,6 +233,7 @@ export type Database = {
           recording_status?: string
           scheduled_date?: string | null
           scheduled_time?: string | null
+          slot_order?: number
           social_networks?: Json | null
           tema_principal?: string | null
           tema_principal_documento_nombre?: string | null

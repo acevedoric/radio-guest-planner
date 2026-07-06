@@ -1,0 +1,2 @@
+ALTER TABLE public.guests ADD COLUMN IF NOT EXISTS slot_order smallint NOT NULL DEFAULT 1;
+CREATE INDEX IF NOT EXISTS guests_slot_order_idx ON public.guests (week_date, day_of_week, time_slot, slot_order);

@@ -40,6 +40,7 @@ const Index = () => {
   const [newGuestSlot, setNewGuestSlot] = useState<{
     day: string;
     slot: number;
+    slotOrder?: number;
   } | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [allRecordingGuests, setAllRecordingGuests] = useState<Guest[]>([]);
@@ -164,12 +165,14 @@ const Index = () => {
           week_date: null,
           day_of_week: null,
           time_slot: null,
+          slot_order: guest.slot_order ?? 1,
         }
       : {
           ...guest,
           week_date: guest.week_date || format(selectedWeek, "yyyy-MM-dd"),
           day_of_week: newGuestSlot?.day || guest.day_of_week,
           time_slot: newGuestSlot?.slot ?? guest.time_slot,
+          slot_order: newGuestSlot?.slotOrder ?? guest.slot_order ?? 1,
         };
 
     // Si el estado es de grabación y hay scheduled_date, mover al nuevo día
@@ -423,17 +426,20 @@ const Index = () => {
       }
     }
   };
-  const handleAddGuest = (day: string, slot: number, weekDate?: string) => {
+  const handleAddGuest = (day: string, slot: number, weekDate?: string, slotOrder?: number) => {
+    const order = slotOrder ?? 1;
     setNewGuestSlot({
       day,
-      slot
+      slot,
+      slotOrder: order,
     });
     setSelectedGuest({
       name: "",
       topic: "",
-      recording_status: "proposed",
+      recording_status: order === 2 ? "recorded" : "proposed",
       day_of_week: day,
       time_slot: slot,
+      slot_order: order,
       week_date: weekDate || format(selectedWeek, "yyyy-MM-dd")
     });
     setIsModalOpen(true);
