@@ -55,7 +55,12 @@ export const WeeklyCalendar = ({ guests, allGuests, onGuestClick, onAddGuest, se
   );
 
   const getGuestForSlot = (day: string, slot: number) => {
-    return guests.find(g => g.day_of_week === day && g.time_slot === slot);
+    return guests.find(g => g.day_of_week === day && g.time_slot === slot && (g.slot_order ?? 1) === 1);
+  };
+
+  const getCoGuestForSlot = (day: string, slot: number) => {
+    if (slot !== 3) return undefined;
+    return guests.find(g => g.day_of_week === day && g.time_slot === slot && (g.slot_order ?? 1) === 2);
   };
 
   const getRecordingsForDay = (dayOffset: number): Guest[] => {
