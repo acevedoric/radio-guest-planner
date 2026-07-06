@@ -13,6 +13,7 @@ export interface Guest {
   notes?: string | null;
   day_of_week?: string | null;
   time_slot?: number | null;
+  slot_order?: number | null;
   week_date?: string | null;
   scheduled_date?: string | null;
   scheduled_time?: string | null;
