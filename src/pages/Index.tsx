@@ -40,6 +40,7 @@ const Index = () => {
   const [newGuestSlot, setNewGuestSlot] = useState<{
     day: string;
     slot: number;
+    slotOrder?: number;
   } | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [allRecordingGuests, setAllRecordingGuests] = useState<Guest[]>([]);
