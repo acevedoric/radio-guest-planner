@@ -165,12 +165,14 @@ const Index = () => {
           week_date: null,
           day_of_week: null,
           time_slot: null,
+          slot_order: guest.slot_order ?? 1,
         }
       : {
           ...guest,
           week_date: guest.week_date || format(selectedWeek, "yyyy-MM-dd"),
           day_of_week: newGuestSlot?.day || guest.day_of_week,
           time_slot: newGuestSlot?.slot ?? guest.time_slot,
+          slot_order: newGuestSlot?.slotOrder ?? guest.slot_order ?? 1,
         };
 
     // Si el estado es de grabación y hay scheduled_date, mover al nuevo día
