@@ -448,7 +448,7 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
                       </span>
                     )}
                   </div>
-                  <div className="flex flex-col gap-2">
+                  <div className="flex flex-row flex-wrap gap-4">
                     <div className="flex items-center space-x-2">
                       <Checkbox
                         id={`blu-${guest.id}`}

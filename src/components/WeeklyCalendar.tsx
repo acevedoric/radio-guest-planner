@@ -323,9 +323,9 @@ const GuestSlotCard = ({ day, slot, guest, coGuest, onGuestClick, onAddGuest, ed
               {guest.social_networks && Object.keys(guest.social_networks).length > 0 && <Globe className="w-3 h-3 text-primary" />}
             </div>
             {/* Checkboxes de confirmación */}
-            <div className="pt-2 border-t border-muted space-y-1" onClick={(e) => e.stopPropagation()}>
+            <div className="pt-2 border-t border-muted flex flex-row flex-wrap gap-3" onClick={(e) => e.stopPropagation()}>
               {guest.proposed_by && (
-                <div className="text-[9px] text-muted-foreground truncate mb-1" title={`Propuesto por: ${guest.proposed_by}`}>
+                <div className="text-[9px] text-muted-foreground truncate mb-1 w-full" title={`Propuesto por: ${guest.proposed_by}`}>
                   📋 {guest.proposed_by}
                 </div>
               )}

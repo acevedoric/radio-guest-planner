@@ -406,9 +406,9 @@ const SlotCard = ({ guest, coGuest, day, slot, onGuestClick, onAddGuest, getStat
             <div className="truncate opacity-90">{guest.topic}</div>
             
             {/* Checkboxes de confirmación */}
-            <div className="mt-2 pt-2 border-t border-muted space-y-1" onClick={(e) => e.stopPropagation()}>
+            <div className="mt-2 pt-2 border-t border-muted flex flex-row flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
               {guest.proposed_by && (
-                <div className="text-[8px] opacity-60 truncate mb-1" title={`Propuesto por: ${guest.proposed_by}`}>
+                <div className="text-[8px] opacity-60 truncate mb-1 w-full" title={`Propuesto por: ${guest.proposed_by}`}>
                   📋 {guest.proposed_by}
                 </div>
               )}
