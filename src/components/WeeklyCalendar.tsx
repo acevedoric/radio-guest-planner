@@ -1,7 +1,8 @@
 import { Card } from "@/components/ui/card";
 
 import { Button } from "@/components/ui/button";
-import { Plus, Phone, Mail, Globe } from "lucide-react";
+import { Plus, Phone, Mail } from "lucide-react";
+import { SocialNetworkLink } from "./SocialNetworkLink";
 import { cn } from "@/lib/utils";
 import { Guest } from "@/types/guest";
 import { DndContext, DragEndEvent, useDraggable, useDroppable, DragOverlay, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
