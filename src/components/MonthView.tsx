@@ -4,6 +4,7 @@ import { startOfMonth, endOfMonth, eachDayOfInterval, format, startOfWeek, endOf
 import { DndContext, DragEndEvent, useDraggable, useDroppable, DragOverlay, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { useState } from "react";
 import { GuestTooltip } from "./GuestTooltip";
+import { SocialNetworkLink } from "./SocialNetworkLink";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -404,6 +405,21 @@ const SlotCard = ({ guest, coGuest, day, slot, onGuestClick, onAddGuest, getStat
               <div className="text-[10px] opacity-70 truncate">{guest.position}</div>
             )}
             <div className="truncate opacity-90">{guest.topic}</div>
+            {guest.social_networks && Object.keys(guest.social_networks).length > 0 && (
+              <div className="flex items-center gap-1.5 mt-1" onClick={(e) => e.stopPropagation()}>
+                {Object.entries(guest.social_networks as Record<string, string>)
+                  .filter(([, v]) => v)
+                  .map(([platform, value]) => (
+                    <SocialNetworkLink
+                      key={platform}
+                      platform={platform}
+                      username={String(value)}
+                      compact
+                      iconSize={12}
+                    />
+                  ))}
+              </div>
+            )}
             
             {/* Checkboxes de confirmación */}
             <div className="mt-2 pt-2 border-t border-muted flex flex-row flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>

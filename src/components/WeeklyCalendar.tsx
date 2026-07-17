@@ -1,7 +1,8 @@
 import { Card } from "@/components/ui/card";
 
 import { Button } from "@/components/ui/button";
-import { Plus, Phone, Mail, Globe } from "lucide-react";
+import { Plus, Phone, Mail } from "lucide-react";
+import { SocialNetworkLink } from "./SocialNetworkLink";
 import { cn } from "@/lib/utils";
 import { Guest } from "@/types/guest";
 import { DndContext, DragEndEvent, useDraggable, useDroppable, DragOverlay, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
@@ -318,9 +319,23 @@ const GuestSlotCard = ({ day, slot, guest, coGuest, onGuestClick, onAddGuest, ed
                 <span className="text-foreground">{guest.phone}</span>
               </div>
             )}
-            <div className="flex gap-2 text-xs text-muted-foreground">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
               {guest.email && <Mail className="w-3 h-3 text-primary" />}
-              {guest.social_networks && Object.keys(guest.social_networks).length > 0 && <Globe className="w-3 h-3 text-primary" />}
+              {guest.social_networks && Object.keys(guest.social_networks).length > 0 && (
+                <div className="flex items-center gap-1.5">
+                  {Object.entries(guest.social_networks as Record<string, string>)
+                    .filter(([, v]) => v)
+                    .map(([platform, value]) => (
+                      <SocialNetworkLink
+                        key={platform}
+                        platform={platform}
+                        username={String(value)}
+                        compact
+                        iconSize={14}
+                      />
+                    ))}
+                </div>
+              )}
             </div>
             {/* Checkboxes de confirmación */}
             <div className="pt-2 border-t border-muted flex flex-row flex-wrap gap-3" onClick={(e) => e.stopPropagation()}>
