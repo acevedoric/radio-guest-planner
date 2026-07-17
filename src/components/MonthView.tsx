@@ -4,6 +4,7 @@ import { startOfMonth, endOfMonth, eachDayOfInterval, format, startOfWeek, endOf
 import { DndContext, DragEndEvent, useDraggable, useDroppable, DragOverlay, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { useState } from "react";
 import { GuestTooltip } from "./GuestTooltip";
+import { SocialNetworkLink } from "./SocialNetworkLink";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
