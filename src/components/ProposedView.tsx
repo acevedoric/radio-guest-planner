@@ -13,6 +13,13 @@ interface ProposedViewProps {
   editMode: boolean;
 }
 
+const DAY_LABELS: Record<string, string> = {
+  monday: "Lunes",
+  tuesday: "Martes",
+  wednesday: "Miércoles",
+  thursday: "Jueves",
+};
+
 export const ProposedView = ({ guests, onGuestClick, onCreateNew, editMode }: ProposedViewProps) => {
   const sortedGuests = [...guests].sort((a, b) => {
     if (!a.scheduled_date && !b.scheduled_date) return 0;
@@ -28,7 +35,7 @@ export const ProposedView = ({ guests, onGuestClick, onCreateNew, editMode }: Pr
         <div>
           <h2 className="text-2xl font-bold">Bandeja de Propuestos</h2>
           <p className="text-sm text-muted-foreground">
-            Invitados propuestos sin fecha asignada ({guests.length})
+            Invitados propuestos ({guests.length})
           </p>
         </div>
         {editMode && (
@@ -45,7 +52,7 @@ export const ProposedView = ({ guests, onGuestClick, onCreateNew, editMode }: Pr
             <div className="rounded-full bg-muted p-4">
               <User className="h-8 w-8 text-muted-foreground" />
             </div>
-            <p className="text-muted-foreground">No hay invitados propuestos sin fecha</p>
+            <p className="text-muted-foreground">No hay invitados propuestos</p>
             {editMode && (
               <Button variant="outline" onClick={onCreateNew} className="gap-2 mt-2">
                 <Plus className="h-4 w-4" />
@@ -85,6 +92,12 @@ export const ProposedView = ({ guests, onGuestClick, onCreateNew, editMode }: Pr
                     <span className="text-muted-foreground italic">Sin fecha asignada</span>
                   )}
                 </div>
+
+                {guest.week_date && guest.day_of_week && guest.time_slot && (
+                  <div className="text-xs text-muted-foreground">
+                    Programado: {DAY_LABELS[guest.day_of_week] ?? guest.day_of_week} · {guest.time_slot}ª hora
+                  </div>
+                )}
 
                 {guest.topic && (
                   <p className="text-sm text-foreground/80 line-clamp-2">{guest.topic}</p>
