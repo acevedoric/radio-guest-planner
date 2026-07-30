@@ -555,17 +555,19 @@ const Index = () => {
   const handleLogoClick = () => {
     const workDay = getNextWorkDay();
     const weekStart = startOfWeek(workDay, { weekStartsOn: 1 });
-    
-    setViewMode("day");
-    setSelectedWeek(weekStart);
-    
+
     const dayMap: Record<number, string> = {
       1: "monday",
       2: "tuesday",
       3: "wednesday",
       4: "thursday"
     };
-    setSelectedDay(dayMap[workDay.getDay()]);
+
+    setSelectedWeek(weekStart);
+    setSelectedMonth(startOfMonth(workDay));
+    setSelectedDay(dayMap[workDay.getDay()] || "monday");
+    setSearchQuery("");
+    setViewMode("day");
   };
 
   const handleScheduledDateClick = (date: Date) => {
