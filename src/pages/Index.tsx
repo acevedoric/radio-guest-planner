@@ -117,7 +117,6 @@ const Index = () => {
       .from(guestsReadFrom(session))
       .select('*')
       .eq('recording_status', 'proposed')
-      .is('week_date', null)
       .order('created_at', { ascending: false });
     if (!error) {
       setProposedGuests((data || []) as Guest[]);
