@@ -274,7 +274,40 @@ const Index = () => {
       // La grabación queda registrada en scheduled_date + scheduled_time.
     }
     
+    // Validar que el slot de emisión no esté ocupado por otro invitado
+    if (guestData.week_date && guestData.day_of_week && guestData.time_slot) {
+      let slotQuery = supabase
+        .from('guests')
+        .select('id, name, time_slot, slot_order')
+        .eq('week_date', guestData.week_date)
+        .eq('day_of_week', guestData.day_of_week);
+      if (guest.id) slotQuery = slotQuery.neq('id', guest.id);
+
+      const { data: dayGuests, error: slotError } = await slotQuery;
+      if (slotError) {
+        toast.error("Error al verificar el slot de emisión");
+        console.error(slotError);
+        return false;
+      }
+
+      const slotOrder = guestData.slot_order ?? 1;
+      const occupant = (dayGuests || []).find(
+        (g) => g.time_slot === guestData.time_slot && (g.slot_order ?? 1) === slotOrder
+      );
+      if (occupant) {
+        const taken = new Set((dayGuests || []).filter((g) => (g.slot_order ?? 1) === 1).map((g) => g.time_slot));
+        const hourLabels: Record<number, string> = { 1: "1ra", 2: "2da", 3: "3ra" };
+        const free = [1, 2, 3].filter((h) => !taken.has(h));
+        const freeMsg = free.length
+          ? ` Horas libres: ${free.map((h) => hourLabels[h]).join(", ")}.`
+          : " No hay horas libres ese día (puedes agregar co-invitado en 3ra hora).";
+        toast.error(`${hourLabels[guestData.time_slot] ?? guestData.time_slot}ª hora ya está ocupada por ${occupant.name}.${freeMsg}`);
+        return false;
+      }
+    }
+
     if (guest.id) {
+
       // Save previous state for undo
       const previousGuest = guests.find(g => g.id === guest.id);
       const { error } = await supabase.from('guests').update(guestData).eq('id', guest.id);
