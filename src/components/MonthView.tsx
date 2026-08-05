@@ -258,9 +258,9 @@ export const MonthView = ({ guests, allGuests, onGuestClick, selectedMonth, onDa
                                 e.stopPropagation();
                                 onRecordingGuestClick?.(g);
                               }}
-                              title={`Grabación: ${g.name}`}
+                              title={`Grabación: ${g.scheduled_time ? g.scheduled_time.slice(0, 5) + ' ' : ''}${g.name}`}
                             >
-                              🔴 {g.name}
+                              🔴 {g.scheduled_time && <span className="font-semibold">{g.scheduled_time.slice(0, 5)} </span>}{g.name}
                             </div>
                           ))}
                         </div>
@@ -277,9 +277,9 @@ export const MonthView = ({ guests, allGuests, onGuestClick, selectedMonth, onDa
                                 e.stopPropagation();
                                 onRecordingGuestClick?.(g);
                               }}
-                              title={`Propuesto: ${g.name}`}
+                              title={`Propuesto: ${g.scheduled_time ? g.scheduled_time.slice(0, 5) + ' ' : ''}${g.name}`}
                             >
-                              🔵 {g.name}
+                              🔵 {g.scheduled_time && <span className="font-semibold">{g.scheduled_time.slice(0, 5)} </span>}{g.name}
                             </div>
                           ))}
                         </div>
