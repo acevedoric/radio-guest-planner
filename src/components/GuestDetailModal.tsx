@@ -88,7 +88,7 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
     setProposedHour("");
   }, [guest]);
 
-  const handleAssignProposed = () => {
+  const handleAssignProposed = async () => {
     if (!formData.scheduled_date) {
       toast.error("Selecciona primero la fecha propuesta");
       return;
@@ -112,6 +112,34 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
     }
     const weekStart = startOfWeek(date, { weekStartsOn: 1 });
     const weekDate = format(weekStart, "yyyy-MM-dd");
+
+    // Verificar que el slot de emisión no esté ocupado
+    let q = supabase
+      .from("guests")
+      .select("id, name, time_slot, slot_order")
+      .eq("week_date", weekDate)
+      .eq("day_of_week", dayName);
+    if (formData.id) q = q.neq("id", formData.id);
+    const { data: dayGuests, error } = await q;
+    if (error) {
+      toast.error("No se pudo verificar la disponibilidad del slot");
+      return;
+    }
+    const slotOrder = formData.slot_order ?? 1;
+    const occupant = (dayGuests || []).find(
+      (g) => g.time_slot === Number(proposedHour) && (g.slot_order ?? 1) === slotOrder
+    );
+    if (occupant) {
+      const taken = new Set((dayGuests || []).filter((g) => (g.slot_order ?? 1) === 1).map((g) => g.time_slot));
+      const free = [1, 2, 3].filter((h) => !taken.has(h));
+      const hourLabels: Record<number, string> = { 1: "1ra", 2: "2da", 3: "3ra" };
+      const freeMsg = free.length
+        ? ` Horas libres: ${free.map((h) => hourLabels[h]).join(", ")}.`
+        : " No hay horas libres ese día (puedes usar co-invitado en 3ra hora).";
+      toast.error(`${hourLabels[Number(proposedHour)]} hora ya está ocupada por ${occupant.name}.${freeMsg}`);
+      return;
+    }
+
     setFormData({
       ...formData,
       week_date: weekDate,
@@ -121,6 +149,7 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
     const hourLabel = proposedHour === "1" ? "1ra" : proposedHour === "2" ? "2da" : "3ra";
     toast.success(`Slot asignado: ${dayName} · ${hourLabel} hora. Pulsa Guardar para confirmar.`);
   };
+
 
 
   const handleSubmit = async (e: React.FormEvent) => {
