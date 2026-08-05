@@ -330,24 +330,15 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
             </div>
           </div>
 
-          {/* Campo condicional para fecha según estado */}
-          {(formData.recording_status === "to_record" ||
-            formData.recording_status === "postponed" ||
-            formData.recording_status === "proposed") && (
-            <div
-              className={
-                formData.recording_status === "to_record"
-                  ? "grid grid-cols-2 gap-4"
-                  : formData.recording_status === "proposed"
-                  ? "grid grid-cols-[1fr_1fr_auto] gap-3 items-end"
-                  : ""
-              }
-            >
+          {/* Bloque 1: fecha y hora de GRABACIÓN */}
+          <div className="rounded-md border p-3 space-y-2">
+            <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+              Fecha y hora de grabación
+            </Label>
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="scheduled_date">
-                  {formData.recording_status === "to_record" && "Fecha para Grabar"}
-                  {formData.recording_status === "postponed" && "Fecha de Aplazamiento"}
-                  {formData.recording_status === "proposed" && "Fecha Propuesta"}
+                  {formData.recording_status === "postponed" ? "Fecha de aplazamiento" : "Fecha de grabación"}
                 </Label>
                 <Input
                   id="scheduled_date"
@@ -358,45 +349,64 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
                   className="w-full"
                 />
               </div>
-              {formData.recording_status === "to_record" && (
+              <div className="space-y-2">
+                <Label htmlFor="scheduled_time">Hora de grabación</Label>
+                <Input
+                  id="scheduled_time"
+                  type="time"
+                  value={formData.scheduled_time || ""}
+                  onChange={(e) => setFormData({ ...formData, scheduled_time: e.target.value })}
+                  disabled={readOnly}
+                  className="w-full"
+                />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Cuándo se graba el invitado. No cambia el slot de emisión.
+            </p>
+          </div>
+
+          {/* Bloque 2: slot de EMISIÓN */}
+          <div className="rounded-md border p-3 space-y-2">
+            <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+              Slot de emisión
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              {formData.week_date && formData.day_of_week && formData.time_slot
+                ? `Actual: ${formData.day_of_week} · ${formData.time_slot}ª hora (semana del ${formData.week_date})`
+                : "Sin slot de emisión asignado"}
+            </p>
+            {formData.recording_status === "proposed" && !readOnly && (
+              <div className="grid grid-cols-[1fr_auto] gap-3 items-end">
                 <div className="space-y-2">
-                  <Label htmlFor="scheduled_time">Hora</Label>
-                  <Input
-                    id="scheduled_time"
-                    type="time"
-                    value={formData.scheduled_time || ""}
-                    onChange={(e) => setFormData({ ...formData, scheduled_time: e.target.value })}
-                    disabled={readOnly}
-                    className="w-full"
-                  />
+                  <Label htmlFor="proposed_hour">Hora de emisión</Label>
+                  <Select value={proposedHour} onValueChange={setProposedHour} disabled={readOnly}>
+                    <SelectTrigger id="proposed_hour">
+                      <SelectValue placeholder="Selecciona hora" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">1ra hora</SelectItem>
+                      <SelectItem value="2">2da hora</SelectItem>
+                      <SelectItem value="3">3ra hora</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-              )}
-              {formData.recording_status === "proposed" && (
-                <>
-                  <div className="space-y-2">
-                    <Label htmlFor="proposed_hour">Hora</Label>
-                    <Select
-                      value={proposedHour}
-                      onValueChange={setProposedHour}
-                      disabled={readOnly}
-                    >
-                      <SelectTrigger id="proposed_hour">
-                        <SelectValue placeholder="Selecciona hora" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="1">1ra hora</SelectItem>
-                        <SelectItem value="2">2da hora</SelectItem>
-                        <SelectItem value="3">3ra hora</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <Button
-                    type="button"
-                    onClick={handleAssignProposed}
-                    disabled={readOnly || !formData.scheduled_date || !proposedHour}
-                  >
-                    ASIGNAR
-                  </Button>
+                <Button
+                  type="button"
+                  onClick={handleAssignProposed}
+                  disabled={readOnly || !formData.scheduled_date || !proposedHour}
+                >
+                  ASIGNAR
+                </Button>
+              </div>
+            )}
+            {formData.recording_status === "proposed" && !readOnly && (
+              <p className="text-xs text-muted-foreground">
+                Usa la fecha de grabación para calcular el día de emisión (lunes a jueves).
+              </p>
+            )}
+          </div>
+
                 </>
               )}
             </div>
