@@ -293,17 +293,11 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
               <Select
                 value={formData.recording_status}
                 onValueChange={(value: any) => {
-                  setFormData({ 
-                    ...formData, 
-                    recording_status: value,
-                    scheduled_date: (value === "live" || value === "recorded") 
-                      ? null 
-                      : formData.scheduled_date,
-                    scheduled_time: (value === "live" || value === "recorded")
-                      ? null
-                      : formData.scheduled_time
-                  });
+                  // No se borra la fecha/hora de grabación al cambiar de estado:
+                  // queda como registro de cuándo se grabó o se propuso grabar.
+                  setFormData({ ...formData, recording_status: value });
                 }}
+
                 disabled={readOnly}
               >
                 <SelectTrigger>
