@@ -134,9 +134,9 @@ export const WeeklyCalendar = ({ guests, allGuests, onGuestClick, onAddGuest, se
                     key={g.id}
                     className="text-[10px] px-2 py-0.5 rounded bg-red-500/10 text-red-600 dark:text-red-400 truncate cursor-pointer hover:bg-red-500/20 border-l-2 border-red-500"
                     onClick={() => onRecordingGuestClick?.(g)}
-                    title={`Grabación: ${g.name}`}
+                    title={`Grabación: ${g.scheduled_time ? g.scheduled_time.slice(0, 5) + ' ' : ''}${g.name}`}
                   >
-                    🔴 Grab: {g.name}
+                    🔴 Grab: {g.scheduled_time && <span className="font-semibold">{g.scheduled_time.slice(0, 5)} </span>}{g.name}
                   </div>
                 ))}
                 {proposed.map((g) => (
@@ -144,9 +144,9 @@ export const WeeklyCalendar = ({ guests, allGuests, onGuestClick, onAddGuest, se
                     key={g.id}
                     className="text-[10px] px-2 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 truncate cursor-pointer hover:bg-blue-500/20 border-l-2 border-blue-500"
                     onClick={() => onRecordingGuestClick?.(g)}
-                    title={`Propuesto: ${g.name}`}
+                    title={`Propuesto: ${g.scheduled_time ? g.scheduled_time.slice(0, 5) + ' ' : ''}${g.name}`}
                   >
-                    🔵 Prop: {g.name}
+                    🔵 Prop: {g.scheduled_time && <span className="font-semibold">{g.scheduled_time.slice(0, 5)} </span>}{g.name}
                   </div>
                 ))}
               </div>
