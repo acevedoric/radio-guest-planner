@@ -1,28 +1,20 @@
 ## Objetivo
-Mostrar redes sociales en las vistas SEMANA y MES, y reemplazar los emojis actuales de X (Twitter) e Instagram por logos reales en la vista DÍA (y en todos los lugares donde se use `SocialNetworkLink`).
+Mostrar la hora de grabación junto al nombre en los slots/franjas de grabación (y propuestos) de las vistas MES y SEMANA. La vista DÍA ya la muestra.
 
 ## Cambios
 
-### 1. `src/components/SocialNetworkLink.tsx`
-- Reemplazar los `icon` tipo emoji (`𝕏`, `📷`) por logos reales:
-  - X: ícono SVG oficial de X (usar `lucide-react` `Twitter` no aplica porque es el pájaro viejo). Usar un pequeño componente SVG inline de la X.
-  - Instagram: usar el ícono `Instagram` de `lucide-react` (ya disponible).
-  - El resto de plataformas (Facebook, YouTube, LinkedIn, Pinterest) se mantiene usando los íconos correspondientes de `lucide-react` (`Facebook`, `Youtube`, `Linkedin`) — reemplazar también sus emojis por consistencia.
-- Cambiar la estructura `icon: string` a `icon: ReactNode` (o renderer function) para permitir componentes SVG.
+### 1. `src/components/MonthView.tsx`
+- En las franjas rojas de grabación: mostrar `🔴 HH:MM Nombre` cuando `scheduled_time` exista (formato corto `HH:MM`, recortando los segundos).
+- En las franjas azules de propuestos: mismo tratamiento (`🔵 HH:MM Nombre`).
+- La hora se resalta ligeramente (`font-semibold`) para que se distinga del nombre; si no hay hora, se muestra sólo el nombre como hoy.
+- Actualizar el `title` (tooltip) para incluir la hora.
 
-### 2. `src/components/WeeklyCalendar.tsx` (vista SEMANA)
-- Actualmente sólo muestra un icono `Globe` cuando hay `social_networks`. Reemplazar por la lista compacta de redes:
-  - Si el guest tiene `twitter` y/o `instagram`, mostrar los logos X e IG como enlaces clicables (target `_blank`), con el `@username` opcional truncado.
-  - Otras plataformas: mostrar sólo el logo enlazado (sin texto) para ahorrar espacio.
-- Mismo tratamiento para el co-invitado (`renderCoGuestMini`).
+### 2. `src/components/WeeklyCalendar.tsx`
+- En las tiras diarias: `🔴 Grab: HH:MM Nombre` y `🔵 Prop: HH:MM Nombre`, con la misma lógica condicional y tooltip actualizado.
 
-### 3. `src/components/MonthView.tsx` (vista MES)
-- Añadir en cada tarjeta de guest (después del nombre/topic) una fila compacta con los logos de las redes sociales presentes, enlazando a la URL (`https://twitter.com/...`, `https://instagram.com/...`, etc.). Sólo iconos, tamaño pequeño (`w-3 h-3`), para no romper el layout denso del mes.
-
-### 4. `src/components/DayView.tsx` (vista DÍA)
-- Ya renderiza `SocialNetworkLink`; los cambios se aplicarán automáticamente al reemplazar los emojis por logos en el componente compartido.
+### 3. `src/components/DayView.tsx`
+- Sin cambios: ya muestra `● REC ... - hora`.
 
 ## Notas técnicas
-- Todos los enlaces con `onClick={(e) => e.stopPropagation()}` para no disparar el click de la card.
-- Sin cambios de datos ni de backend — sólo presentación.
-- Sin cambios en modo EDIT/PRESENT: los enlaces siguen siendo clicables en ambos modos (comportamiento actual de `SocialNetworkLink`).
+- `scheduled_time` viene como `HH:MM:SS`; se recorta con `.slice(0,5)`.
+- Sólo cambios de presentación, sin tocar datos ni backend.
