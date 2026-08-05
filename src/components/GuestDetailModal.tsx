@@ -407,10 +407,7 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
             )}
           </div>
 
-                </>
-              )}
-            </div>
-          )}
+
 
 
           <div className="space-y-2">
