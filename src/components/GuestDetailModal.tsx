@@ -86,8 +86,24 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
       setSocialNetworks({ twitter: "", instagram: "" });
       setCustomFields({});
     }
-    setProposedHour("");
+    setProposedHour(guest?.time_slot ? String(guest.time_slot) : "");
+    // Reconstruir la fecha de emisión a partir de week_date + day_of_week
+    if (guest?.week_date && guest?.day_of_week) {
+      const offsets: Record<string, number> = { monday: 0, tuesday: 1, wednesday: 2, thursday: 3 };
+      const offset = offsets[guest.day_of_week];
+      if (offset !== undefined) {
+        const base = parseISO(guest.week_date);
+        const d = new Date(base.getFullYear(), base.getMonth(), base.getDate() + offset);
+        setEmissionDate(format(d, "yyyy-MM-dd"));
+      } else {
+        setEmissionDate("");
+      }
+    } else {
+      setEmissionDate("");
+    }
   }, [guest]);
+
+
 
   const handleAssignProposed = async () => {
     if (!formData.scheduled_date) {
