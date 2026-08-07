@@ -44,6 +44,7 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
   });
   const [customFields, setCustomFields] = useState<{[key: string]: string}>({});
   const [proposedHour, setProposedHour] = useState<string>("");
+  const [emissionDate, setEmissionDate] = useState<string>("");
 
   const {
     guestSuggestions,
@@ -85,19 +86,36 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
       setSocialNetworks({ twitter: "", instagram: "" });
       setCustomFields({});
     }
-    setProposedHour("");
+    setProposedHour(guest?.time_slot ? String(guest.time_slot) : "");
+    // Reconstruir la fecha de emisión a partir de week_date + day_of_week
+    if (guest?.week_date && guest?.day_of_week) {
+      const offsets: Record<string, number> = { monday: 0, tuesday: 1, wednesday: 2, thursday: 3 };
+      const offset = offsets[guest.day_of_week];
+      if (offset !== undefined) {
+        const base = parseISO(guest.week_date);
+        const d = new Date(base.getFullYear(), base.getMonth(), base.getDate() + offset);
+        setEmissionDate(format(d, "yyyy-MM-dd"));
+      } else {
+        setEmissionDate("");
+      }
+    } else {
+      setEmissionDate("");
+    }
   }, [guest]);
 
+
+
   const handleAssignProposed = async () => {
-    if (!formData.scheduled_date) {
-      toast.error("Selecciona primero la fecha propuesta");
+    const targetDate = emissionDate || formData.scheduled_date;
+    if (!targetDate) {
+      toast.error("Selecciona la fecha de emisión (o la de grabación)");
       return;
     }
     if (!proposedHour) {
       toast.error("Selecciona la hora (1ra, 2da o 3ra)");
       return;
     }
-    const date = parseISO(formData.scheduled_date);
+    const date = parseISO(targetDate);
     const dayIdx = getDay(date); // 0=Sun..6=Sat
     const dayMap: Record<number, string> = {
       1: "monday",
@@ -107,7 +125,7 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
     };
     const dayName = dayMap[dayIdx];
     if (!dayName) {
-      toast.error("La fecha propuesta debe caer entre lunes y jueves");
+      toast.error("La fecha de emisión debe caer entre lunes y jueves");
       return;
     }
     const weekStart = startOfWeek(date, { weekStartsOn: 1 });
@@ -146,6 +164,7 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
       day_of_week: dayName,
       time_slot: Number(proposedHour),
     });
+    setEmissionDate(targetDate);
     const hourLabel = proposedHour === "1" ? "1ra" : proposedHour === "2" ? "2da" : "3ra";
     toast.success(`Slot asignado: ${dayName} · ${hourLabel} hora. Pulsa Guardar para confirmar.`);
   };
@@ -160,13 +179,15 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
       return;
     }
 
-    // If status is not "proposed", scheduling fields are required
+    // Solo los estados distintos de PROPUESTO exigen slot de emisión
     if (formData.recording_status !== "proposed") {
       if (!formData.week_date || !formData.day_of_week || formData.time_slot == null) {
-        toast.error("Para este estado debes asignar fecha, día y hora (1, 2 o 3)");
+        toast.error("Para este estado debes asignar el slot de emisión (día y hora)");
         return;
       }
     }
+
+
 
     // Combinar todas las redes sociales
     const allSocialNetworks = {
@@ -180,11 +201,17 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
     );
 
     // Auto-set proposed_by for new guests
-    let finalData = {
+    let finalData: Guest = {
       ...formData,
       social_networks: Object.keys(cleanedSocialNetworks).length > 0 ? cleanedSocialNetworks : null,
       email: null
     };
+
+    // Un propuesto sin fecha de emisión se guarda sin slot (queda solo en la bandeja)
+    if (formData.recording_status === "proposed" && !emissionDate) {
+      finalData = { ...finalData, week_date: null, day_of_week: null, time_slot: null };
+    }
+
 
     if (!formData.id && !formData.proposed_by) {
       const { data: { user } } = await supabase.auth.getUser();
@@ -362,7 +389,7 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
               </div>
             </div>
             <p className="text-xs text-muted-foreground">
-              Cuándo se graba el invitado. No cambia el slot de emisión.
+              Cuándo se graba el invitado (opcional). No cambia el slot de emisión.
             </p>
           </div>
 
@@ -376,36 +403,49 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
                 ? `Actual: ${formData.day_of_week} · ${formData.time_slot}ª hora (semana del ${formData.week_date})`
                 : "Sin slot de emisión asignado"}
             </p>
-            {formData.recording_status === "proposed" && !readOnly && (
-              <div className="grid grid-cols-[1fr_auto] gap-3 items-end">
-                <div className="space-y-2">
-                  <Label htmlFor="proposed_hour">Hora de emisión</Label>
-                  <Select value={proposedHour} onValueChange={setProposedHour} disabled={readOnly}>
-                    <SelectTrigger id="proposed_hour">
-                      <SelectValue placeholder="Selecciona hora" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1">1ra hora</SelectItem>
-                      <SelectItem value="2">2da hora</SelectItem>
-                      <SelectItem value="3">3ra hora</SelectItem>
-                    </SelectContent>
-                  </Select>
+            {!readOnly && (
+              <>
+                <div className="grid grid-cols-[1fr_1fr_auto] gap-3 items-end">
+                  <div className="space-y-2">
+                    <Label htmlFor="emission_date">Fecha de emisión</Label>
+                    <Input
+                      id="emission_date"
+                      type="date"
+                      value={emissionDate}
+                      onChange={(e) => setEmissionDate(e.target.value)}
+                      disabled={readOnly}
+                      className="w-full"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="proposed_hour">Hora de emisión</Label>
+                    <Select value={proposedHour} onValueChange={setProposedHour} disabled={readOnly}>
+                      <SelectTrigger id="proposed_hour">
+                        <SelectValue placeholder="Selecciona hora" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">1ra hora</SelectItem>
+                        <SelectItem value="2">2da hora</SelectItem>
+                        <SelectItem value="3">3ra hora</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={handleAssignProposed}
+                    disabled={readOnly || (!emissionDate && !formData.scheduled_date) || !proposedHour}
+                  >
+                    ASIGNAR
+                  </Button>
                 </div>
-                <Button
-                  type="button"
-                  onClick={handleAssignProposed}
-                  disabled={readOnly || !formData.scheduled_date || !proposedHour}
-                >
-                  ASIGNAR
-                </Button>
-              </div>
-            )}
-            {formData.recording_status === "proposed" && !readOnly && (
-              <p className="text-xs text-muted-foreground">
-                Usa la fecha de grabación para calcular el día de emisión (lunes a jueves).
-              </p>
+                <p className="text-xs text-muted-foreground">
+                  Cuándo sale al aire (lunes a jueves). Si la dejas vacía, ASIGNAR usa la fecha de grabación.
+                  Un invitado PROPUESTO puede guardarse sin fecha de emisión ni de grabación.
+                </p>
+              </>
             )}
           </div>
+
 
 
 
