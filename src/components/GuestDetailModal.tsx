@@ -106,15 +106,16 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
 
 
   const handleAssignProposed = async () => {
-    if (!formData.scheduled_date) {
-      toast.error("Selecciona primero la fecha propuesta");
+    const targetDate = emissionDate || formData.scheduled_date;
+    if (!targetDate) {
+      toast.error("Selecciona la fecha de emisión (o la de grabación)");
       return;
     }
     if (!proposedHour) {
       toast.error("Selecciona la hora (1ra, 2da o 3ra)");
       return;
     }
-    const date = parseISO(formData.scheduled_date);
+    const date = parseISO(targetDate);
     const dayIdx = getDay(date); // 0=Sun..6=Sat
     const dayMap: Record<number, string> = {
       1: "monday",
@@ -124,7 +125,7 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
     };
     const dayName = dayMap[dayIdx];
     if (!dayName) {
-      toast.error("La fecha propuesta debe caer entre lunes y jueves");
+      toast.error("La fecha de emisión debe caer entre lunes y jueves");
       return;
     }
     const weekStart = startOfWeek(date, { weekStartsOn: 1 });
