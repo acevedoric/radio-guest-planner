@@ -164,6 +164,7 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
       day_of_week: dayName,
       time_slot: Number(proposedHour),
     });
+    setEmissionDate(targetDate);
     const hourLabel = proposedHour === "1" ? "1ra" : proposedHour === "2" ? "2da" : "3ra";
     toast.success(`Slot asignado: ${dayName} · ${hourLabel} hora. Pulsa Guardar para confirmar.`);
   };
