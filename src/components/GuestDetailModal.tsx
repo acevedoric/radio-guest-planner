@@ -389,7 +389,7 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
               </div>
             </div>
             <p className="text-xs text-muted-foreground">
-              Cuándo se graba el invitado. No cambia el slot de emisión.
+              Cuándo se graba el invitado (opcional). No cambia el slot de emisión.
             </p>
           </div>
 
@@ -403,36 +403,49 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
                 ? `Actual: ${formData.day_of_week} · ${formData.time_slot}ª hora (semana del ${formData.week_date})`
                 : "Sin slot de emisión asignado"}
             </p>
-            {formData.recording_status === "proposed" && !readOnly && (
-              <div className="grid grid-cols-[1fr_auto] gap-3 items-end">
-                <div className="space-y-2">
-                  <Label htmlFor="proposed_hour">Hora de emisión</Label>
-                  <Select value={proposedHour} onValueChange={setProposedHour} disabled={readOnly}>
-                    <SelectTrigger id="proposed_hour">
-                      <SelectValue placeholder="Selecciona hora" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1">1ra hora</SelectItem>
-                      <SelectItem value="2">2da hora</SelectItem>
-                      <SelectItem value="3">3ra hora</SelectItem>
-                    </SelectContent>
-                  </Select>
+            {!readOnly && (
+              <>
+                <div className="grid grid-cols-[1fr_1fr_auto] gap-3 items-end">
+                  <div className="space-y-2">
+                    <Label htmlFor="emission_date">Fecha de emisión</Label>
+                    <Input
+                      id="emission_date"
+                      type="date"
+                      value={emissionDate}
+                      onChange={(e) => setEmissionDate(e.target.value)}
+                      disabled={readOnly}
+                      className="w-full"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="proposed_hour">Hora de emisión</Label>
+                    <Select value={proposedHour} onValueChange={setProposedHour} disabled={readOnly}>
+                      <SelectTrigger id="proposed_hour">
+                        <SelectValue placeholder="Selecciona hora" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">1ra hora</SelectItem>
+                        <SelectItem value="2">2da hora</SelectItem>
+                        <SelectItem value="3">3ra hora</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={handleAssignProposed}
+                    disabled={readOnly || (!emissionDate && !formData.scheduled_date) || !proposedHour}
+                  >
+                    ASIGNAR
+                  </Button>
                 </div>
-                <Button
-                  type="button"
-                  onClick={handleAssignProposed}
-                  disabled={readOnly || !formData.scheduled_date || !proposedHour}
-                >
-                  ASIGNAR
-                </Button>
-              </div>
-            )}
-            {formData.recording_status === "proposed" && !readOnly && (
-              <p className="text-xs text-muted-foreground">
-                Usa la fecha de grabación para calcular el día de emisión (lunes a jueves).
-              </p>
+                <p className="text-xs text-muted-foreground">
+                  Cuándo sale al aire (lunes a jueves). Si la dejas vacía, ASIGNAR usa la fecha de grabación.
+                  Un invitado PROPUESTO puede guardarse sin fecha de emisión ni de grabación.
+                </p>
+              </>
             )}
           </div>
+
 
 
 
