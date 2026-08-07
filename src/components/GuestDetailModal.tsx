@@ -44,6 +44,7 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
   });
   const [customFields, setCustomFields] = useState<{[key: string]: string}>({});
   const [proposedHour, setProposedHour] = useState<string>("");
+  const [emissionDate, setEmissionDate] = useState<string>("");
 
   const {
     guestSuggestions,
