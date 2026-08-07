@@ -201,11 +201,17 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
     );
 
     // Auto-set proposed_by for new guests
-    let finalData = {
+    let finalData: Guest = {
       ...formData,
       social_networks: Object.keys(cleanedSocialNetworks).length > 0 ? cleanedSocialNetworks : null,
       email: null
     };
+
+    // Un propuesto sin fecha de emisión se guarda sin slot (queda solo en la bandeja)
+    if (formData.recording_status === "proposed" && !emissionDate) {
+      finalData = { ...finalData, week_date: null, day_of_week: null, time_slot: null };
+    }
+
 
     if (!formData.id && !formData.proposed_by) {
       const { data: { user } } = await supabase.auth.getUser();
