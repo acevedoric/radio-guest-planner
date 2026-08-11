@@ -22,9 +22,10 @@ interface HistoricalResult {
 const highlight = (text: string, query: string) => {
   const terms = query.split(/\s+/).filter((t) => t.length > 2);
   if (terms.length === 0) return text;
+  const lowered = terms.map((t) => t.toLowerCase());
   const re = new RegExp(`(${terms.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`, "ig");
   return text.split(re).map((part, i) =>
-    re.test(part) && terms.some((t) => part.toLowerCase() === t.toLowerCase()) ? (
+    lowered.includes(part.toLowerCase()) ? (
       <mark key={i} className="bg-primary/20 text-foreground rounded px-0.5">
         {part}
       </mark>
