@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format, startOfWeek, addDays } from "date-fns";
+import { maybeSendConfirmationEmail } from "@/hooks/useConfirmationWebhook";
 
 interface WeeklyCalendarProps {
   guests: Guest[];
@@ -239,6 +240,8 @@ const GuestSlotCard = ({ day, slot, guest, coGuest, onGuestClick, onAddGuest, ed
       if (error) throw error;
 
       toast.success("Estado actualizado");
+
+      await maybeSendConfirmationEmail(guest, updateData);
     } catch (error) {
       console.error('Error updating guest:', error);
       toast.error("Error al actualizar");

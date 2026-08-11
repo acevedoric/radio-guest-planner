@@ -14,6 +14,7 @@ import { GuestInfoModules } from "./GuestInfoModules";
 import { LibretoExport } from "./LibretoExport";
 import { LibretoView } from "./LibretoView";
 import { parse, addDays, format } from "date-fns";
+import { maybeSendConfirmationEmail } from "@/hooks/useConfirmationWebhook";
 
 interface DayViewProps {
   guests: Guest[];
@@ -179,6 +180,8 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
       if (error) throw error;
       
       toast.success("Estado actualizado correctamente");
+
+      await maybeSendConfirmationEmail(guest, updateData);
     } catch (error) {
       console.error('Error updating guest:', error);
       toast.error("Error al actualizar el estado");

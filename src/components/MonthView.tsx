@@ -8,6 +8,7 @@ import { SocialNetworkLink } from "./SocialNetworkLink";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { maybeSendConfirmationEmail } from "@/hooks/useConfirmationWebhook";
 
 interface MonthViewProps {
   guests: Guest[];
@@ -360,6 +361,8 @@ const SlotCard = ({ guest, coGuest, day, slot, onGuestClick, onAddGuest, getStat
       if (error) throw error;
       
       toast.success("Estado actualizado");
+
+      await maybeSendConfirmationEmail(guest, updateData);
     } catch (error) {
       console.error('Error updating guest:', error);
       toast.error("Error al actualizar");
