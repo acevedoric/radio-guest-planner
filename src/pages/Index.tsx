@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { useUndoRedo } from "@/hooks/useUndoRedo";
 import { guestsReadFrom } from "@/lib/guestsSource";
 import { ImportExcelModal } from "@/components/ImportExcelModal";
+import { HistoricalSearchDialog } from "@/components/HistoricalSearchDialog";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -659,6 +660,7 @@ const Index = () => {
               onClick={handleLogoClick}
             />
             <div className="flex items-center gap-1">
+              <HistoricalSearchDialog />
               {!isPublic && (
                 <>
                   <Button variant="ghost" size="sm" onClick={undo} disabled={!canUndo} title="Deshacer (Ctrl+Z)">

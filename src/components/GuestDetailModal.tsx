@@ -7,14 +7,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trash2 } from "lucide-react";
+import { Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Guest } from "@/types/guest";
 import { ContactLink } from "./ContactLink";
 import { SocialNetworkLink, getSocialPlatformOptions } from "./SocialNetworkLink";
 import { AutocompleteInput } from "./AutocompleteInput";
+import { GuestDocuments } from "./GuestDocuments";
 import { useGuestAutocomplete } from "@/hooks/useGuestAutocomplete";
 import { supabase } from "@/integrations/supabase/client";
+import { WEBHOOK_URL_AGENDAR, buildGuestPayload, markSent, postWebhook, wasSent } from "@/lib/webhooks";
 
 interface GuestDetailModalProps {
   guest: Guest | null;
@@ -45,6 +47,28 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
   const [customFields, setCustomFields] = useState<{[key: string]: string}>({});
   const [proposedHour, setProposedHour] = useState<string>("");
   const [emissionDate, setEmissionDate] = useState<string>("");
+  const [agendarLoading, setAgendarLoading] = useState(false);
+  const [agendado, setAgendado] = useState(false);
+
+  useEffect(() => {
+    setAgendado(wasSent("agendar", guest?.id));
+  }, [guest?.id, isOpen]);
+
+  const handleAgendar = async () => {
+    setAgendarLoading(true);
+    const result = await postWebhook(WEBHOOK_URL_AGENDAR, buildGuestPayload(formData));
+    setAgendarLoading(false);
+
+    if (result.ok) {
+      markSent("agendar", guest?.id);
+      setAgendado(true);
+      toast.success("Evento creado en Google Calendar");
+    } else {
+      toast.error(result.message || "No se pudo agendar el evento");
+    }
+  };
+
+
 
   const {
     guestSuggestions,
@@ -631,6 +655,37 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
               disabled={readOnly}
             />
           </div>
+
+          <div className="border-t pt-4">
+            <GuestDocuments
+              guestId={guest?.id}
+              defaultHour={formData.time_slot || 1}
+              readOnly={readOnly}
+            />
+          </div>
+
+          {guest?.id && formData.scheduled_date && formData.scheduled_time && (
+            <div className="border-t pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleAgendar}
+                disabled={agendarLoading || agendado}
+                className="w-full"
+              >
+                {agendarLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Agendando...
+                  </>
+                ) : agendado ? (
+                  "✅ Agendado"
+                ) : (
+                  "📅 Agendar"
+                )}
+              </Button>
+            </div>
+          )}
 
           <DialogFooter className="gap-2">
             {!readOnly && guest?.id && onDelete && (
