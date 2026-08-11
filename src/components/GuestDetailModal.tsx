@@ -632,6 +632,37 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
             />
           </div>
 
+          <div className="border-t pt-4">
+            <GuestDocuments
+              guestId={guest?.id}
+              defaultHour={formData.time_slot || 1}
+              readOnly={readOnly}
+            />
+          </div>
+
+          {guest?.id && formData.scheduled_date && formData.scheduled_time && (
+            <div className="border-t pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleAgendar}
+                disabled={agendarLoading || agendado}
+                className="w-full"
+              >
+                {agendarLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Agendando...
+                  </>
+                ) : agendado ? (
+                  "✅ Agendado"
+                ) : (
+                  "📅 Agendar"
+                )}
+              </Button>
+            </div>
+          )}
+
           <DialogFooter className="gap-2">
             {!readOnly && guest?.id && onDelete && (
               <AlertDialog>
