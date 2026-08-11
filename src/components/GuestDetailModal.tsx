@@ -47,6 +47,28 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
   const [customFields, setCustomFields] = useState<{[key: string]: string}>({});
   const [proposedHour, setProposedHour] = useState<string>("");
   const [emissionDate, setEmissionDate] = useState<string>("");
+  const [agendarLoading, setAgendarLoading] = useState(false);
+  const [agendado, setAgendado] = useState(false);
+
+  useEffect(() => {
+    setAgendado(wasSent("agendar", guest?.id));
+  }, [guest?.id, isOpen]);
+
+  const handleAgendar = async () => {
+    setAgendarLoading(true);
+    const result = await postWebhook(WEBHOOK_URL_AGENDAR, buildGuestPayload(formData));
+    setAgendarLoading(false);
+
+    if (result.ok) {
+      markSent("agendar", guest?.id);
+      setAgendado(true);
+      toast.success("Evento creado en Google Calendar");
+    } else {
+      toast.error(result.message || "No se pudo agendar el evento");
+    }
+  };
+
+
 
   const {
     guestSuggestions,
