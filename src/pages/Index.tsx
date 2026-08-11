@@ -660,6 +660,7 @@ const Index = () => {
               onClick={handleLogoClick}
             />
             <div className="flex items-center gap-1">
+              <HistoricalSearchDialog />
               {!isPublic && (
                 <>
                   <Button variant="ghost" size="sm" onClick={undo} disabled={!canUndo} title="Deshacer (Ctrl+Z)">
