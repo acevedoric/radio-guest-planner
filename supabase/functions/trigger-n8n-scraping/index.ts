@@ -167,24 +167,35 @@ serve(async (req) => {
     }
 
     const payload = parseResult.data;
-    const slot = payload.slot;
+    const slot = payload.hour_number ?? payload.slot;
     const slotConfig = SLOT_FIELD_MAP[slot];
 
     console.log(`Triggering n8n scraping for guest: ${payload.name} (${payload.position}), slot: ${slot}`);
 
     const callbackUrl = `${supabaseUrl}/functions/v1/n8n-guest-info`;
 
-    const n8nPayload: Record<string, string | number> = {
+    const documents = payload.documents ?? [];
+    const referenceUrls = payload.reference_urls ?? [];
+
+    const n8nPayload: Record<string, unknown> = {
       guest_id: payload.guest_id,
       name: payload.name,
       position: payload.position,
       topic: payload.topic || '',
+      hour_number: slot,
+      documents,
+      reference_urls: referenceUrls,
       callback_url: callbackUrl,
       slot,
     };
 
-    if (payload.document_url) n8nPayload.document_url = payload.document_url;
-    if (payload.document_name) n8nPayload.document_name = payload.document_name;
+    // Compatibilidad con el workflow actual de n8n (un solo documento)
+    const firstDoc = documents[0];
+    const legacyUrl = payload.document_url ?? firstDoc?.file_url ?? null;
+    const legacyName = payload.document_name ?? firstDoc?.file_name ?? null;
+    if (legacyUrl) n8nPayload.document_url = legacyUrl;
+    if (legacyName) n8nPayload.document_name = legacyName;
+
 
     const n8nResponse = await fetch(n8nWebhookUrl, {
       method: 'POST',
