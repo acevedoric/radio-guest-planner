@@ -7,15 +7,25 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const DocumentSchema = z.object({
+  file_name: z.string().max(500),
+  file_url: z.string().url().max(3000),
+  file_type: z.string().max(300).nullable().optional(),
+});
+
 const TriggerPayloadSchema = z.object({
   guest_id: z.string().uuid("guest_id must be a valid UUID"),
   name: z.string().min(1).max(300),
   position: z.string().min(1).max(300),
   topic: z.string().max(2000).optional(),
-  document_url: z.string().url().max(2000).nullable().optional(),
+  document_url: z.string().url().max(3000).nullable().optional(),
   document_name: z.string().max(500).nullable().optional(),
+  documents: z.array(DocumentSchema).max(50).optional().default([]),
+  reference_urls: z.array(z.string().url().max(2000)).max(50).optional().default([]),
+  hour_number: z.number().int().min(1).max(3).optional(),
   slot: z.number().int().min(1).max(3).optional().default(1),
 });
+
 
 // Field mapping per slot for n8n response parsing
 const SLOT_FIELD_MAP: Record<number, { fields: string[]; keywordMap: Record<string, string> }> = {
