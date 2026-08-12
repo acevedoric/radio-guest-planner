@@ -8,6 +8,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Guest } from "@/types/guest";
 import { cn } from "@/lib/utils";
+import { GuestDocuments } from "./GuestDocuments";
+import { GuestUrls } from "./GuestUrls";
+import { buildAttachmentsPayload } from "@/lib/guestAttachments";
 import React from "react";
 
 /** Renders inline markdown: **bold** and *italic* */
