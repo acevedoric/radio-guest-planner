@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FileText, Loader2, Trash2, Upload } from "lucide-react";
+import { FileText, Loader2, Plus, Trash2, Upload } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -7,24 +7,21 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
-
-const BUCKET = "guest-documents";
-
-interface GuestDocument {
-  id: string;
-  guest_id: string;
-  hour_number: number | null;
-  file_name: string;
-  file_url: string;
-  file_type: string | null;
-  file_size: number | null;
-  uploaded_at: string | null;
-}
+import {
+  GUEST_DOCS_BUCKET as BUCKET,
+  GuestDocumentRow,
+  fetchGuestDocuments,
+  getSignedDocumentUrl,
+} from "@/lib/guestAttachments";
 
 interface GuestDocumentsProps {
   guestId?: string | null;
+  /** Fixed hour: hides the hour selector and only shows that hour's documents. */
+  hour?: number | null;
+  /** Default hour when the selector is shown. */
   defaultHour?: number | null;
   readOnly?: boolean;
+  compact?: boolean;
 }
 
 const formatSize = (bytes?: number | null) => {
@@ -34,40 +31,36 @@ const formatSize = (bytes?: number | null) => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
-const pathFromUrl = (url: string) => {
-  const marker = `/${BUCKET}/`;
-  const idx = url.indexOf(marker);
-  return idx >= 0 ? decodeURIComponent(url.slice(idx + marker.length)) : url;
-};
-
-export const GuestDocuments = ({ guestId, defaultHour, readOnly = false }: GuestDocumentsProps) => {
-  const [docs, setDocs] = useState<GuestDocument[]>([]);
+export const GuestDocuments = ({
+  guestId,
+  hour: fixedHour,
+  defaultHour,
+  readOnly = false,
+  compact = false,
+}: GuestDocumentsProps) => {
+  const [docs, setDocs] = useState<GuestDocumentRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState({ done: 0, total: 0 });
-  const [hour, setHour] = useState<string>(String(defaultHour || 1));
+  const [hour, setHour] = useState<string>(String(fixedHour || defaultHour || 1));
   const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setHour(String(defaultHour || 1));
-  }, [defaultHour]);
+    setHour(String(fixedHour || defaultHour || 1));
+  }, [fixedHour, defaultHour]);
 
   const loadDocs = useCallback(async () => {
     if (!guestId) return;
     setLoading(true);
-    const { data, error } = await (supabase as any)
-      .from("guest_documents")
-      .select("*")
-      .eq("guest_id", guestId)
-      .order("uploaded_at", { ascending: false });
-    setLoading(false);
-    if (error) {
+    try {
+      setDocs(await fetchGuestDocuments(guestId, fixedHour ? Number(fixedHour) : undefined));
+    } catch (error) {
       console.error("Error loading documents:", error);
-      return;
+    } finally {
+      setLoading(false);
     }
-    setDocs((data || []) as GuestDocument[]);
-  }, [guestId]);
+  }, [guestId, fixedHour]);
 
   useEffect(() => {
     loadDocs();
@@ -78,7 +71,7 @@ export const GuestDocuments = ({ guestId, defaultHour, readOnly = false }: Guest
     setUploading(true);
     setProgress({ done: 0, total: files.length });
 
-    const hourNumber = Number(hour) || 1;
+    const hourNumber = Number(fixedHour || hour) || 1;
     let okCount = 0;
 
     for (const file of files) {
@@ -91,13 +84,11 @@ export const GuestDocuments = ({ guestId, defaultHour, readOnly = false }: Guest
           .upload(path, file, { upsert: false, contentType: file.type || undefined });
         if (uploadError) throw uploadError;
 
-        const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(path);
-
         const { error: insertError } = await (supabase as any).from("guest_documents").insert({
           guest_id: guestId,
           hour_number: hourNumber,
           file_name: file.name,
-          file_url: pub.publicUrl,
+          file_url: path,
           file_type: file.type || null,
           file_size: file.size,
         });
@@ -118,9 +109,19 @@ export const GuestDocuments = ({ guestId, defaultHour, readOnly = false }: Guest
     loadDocs();
   };
 
-  const handleDelete = async (doc: GuestDocument) => {
+  const handleOpen = async (doc: GuestDocumentRow) => {
     try {
-      await supabase.storage.from(BUCKET).remove([pathFromUrl(doc.file_url)]);
+      const signed = await getSignedDocumentUrl(doc.file_url);
+      if (signed) window.open(signed, "_blank", "noopener,noreferrer");
+    } catch (error) {
+      console.error("Error opening document:", error);
+      toast.error("No se pudo abrir el documento");
+    }
+  };
+
+  const handleDelete = async (doc: GuestDocumentRow) => {
+    try {
+      await supabase.storage.from(BUCKET).remove([doc.file_url]);
       const { error } = await (supabase as any).from("guest_documents").delete().eq("id", doc.id);
       if (error) throw error;
       setDocs((prev) => prev.filter((d) => d.id !== doc.id));
@@ -142,31 +143,63 @@ export const GuestDocuments = ({ guestId, defaultHour, readOnly = false }: Guest
     );
   }
 
-  const groups = [1, 2, 3].map((h) => ({
-    hour: h,
-    items: docs.filter((d) => (d.hour_number || 1) === h),
-  }));
-  const others = docs.filter((d) => ![1, 2, 3].includes(d.hour_number || 1));
+  const groups = fixedHour
+    ? [{ hour: Number(fixedHour), items: docs }]
+    : [
+        ...[1, 2, 3].map((h) => ({ hour: h, items: docs.filter((d) => (d.hour_number || 1) === h) })),
+        { hour: 0, items: docs.filter((d) => ![1, 2, 3].includes(d.hour_number || 1)) },
+      ];
+
+  const fileInput = (
+    <input
+      ref={inputRef}
+      type="file"
+      multiple
+      className="hidden"
+      onChange={(e) => {
+        uploadFiles(Array.from(e.target.files || []));
+        e.target.value = "";
+      }}
+    />
+  );
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2">
-        <Label className="text-base">Documentos</Label>
-        {!readOnly && (
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">Subir a:</span>
-            <Select value={hour} onValueChange={setHour}>
-              <SelectTrigger className="h-8 w-28">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="1">Hora 1</SelectItem>
-                <SelectItem value="2">Hora 2</SelectItem>
-                <SelectItem value="3">Hora 3</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        )}
+        <Label className={compact ? "text-xs font-medium flex items-center gap-1" : "text-base"}>
+          <FileText className="h-3 w-3" />
+          Documentos adjuntos
+        </Label>
+        <div className="flex items-center gap-2">
+          {!readOnly && !fixedHour && (
+            <>
+              <span className="text-xs text-muted-foreground">Subir a:</span>
+              <Select value={hour} onValueChange={setHour}>
+                <SelectTrigger className="h-8 w-28">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">Hora 1</SelectItem>
+                  <SelectItem value="2">Hora 2</SelectItem>
+                  <SelectItem value="3">Hora 3</SelectItem>
+                </SelectContent>
+              </Select>
+            </>
+          )}
+          {!readOnly && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-8"
+              onClick={() => inputRef.current?.click()}
+              disabled={uploading}
+              title="Agregar archivos"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
       </div>
 
       {!readOnly && (
@@ -201,18 +234,9 @@ export const GuestDocuments = ({ guestId, defaultHour, readOnly = false }: Guest
               <span className="text-xs">PDF, Word, imágenes, cualquier tipo · varios a la vez</span>
             </>
           )}
-          <input
-            ref={inputRef}
-            type="file"
-            multiple
-            className="hidden"
-            onChange={(e) => {
-              uploadFiles(Array.from(e.target.files || []));
-              e.target.value = "";
-            }}
-          />
         </div>
       )}
+      {fileInput}
 
       {loading ? (
         <p className="text-xs text-muted-foreground">Cargando documentos...</p>
@@ -220,24 +244,25 @@ export const GuestDocuments = ({ guestId, defaultHour, readOnly = false }: Guest
         <p className="text-xs text-muted-foreground italic">Sin documentos adjuntos.</p>
       ) : (
         <div className="space-y-3">
-          {[...groups, { hour: 0, items: others }]
+          {groups
             .filter((g) => g.items.length > 0)
             .map((group) => (
               <div key={group.hour} className="space-y-1">
-                <p className="text-xs font-semibold text-muted-foreground">
-                  {group.hour === 0 ? "Sin hora" : `Hora ${group.hour}`}
-                </p>
+                {!fixedHour && (
+                  <p className="text-xs font-semibold text-muted-foreground">
+                    {group.hour === 0 ? "Sin hora" : `Hora ${group.hour}`}
+                  </p>
+                )}
                 {group.items.map((doc) => (
                   <div key={doc.id} className="flex items-center gap-2 rounded bg-muted/50 p-2 text-sm">
                     <FileText className="h-4 w-4 shrink-0 text-primary" />
-                    <a
-                      href={doc.file_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 truncate hover:underline"
+                    <button
+                      type="button"
+                      onClick={() => handleOpen(doc)}
+                      className="flex-1 truncate text-left hover:underline"
                     >
                       {doc.file_name}
-                    </a>
+                    </button>
                     <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">
                       {doc.file_type || "—"} · {formatSize(doc.file_size)}
                       {doc.uploaded_at ? ` · ${format(parseISO(doc.uploaded_at), "dd/MM/yyyy")}` : ""}
