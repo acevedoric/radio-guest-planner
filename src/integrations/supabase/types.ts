@@ -62,6 +62,96 @@ export type Database = {
         }
         Relationships: []
       }
+      guest_documents: {
+        Row: {
+          file_name: string
+          file_size: number | null
+          file_type: string | null
+          file_url: string
+          guest_id: string
+          hour_number: number
+          id: string
+          uploaded_at: string
+        }
+        Insert: {
+          file_name: string
+          file_size?: number | null
+          file_type?: string | null
+          file_url: string
+          guest_id: string
+          hour_number?: number
+          id?: string
+          uploaded_at?: string
+        }
+        Update: {
+          file_name?: string
+          file_size?: number | null
+          file_type?: string | null
+          file_url?: string
+          guest_id?: string
+          hour_number?: number
+          id?: string
+          uploaded_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guest_documents_guest_id_fkey"
+            columns: ["guest_id"]
+            isOneToOne: false
+            referencedRelation: "guests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guest_documents_guest_id_fkey"
+            columns: ["guest_id"]
+            isOneToOne: false
+            referencedRelation: "guests_anon"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      guest_urls: {
+        Row: {
+          created_at: string
+          guest_id: string
+          hour_number: number
+          id: string
+          label: string | null
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          guest_id: string
+          hour_number?: number
+          id?: string
+          label?: string | null
+          url: string
+        }
+        Update: {
+          created_at?: string
+          guest_id?: string
+          hour_number?: number
+          id?: string
+          label?: string | null
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guest_urls_guest_id_fkey"
+            columns: ["guest_id"]
+            isOneToOne: false
+            referencedRelation: "guests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guest_urls_guest_id_fkey"
+            columns: ["guest_id"]
+            isOneToOne: false
+            referencedRelation: "guests_anon"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       guests: {
         Row: {
           avance_h2: string | null
