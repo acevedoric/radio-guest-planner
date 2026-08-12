@@ -7,15 +7,25 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const DocumentSchema = z.object({
+  file_name: z.string().max(500),
+  file_url: z.string().url().max(3000),
+  file_type: z.string().max(300).nullable().optional(),
+});
+
 const TriggerPayloadSchema = z.object({
   guest_id: z.string().uuid("guest_id must be a valid UUID"),
   name: z.string().min(1).max(300),
   position: z.string().min(1).max(300),
   topic: z.string().max(2000).optional(),
-  document_url: z.string().url().max(2000).nullable().optional(),
+  document_url: z.string().url().max(3000).nullable().optional(),
   document_name: z.string().max(500).nullable().optional(),
+  documents: z.array(DocumentSchema).max(50).optional().default([]),
+  reference_urls: z.array(z.string().url().max(2000)).max(50).optional().default([]),
+  hour_number: z.number().int().min(1).max(3).optional(),
   slot: z.number().int().min(1).max(3).optional().default(1),
 });
+
 
 // Field mapping per slot for n8n response parsing
 const SLOT_FIELD_MAP: Record<number, { fields: string[]; keywordMap: Record<string, string> }> = {
@@ -157,24 +167,35 @@ serve(async (req) => {
     }
 
     const payload = parseResult.data;
-    const slot = payload.slot;
+    const slot = payload.hour_number ?? payload.slot;
     const slotConfig = SLOT_FIELD_MAP[slot];
 
     console.log(`Triggering n8n scraping for guest: ${payload.name} (${payload.position}), slot: ${slot}`);
 
     const callbackUrl = `${supabaseUrl}/functions/v1/n8n-guest-info`;
 
-    const n8nPayload: Record<string, string | number> = {
+    const documents = payload.documents ?? [];
+    const referenceUrls = payload.reference_urls ?? [];
+
+    const n8nPayload: Record<string, unknown> = {
       guest_id: payload.guest_id,
       name: payload.name,
       position: payload.position,
       topic: payload.topic || '',
+      hour_number: slot,
+      documents,
+      reference_urls: referenceUrls,
       callback_url: callbackUrl,
       slot,
     };
 
-    if (payload.document_url) n8nPayload.document_url = payload.document_url;
-    if (payload.document_name) n8nPayload.document_name = payload.document_name;
+    // Compatibilidad con el workflow actual de n8n (un solo documento)
+    const firstDoc = documents[0];
+    const legacyUrl = payload.document_url ?? firstDoc?.file_url ?? null;
+    const legacyName = payload.document_name ?? firstDoc?.file_name ?? null;
+    if (legacyUrl) n8nPayload.document_url = legacyUrl;
+    if (legacyName) n8nPayload.document_name = legacyName;
+
 
     const n8nResponse = await fetch(n8nWebhookUrl, {
       method: 'POST',

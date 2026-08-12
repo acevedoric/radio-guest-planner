@@ -8,6 +8,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Guest } from "@/types/guest";
 import { cn } from "@/lib/utils";
+import { GuestDocuments } from "./GuestDocuments";
+import { GuestUrls } from "./GuestUrls";
+import { buildAttachmentsPayload } from "@/lib/guestAttachments";
 import React from "react";
 
 /** Renders inline markdown: **bold** and *italic* */
@@ -283,14 +286,29 @@ export const GuestInfoModules = ({ guest, editMode, onGuestUpdate, slot = 1 }: G
     try {
       toast({ title: "Buscando...", description: `Solicitando información con IA...` });
 
-      let document_url: string | null = null;
+      // Documento legado (columna en guests) + adjuntos múltiples de la hora
+      let legacyUrl: string | null = null;
       const docUrlVal = guest[config.urlKey] as string | null;
       if (docUrlVal) {
         const { data: signedData } = await supabase.storage
           .from("guest-documents")
           .createSignedUrl(docUrlVal, 3600);
-        document_url = signedData?.signedUrl || null;
+        legacyUrl = signedData?.signedUrl || null;
       }
+
+      const { documents, reference_urls } = await buildAttachmentsPayload(guest.id, slot);
+
+      const allDocuments = [...documents];
+      if (legacyUrl) {
+        allDocuments.unshift({
+          file_name: (guest[config.nameKey] as string) || "documento",
+          file_url: legacyUrl,
+          file_type: null,
+        });
+      }
+
+      const legacyLink = slot !== 1 ? ((guest[config.linkKey] as string | null) || null) : null;
+      const allUrls = legacyLink ? [legacyLink, ...reference_urls] : reference_urls;
 
       const { data, error } = await supabase.functions.invoke('trigger-n8n-scraping', {
         body: {
@@ -298,11 +316,16 @@ export const GuestInfoModules = ({ guest, editMode, onGuestUpdate, slot = 1 }: G
           name: guest.name,
           position: guest.position || '',
           topic: guest.topic || '',
-          document_url,
-          document_name: (guest[config.nameKey] as string) || null,
+          hour_number: slot,
+          documents: allDocuments,
+          reference_urls: allUrls,
+          // Compatibilidad con el workflow actual de n8n
+          document_url: allDocuments[0]?.file_url || null,
+          document_name: allDocuments[0]?.file_name || null,
           slot,
         }
       });
+
 
       if (error) throw error;
 
@@ -365,50 +388,14 @@ export const GuestInfoModules = ({ guest, editMode, onGuestUpdate, slot = 1 }: G
         </div>
       )}
 
-      {/* Document upload (slots 2 y 3) */}
-      {slot !== 1 && (
-        <div className="mb-2">
-          <p className="text-xs font-medium mb-1 flex items-center gap-1">
-            <FileText className="h-3 w-3" />
-            Documento adjunto
-          </p>
-          {docUrl ? (
-            <div className="flex items-center gap-2 text-sm bg-muted/50 p-2 rounded">
-              <FileText className="h-4 w-4 text-primary" />
-              <span className="flex-1 truncate">{docName}</span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleDocumentDownload}
-                disabled={downloading}
-                className="h-6 w-6 p-0 text-primary hover:text-primary"
-                title="Descargar documento"
-              >
-                {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />}
-              </Button>
-              {editMode && (
-                <Button variant="ghost" size="sm" onClick={handleDocumentRemove} className="h-6 w-6 p-0 text-destructive hover:text-destructive">
-                  <X className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
-          ) : editMode ? (
-            <label className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors">
-              {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-              <span>{uploading ? "Subiendo..." : "Subir documento (PDF/Word)"}</span>
-              <input
-                type="file"
-                accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                onChange={handleDocumentUpload}
-                disabled={uploading}
-                className="hidden"
-              />
-            </label>
-          ) : (
-            <span className="text-xs text-muted-foreground italic">Sin documento adjunto</span>
-          )}
+      {/* Documentos múltiples y enlaces de referencia (todas las horas) */}
+      {guest.id && (
+        <div className="mb-3 space-y-3 rounded-md border border-border/60 p-3">
+          <GuestDocuments guestId={guest.id} hour={slot} readOnly={!editMode} compact />
+          <GuestUrls guestId={guest.id} hour={slot} readOnly={!editMode} compact />
         </div>
       )}
+
 
       {modules.map((module) => (
         <Collapsible
