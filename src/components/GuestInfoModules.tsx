@@ -286,14 +286,29 @@ export const GuestInfoModules = ({ guest, editMode, onGuestUpdate, slot = 1 }: G
     try {
       toast({ title: "Buscando...", description: `Solicitando información con IA...` });
 
-      let document_url: string | null = null;
+      // Documento legado (columna en guests) + adjuntos múltiples de la hora
+      let legacyUrl: string | null = null;
       const docUrlVal = guest[config.urlKey] as string | null;
       if (docUrlVal) {
         const { data: signedData } = await supabase.storage
           .from("guest-documents")
           .createSignedUrl(docUrlVal, 3600);
-        document_url = signedData?.signedUrl || null;
+        legacyUrl = signedData?.signedUrl || null;
       }
+
+      const { documents, reference_urls } = await buildAttachmentsPayload(guest.id, slot);
+
+      const allDocuments = [...documents];
+      if (legacyUrl) {
+        allDocuments.unshift({
+          file_name: (guest[config.nameKey] as string) || "documento",
+          file_url: legacyUrl,
+          file_type: null,
+        });
+      }
+
+      const legacyLink = slot !== 1 ? ((guest[config.linkKey] as string | null) || null) : null;
+      const allUrls = legacyLink ? [legacyLink, ...reference_urls] : reference_urls;
 
       const { data, error } = await supabase.functions.invoke('trigger-n8n-scraping', {
         body: {
@@ -301,11 +316,16 @@ export const GuestInfoModules = ({ guest, editMode, onGuestUpdate, slot = 1 }: G
           name: guest.name,
           position: guest.position || '',
           topic: guest.topic || '',
-          document_url,
-          document_name: (guest[config.nameKey] as string) || null,
+          hour_number: slot,
+          documents: allDocuments,
+          reference_urls: allUrls,
+          // Compatibilidad con el workflow actual de n8n
+          document_url: allDocuments[0]?.file_url || null,
+          document_name: allDocuments[0]?.file_name || null,
           slot,
         }
       });
+
 
       if (error) throw error;
 
