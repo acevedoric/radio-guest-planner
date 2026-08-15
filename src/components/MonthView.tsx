@@ -102,6 +102,17 @@ export const MonthView = ({ guests, allGuests, onGuestClick, selectedMonth, onDa
       .sort((a, b) => (a.scheduled_time || '').localeCompare(b.scheduled_time || ''));
   };
 
+  // Grabaciones + propuestos unificados y ordenados cronológicamente
+  const getStripsForDay = (day: Date): Guest[] => {
+    return [...getScheduledRecordingsForDay(day), ...getProposedForDay(day)]
+      .sort((a, b) => {
+        const ta = a.scheduled_time || '99:99';
+        const tb = b.scheduled_time || '99:99';
+        return ta.localeCompare(tb);
+      });
+  };
+
+
   const isCurrentMonth = (day: Date) => {
     return day.getMonth() === selectedMonth.getMonth();
   };
