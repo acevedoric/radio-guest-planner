@@ -125,34 +125,32 @@ export const WeeklyCalendar = ({ guests, allGuests, onGuestClick, onAddGuest, se
         {/* Recording strips per day */}
         <div className="grid gap-4 mb-2" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
           {DAYS.map(day => {
-            const recordings = getRecordingsForDay(day.offset);
-            const proposed = getProposedForDay(day.offset);
-            if (recordings.length === 0 && proposed.length === 0) return <div key={day.key} />;
+            const strips = [...getRecordingsForDay(day.offset), ...getProposedForDay(day.offset)]
+              .sort((a, b) => (a.scheduled_time || '99:99').localeCompare(b.scheduled_time || '99:99'));
+            if (strips.length === 0) return <div key={day.key} />;
             return (
               <div key={day.key} className="space-y-0.5">
-                {recordings.map((g) => (
-                  <div
-                    key={g.id}
-                    className="text-[10px] px-2 py-0.5 rounded bg-red-500/10 text-red-600 dark:text-red-400 truncate cursor-pointer hover:bg-red-500/20 border-l-2 border-red-500"
-                    onClick={() => onRecordingGuestClick?.(g)}
-                    title={`Grabación: ${g.scheduled_time ? g.scheduled_time.slice(0, 5) + ' ' : ''}${g.name}`}
-                  >
-                    🔴 Grab: {g.scheduled_time && <span className="font-semibold">{g.scheduled_time.slice(0, 5)} </span>}{g.name}
-                  </div>
-                ))}
-                {proposed.map((g) => (
-                  <div
-                    key={g.id}
-                    className="text-[10px] px-2 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 truncate cursor-pointer hover:bg-blue-500/20 border-l-2 border-blue-500"
-                    onClick={() => onRecordingGuestClick?.(g)}
-                    title={`Propuesto: ${g.scheduled_time ? g.scheduled_time.slice(0, 5) + ' ' : ''}${g.name}`}
-                  >
-                    🔵 Prop: {g.scheduled_time && <span className="font-semibold">{g.scheduled_time.slice(0, 5)} </span>}{g.name}
-                  </div>
-                ))}
+                {strips.map((g) => {
+                  const isProposed = g.recording_status === "proposed";
+                  return (
+                    <div
+                      key={g.id}
+                      className={`text-[10px] px-2 py-0.5 rounded truncate cursor-pointer border-l-2 ${
+                        isProposed
+                          ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 border-blue-500"
+                          : "bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500/20 border-red-500"
+                      }`}
+                      onClick={() => onRecordingGuestClick?.(g)}
+                      title={`${isProposed ? "Propuesto" : "Grabación"}: ${g.scheduled_time ? g.scheduled_time.slice(0, 5) + ' ' : ''}${g.name}`}
+                    >
+                      {isProposed ? "🔵 Prop:" : "🔴 Grab:"} {g.scheduled_time && <span className="font-semibold">{g.scheduled_time.slice(0, 5)} </span>}{g.name}
+                    </div>
+                  );
+                })}
               </div>
             );
           })}
+
         </div>
 
         {/* Time Slots Grid */}
