@@ -189,12 +189,12 @@ export const MonthView = ({ guests, allGuests, onGuestClick, selectedMonth, onDa
           }
           
           return rows.map((row, rowIndex) => {
-            const maxRecordings = Math.max(0, ...row.map(day => getScheduledRecordingsForDay(day).length));
-            const maxProposed = Math.max(0, ...row.map(day => getProposedForDay(day).length));
-            const hasAnyBadge = row.some(day => getScheduledRecordingsForDay(day).length > 0 || getProposedForDay(day).length > 0);
+            const maxStrips = Math.max(0, ...row.map(day => getStripsForDay(day).length));
+            const hasAnyBadge = maxStrips > 0;
             const badgeRowHeight = hasAnyBadge ? 24 : 0;
-            const stripsHeight = (maxRecordings + maxProposed) * 20;
-            const recordingSectionMinHeight = badgeRowHeight + stripsHeight + ((maxRecordings + maxProposed) > 0 ? 4 : 0);
+            const stripsHeight = maxStrips * 20;
+            const recordingSectionMinHeight = badgeRowHeight + stripsHeight + (maxStrips > 0 ? 4 : 0);
+
             
             return row.map((day, colIndex) => {
               const isInMonth = isCurrentMonth(day);
