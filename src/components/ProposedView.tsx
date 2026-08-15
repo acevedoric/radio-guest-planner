@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Plus, CalendarPlus, User, Phone, Mail, Calendar } from "lucide-react";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, addDays } from "date-fns";
 import { es } from "date-fns/locale";
 
 interface ProposedViewProps {
@@ -20,13 +20,40 @@ const DAY_LABELS: Record<string, string> = {
   thursday: "Jueves",
 };
 
+const DAY_OFFSETS: Record<string, number> = {
+  monday: 0,
+  tuesday: 1,
+  wednesday: 2,
+  thursday: 3,
+};
+
+type EffectiveDate = { date: Date; iso: string; kind: "recording" | "emission" } | null;
+
+const getEffectiveDate = (guest: Guest): EffectiveDate => {
+  if (guest.scheduled_date) {
+    try {
+      return { date: parseISO(guest.scheduled_date), iso: guest.scheduled_date, kind: "recording" };
+    } catch { /* ignore */ }
+  }
+  if (guest.week_date && guest.day_of_week && DAY_OFFSETS[guest.day_of_week] !== undefined) {
+    try {
+      const d = addDays(parseISO(guest.week_date), DAY_OFFSETS[guest.day_of_week]);
+      return { date: d, iso: format(d, "yyyy-MM-dd"), kind: "emission" };
+    } catch { /* ignore */ }
+  }
+  return null;
+};
+
 export const ProposedView = ({ guests, onGuestClick, onCreateNew, editMode }: ProposedViewProps) => {
   const sortedGuests = [...guests].sort((a, b) => {
-    if (!a.scheduled_date && !b.scheduled_date) return 0;
-    if (!a.scheduled_date) return 1;
-    if (!b.scheduled_date) return -1;
-    return a.scheduled_date.localeCompare(b.scheduled_date);
+    const da = getEffectiveDate(a);
+    const db = getEffectiveDate(b);
+    if (!da && !db) return 0;
+    if (!da) return 1;
+    if (!db) return -1;
+    return da.iso.localeCompare(db.iso);
   });
+
 
 
   return (
