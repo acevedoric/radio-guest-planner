@@ -259,43 +259,32 @@ export const MonthView = ({ guests, allGuests, onGuestClick, selectedMonth, onDa
                         </div>
                       </div>
 
-                      {/* Recording strips */}
-                      {scheduledRecordings.length > 0 && (
+                      {/* Strips cronológicos (grabaciones + propuestos) */}
+                      {dayStrips.length > 0 && (
                         <div className="space-y-0.5 mt-1">
-                          {scheduledRecordings.map((g) => (
-                            <div
-                              key={g.id}
-                              className="text-[9px] px-1 py-0.5 rounded bg-red-500/10 text-red-600 dark:text-red-400 truncate cursor-pointer hover:bg-red-500/20 border-l-2 border-red-500"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onRecordingGuestClick?.(g);
-                              }}
-                              title={`Grabación: ${g.scheduled_time ? g.scheduled_time.slice(0, 5) + ' ' : ''}${g.name}`}
-                            >
-                              🔴 {g.scheduled_time && <span className="font-semibold">{g.scheduled_time.slice(0, 5)} </span>}{g.name}
-                            </div>
-                          ))}
+                          {dayStrips.map((g) => {
+                            const isProposed = g.recording_status === "proposed";
+                            return (
+                              <div
+                                key={g.id}
+                                className={`text-[9px] px-1 py-0.5 rounded truncate cursor-pointer border-l-2 ${
+                                  isProposed
+                                    ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 border-blue-500"
+                                    : "bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500/20 border-red-500"
+                                }`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onRecordingGuestClick?.(g);
+                                }}
+                                title={`${isProposed ? "Propuesto" : "Grabación"}: ${g.scheduled_time ? g.scheduled_time.slice(0, 5) + ' ' : ''}${g.name}`}
+                              >
+                                {isProposed ? "🔵" : "🔴"} {g.scheduled_time && <span className="font-semibold">{g.scheduled_time.slice(0, 5)} </span>}{g.name}
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
 
-                      {/* Proposed strips */}
-                      {proposedGuests.length > 0 && (
-                        <div className="space-y-0.5 mt-1">
-                          {proposedGuests.map((g) => (
-                            <div
-                              key={g.id}
-                              className="text-[9px] px-1 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 truncate cursor-pointer hover:bg-blue-500/20 border-l-2 border-blue-500"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onRecordingGuestClick?.(g);
-                              }}
-                              title={`Propuesto: ${g.scheduled_time ? g.scheduled_time.slice(0, 5) + ' ' : ''}${g.name}`}
-                            >
-                              🔵 {g.scheduled_time && <span className="font-semibold">{g.scheduled_time.slice(0, 5)} </span>}{g.name}
-                            </div>
-                          ))}
-                        </div>
-                      )}
                     </div>
 
 
