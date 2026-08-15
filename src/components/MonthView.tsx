@@ -201,6 +201,8 @@ export const MonthView = ({ guests, allGuests, onGuestClick, selectedMonth, onDa
               const past = isPastDay(day);
               const scheduledRecordings = getScheduledRecordingsForDay(day);
               const proposedGuests = getProposedForDay(day);
+              const dayStrips = getStripsForDay(day);
+
 
               return (
                 <Card
