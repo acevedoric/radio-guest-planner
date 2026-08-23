@@ -113,14 +113,16 @@ export const ProposedView = ({ guests, onGuestClick, onCreateNew, editMode }: Pr
 
                 <div className="flex items-center gap-1 text-xs font-medium">
                   <Calendar className="h-3 w-3 text-blue-600" />
-                  {guest.scheduled_date ? (
+                  {eff ? (
                     <span className="text-blue-700 dark:text-blue-400">
-                      Propuesta: {format(parseISO(guest.scheduled_date), "d MMM yyyy", { locale: es })}
+                      {eff.kind === "recording" ? "Grabación" : "Emisión"}:{" "}
+                      {format(eff.date, "d MMM yyyy", { locale: es })}
                     </span>
                   ) : (
                     <span className="text-muted-foreground italic">Sin fecha asignada</span>
                   )}
                 </div>
+
 
                 {guest.week_date && guest.day_of_week && guest.time_slot && (
                   <div className="text-xs text-muted-foreground">
