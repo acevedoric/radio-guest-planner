@@ -90,7 +90,9 @@ export const ProposedView = ({ guests, onGuestClick, onCreateNew, editMode }: Pr
         </Card>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {sortedGuests.map((guest) => (
+          {sortedGuests.map((guest) => {
+            const eff = getEffectiveDate(guest);
+            return (
             <Card
               key={guest.id}
               className="p-4 cursor-pointer hover:shadow-md transition-shadow border-l-4 border-l-primary bg-primary/5"
@@ -111,14 +113,16 @@ export const ProposedView = ({ guests, onGuestClick, onCreateNew, editMode }: Pr
 
                 <div className="flex items-center gap-1 text-xs font-medium">
                   <Calendar className="h-3 w-3 text-blue-600" />
-                  {guest.scheduled_date ? (
+                  {eff ? (
                     <span className="text-blue-700 dark:text-blue-400">
-                      Propuesta: {format(parseISO(guest.scheduled_date), "d MMM yyyy", { locale: es })}
+                      {eff.kind === "recording" ? "Grabación" : "Emisión"}:{" "}
+                      {format(eff.date, "d MMM yyyy", { locale: es })}
                     </span>
                   ) : (
                     <span className="text-muted-foreground italic">Sin fecha asignada</span>
                   )}
                 </div>
+
 
                 {guest.week_date && guest.day_of_week && guest.time_slot && (
                   <div className="text-xs text-muted-foreground">
@@ -159,11 +163,13 @@ export const ProposedView = ({ guests, onGuestClick, onCreateNew, editMode }: Pr
                   }}
                 >
                   <CalendarPlus className="h-4 w-4" />
-                  {editMode ? "Asignar fecha" : "Ver detalles"}
+                  {!editMode ? "Ver detalles" : eff ? "Ver / editar fecha" : "Asignar fecha"}
                 </Button>
               </div>
             </Card>
-          ))}
+            );
+          })}
+
         </div>
       )}
     </div>
