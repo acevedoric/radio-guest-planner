@@ -382,6 +382,7 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
           </div>
 
           {/* Bloque 1: fecha y hora de GRABACIÓN */}
+          {["to_record", "proposed", "postponed"].includes(formData.recording_status) && (
           <div className="rounded-md border p-3 space-y-2">
             <Label className="text-xs uppercase tracking-wide text-muted-foreground">
               Fecha y hora de grabación
