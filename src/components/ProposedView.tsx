@@ -163,11 +163,13 @@ export const ProposedView = ({ guests, onGuestClick, onCreateNew, editMode }: Pr
                   }}
                 >
                   <CalendarPlus className="h-4 w-4" />
-                  {editMode ? "Asignar fecha" : "Ver detalles"}
+                  {!editMode ? "Ver detalles" : eff ? "Ver / editar fecha" : "Asignar fecha"}
                 </Button>
               </div>
             </Card>
-          ))}
+            );
+          })}
+
         </div>
       )}
     </div>
