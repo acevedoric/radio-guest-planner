@@ -90,7 +90,9 @@ export const ProposedView = ({ guests, onGuestClick, onCreateNew, editMode }: Pr
         </Card>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {sortedGuests.map((guest) => (
+          {sortedGuests.map((guest) => {
+            const eff = getEffectiveDate(guest);
+            return (
             <Card
               key={guest.id}
               className="p-4 cursor-pointer hover:shadow-md transition-shadow border-l-4 border-l-primary bg-primary/5"
