@@ -417,6 +417,8 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
               Cuándo se graba el invitado (opcional). No cambia el slot de emisión.
             </p>
           </div>
+          )}
+
 
           {/* Bloque 2: slot de EMISIÓN */}
           <div className="rounded-md border p-3 space-y-2">
