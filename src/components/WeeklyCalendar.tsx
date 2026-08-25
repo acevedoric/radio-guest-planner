@@ -178,7 +178,7 @@ export const WeeklyCalendar = ({ guests, allGuests, onGuestClick, onAddGuest, se
       </div>
       <DragOverlay>
         {activeGuest && (
-          <Card className={cn("p-4 min-h-[140px] shadow-lg cursor-grabbing", statusCardStyles[activeGuest.recording_status])}>
+          <Card className={cn("p-3 min-h-[110px] shadow-lg cursor-grabbing", statusCardStyles[activeGuest.recording_status])}>
             <div className="space-y-2">
               <div className="flex items-baseline gap-1 min-w-0">
                 <h4 className="font-semibold text-sm truncate">{activeGuest.name}</h4>
@@ -404,7 +404,7 @@ const GuestSlotCard = ({ day, slot, guest, coGuest, onGuestClick, onAddGuest, ed
     <div ref={setDropRef}>
       <Card
         className={cn(
-          "p-4 min-h-[140px] transition-all bg-muted/30 border-dashed",
+          "p-3 min-h-[110px] transition-all bg-muted/30 border-dashed",
           editMode ? "cursor-pointer hover:shadow-md" : "cursor-default",
           isOver && "border-primary bg-primary/10 border-2"
         )}
