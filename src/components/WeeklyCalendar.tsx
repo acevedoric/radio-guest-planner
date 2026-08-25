@@ -302,7 +302,7 @@ const GuestSlotCard = ({ day, slot, guest, coGuest, onGuestClick, onAddGuest, ed
           {...listeners}
           {...attributes}
           className={cn(
-            "p-4 min-h-[140px] transition-all",
+            "p-3 min-h-[110px] transition-all",
             statusCardStyles[guest.recording_status],
             editMode ? "cursor-grab active:cursor-grabbing" : "cursor-pointer",
             isDragging && "opacity-50",
@@ -311,12 +311,13 @@ const GuestSlotCard = ({ day, slot, guest, coGuest, onGuestClick, onAddGuest, ed
           onClick={() => onGuestClick(guest)}
         >
           <div className="space-y-2">
-            <div>
-              <h4 className="font-semibold text-sm line-clamp-1">{guest.name}</h4>
+            <div className="flex items-baseline gap-1 min-w-0">
+              <h4 className="font-semibold text-sm truncate">{guest.name}</h4>
               {guest.position && (
-                <span className="text-[10px] text-muted-foreground">({guest.position})</span>
+                <span className="text-[10px] text-muted-foreground truncate">({guest.position})</span>
               )}
             </div>
+
             <p className="text-xs text-muted-foreground line-clamp-2">{guest.topic}</p>
             {guest.phone && (
               <div className="flex items-center gap-2 text-xs">
