@@ -405,10 +405,13 @@ const SlotCard = ({ guest, coGuest, day, slot, onGuestClick, onAddGuest, getStat
               onGuestClick(guest);
             }}
           >
-            <div className="font-semibold truncate">{guest.name}</div>
-            {guest.position && (
-              <div className="text-[10px] opacity-70 truncate">{guest.position}</div>
-            )}
+            <div className="flex items-baseline gap-1 min-w-0">
+              <span className="font-semibold truncate">{guest.name}</span>
+              {guest.position && (
+                <span className="text-[10px] opacity-70 truncate shrink">· {guest.position}</span>
+              )}
+            </div>
+
             <div className="truncate opacity-90">{guest.topic}</div>
             {guest.social_networks && Object.keys(guest.social_networks).length > 0 && (
               <div className="flex items-center gap-1.5 mt-1" onClick={(e) => e.stopPropagation()}>

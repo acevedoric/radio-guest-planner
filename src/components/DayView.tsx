@@ -345,14 +345,15 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
                     <User className="w-4 h-4 text-muted-foreground" />
                     <span className="text-xs text-muted-foreground">Invitado</span>
                   </div>
-                  <h4 className="text-xl font-bold text-foreground">
-                    {guest.name}
+                  <h4 className="text-xl font-bold text-foreground flex items-baseline gap-2 min-w-0">
+                    <span className="truncate">{guest.name}</span>
                     {guest.position && (
-                      <span className="text-sm font-normal text-muted-foreground ml-2">
+                      <span className="text-sm font-normal text-muted-foreground truncate">
                         ({guest.position})
                       </span>
                     )}
                   </h4>
+
                 </div>
 
                 {/* Topic */}
