@@ -180,12 +180,13 @@ export const WeeklyCalendar = ({ guests, allGuests, onGuestClick, onAddGuest, se
         {activeGuest && (
           <Card className={cn("p-4 min-h-[140px] shadow-lg cursor-grabbing", statusCardStyles[activeGuest.recording_status])}>
             <div className="space-y-2">
-              <div>
-                <h4 className="font-semibold text-sm line-clamp-1">{activeGuest.name}</h4>
+              <div className="flex items-baseline gap-1 min-w-0">
+                <h4 className="font-semibold text-sm truncate">{activeGuest.name}</h4>
                 {activeGuest.position && (
-                  <span className="text-[10px] text-muted-foreground">({activeGuest.position})</span>
+                  <span className="text-[10px] text-muted-foreground truncate">({activeGuest.position})</span>
                 )}
               </div>
+
               <p className="text-xs text-muted-foreground line-clamp-2">{activeGuest.topic}</p>
             </div>
           </Card>
@@ -260,10 +261,13 @@ const GuestSlotCard = ({ day, slot, guest, coGuest, onGuestClick, onAddGuest, ed
       title="Co-invitado"
     >
       <div className="text-[9px] font-semibold text-muted-foreground uppercase mb-0.5">Co-invitado</div>
-      <h4 className="font-semibold text-xs line-clamp-1">{g.name}</h4>
-      {g.position && (
-        <span className="text-[10px] text-muted-foreground">({g.position})</span>
-      )}
+      <div className="flex items-baseline gap-1 min-w-0">
+        <h4 className="font-semibold text-xs truncate">{g.name}</h4>
+        {g.position && (
+          <span className="text-[10px] text-muted-foreground truncate">({g.position})</span>
+        )}
+      </div>
+
       {g.topic && <p className="text-[10px] text-muted-foreground line-clamp-2">{g.topic}</p>}
       <div className="flex items-center gap-3 pt-1" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center space-x-1">
