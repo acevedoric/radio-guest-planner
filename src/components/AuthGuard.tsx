@@ -1,34 +1,59 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { AccessDenied } from "./AccessDenied";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { AlertCircle } from "lucide-react";
 
 interface AuthGuardProps {
   children: React.ReactNode;
 }
 
 export const AuthGuard = ({ children }: AuthGuardProps) => {
-  const navigate = useNavigate();
-  const [status, setStatus] = useState<"loading" | "allowed" | "denied">("loading");
+  const [status, setStatus] = useState<"loading" | "allowed" | "denied" | "verification_error">("loading");
   const [email, setEmail] = useState<string>("");
+  const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
     let mounted = true;
+    let checkId = 0;
 
-    const check = async (session: any) => {
+    const check = async (session: { user?: { email?: string | null } } | null) => {
+      const currentCheck = ++checkId;
+      const isCurrent = () => mounted && currentCheck === checkId;
+
       if (!session) {
         // Acceso público de solo lectura
-        setEmail("");
+        if (isCurrent()) {
+          setEmail("");
+          setStatus("allowed");
+        }
+        return;
+      }
+
+      setStatus("loading");
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      if (!isCurrent()) return;
+      if (userError || !userData.user) {
+        console.error("Could not verify the current user:", userError);
+        setStatus("verification_error");
+        return;
+      }
+
+      const userEmail = (userData.user.email ?? session.user?.email ?? "").trim().toLowerCase();
+      setEmail(userEmail);
+
+      // Corporate accounts are explicitly permitted by the project's access policy.
+      if (userEmail.endsWith("@caracoltv.com.co")) {
         setStatus("allowed");
         return;
       }
-      const userEmail = session.user.email ?? "";
-      setEmail(userEmail);
+
       const { data, error } = await supabase.rpc("is_email_allowed", { _email: userEmail });
-      if (!mounted) return;
+      if (!isCurrent()) return;
       if (error) {
         console.error("is_email_allowed error:", error);
-        setStatus("denied");
+        setStatus("verification_error");
         return;
       }
       setStatus(data ? "allowed" : "denied");
@@ -42,9 +67,10 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
 
     return () => {
       mounted = false;
+      checkId += 1;
       subscription.unsubscribe();
     };
-  }, [navigate]);
+  }, [retryKey]);
 
   if (status === "loading") {
     return (
@@ -56,6 +82,31 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
 
   if (status === "denied") {
     return <AccessDenied email={email} />;
+  }
+
+  if (status === "verification_error") {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="space-y-4 text-center">
+            <div className="flex justify-center">
+              <div className="rounded-full bg-destructive/10 p-3">
+                <AlertCircle className="h-8 w-8 text-destructive" />
+              </div>
+            </div>
+            <CardTitle className="text-2xl">No pudimos verificar tu acceso</CardTitle>
+            <CardDescription>
+              Hubo un problema de conexión. Tu cuenta no fue rechazada; inténtalo de nuevo.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button className="w-full" onClick={() => setRetryKey((value) => value + 1)}>
+              Reintentar
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   return <>{children}</>;
