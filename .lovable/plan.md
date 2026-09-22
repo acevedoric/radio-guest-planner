@@ -1,33 +1,34 @@
-# Arreglar el acceso (error "Failed to fetch" al iniciar sesión)
+# Corregir “Acceso denegado” después de iniciar sesión
 
-## Qué se comprobó hasta ahora
+## Diagnóstico confirmado
 
-- El servidor de cuentas de la app **sí está funcionando**: al probarlo directamente responde correctamente (con una contraseña falsa devuelve "credenciales inválidas", que es la respuesta esperada).
-- Al reproducir el inicio de sesión dentro de la app, el botón se queda en **"Procesando…"** y la petición **nunca sale del navegador**. Eso coincide con el mensaje "Failed to fetch" que ves.
-- No hay referencias al servidor antiguo (el que se usó en la migración externa) en el código.
-
-Conclusión: el problema está en el **lado del navegador / la conexión de la app**, no en las cuentas ni en las contraseñas. La causa exacta todavía no está confirmada, así que el primer paso del plan es confirmarla.
+- El inicio de sesión ya se completa: la captura nueva muestra al usuario autenticado como `racevedo@caracoltv.com.co`.
+- Ese correo **sí está autorizado** por las dos reglas vigentes: pertenece al dominio corporativo y tiene rol de productor.
+- La misma validación que ejecuta la app devuelve `true` al consultarla directamente.
+- Por tanto, el mensaje “Acceso denegado” es incorrecto. El problema está en la comprobación del navegador: ante un fallo temporal de red, actualmente convierte cualquier error de consulta en una denegación definitiva.
 
 ## Plan
 
-1. **Confirmar la causa**
-   - Revisar el almacenamiento de sesión especial que usa la vista previa de Lovable, que es lo que está dejando el botón colgado en "Procesando…".
-   - Comprobar si la app publicada (blu-planner.lovable.app) tiene el mismo problema o solo la vista previa. Esto distingue entre un fallo de la app y un bloqueo de la red corporativa.
+1. **Corregir la validación de acceso**
+   - Validar la identidad actual con el servidor antes de decidir el acceso.
+   - Permitir directamente los correos verificados de `@caracoltv.com.co`, conforme a la regla ya definida para el proyecto.
+   - Mantener la comprobación remota para las excepciones externas autorizadas.
 
-2. **Evitar que el botón se quede colgado**
-   - Añadir un tiempo límite al inicio de sesión: si no hay respuesta en unos segundos, mostrar un mensaje claro ("No se pudo conectar con el servidor, revisa tu conexión e inténtalo de nuevo") en vez de quedarse en "Procesando…" para siempre.
-   - Mostrar el motivo real del fallo (sin datos técnicos) para que se distinga entre contraseña incorrecta y problema de conexión.
+2. **No confundir un fallo de conexión con falta de permisos**
+   - Si la comprobación remota falla, mostrar “No pudimos verificar tu acceso” con una opción para reintentar.
+   - Reservar “Acceso denegado” únicamente para una respuesta válida que realmente indique que el correo no está autorizado.
 
-3. **Asegurar la conexión al servidor correcto**
-   - Verificar que la app apunta al servidor activo y que la clave pública coincide, y corregirlo si hay desajuste.
-   - Volver a comprobar el inicio de sesión con una cuenta real hasta que entre al calendario.
+3. **Evitar decisiones cruzadas**
+   - Cancelar comprobaciones anteriores cuando cambie la sesión, para que una respuesta tardía no reemplace un acceso válido.
+   - Mantener el acceso público de solo lectura cuando no haya una sesión iniciada.
 
-4. **Si resulta ser bloqueo de red**
-   - Si la app publicada funciona y solo falla en tu equipo/oficina, te indicaré exactamente qué dirección debe permitir el área de tecnología de Caracol, sin cambios en el código.
+4. **Verificar el resultado**
+   - Probar el acceso con una sesión real y confirmar que `racevedo@caracoltv.com.co` entra al calendario con permisos de productor.
+   - Probar también el estado sin sesión y el caso de un correo externo no autorizado.
 
 ## Detalles técnicos
 
-- Reproducción con Playwright en `/auth`: `signInWithPassword` no emite ninguna petición a `/auth/v1/token`; la UI queda en estado `loading`. Sospecha principal: `brokeredPreviewStorage()` en `src/integrations/supabase/client.ts` (archivo autogenerado, no editable) bloqueando el flujo, más un fallo de red real en el navegador del usuario.
-- Comprobación directa: `POST https://<ref>.supabase.co/auth/v1/token?grant_type=password` → 400 `invalid_credentials` (servicio sano). `auth/v1/health` → 200.
-- Cambios previstos, todos en `src/pages/Auth.tsx`: `Promise.race` con timeout sobre la llamada de login, `finally` que garantice `setLoading(false)`, y mapeo de errores de red vs. credenciales a mensajes en español.
-- No se toca el esquema de la base de datos ni las políticas de acceso.
+- Cambios concentrados en `src/components/AuthGuard.tsx` y, si hace falta para el estado de reintento, `src/components/AccessDenied.tsx`.
+- Usar `supabase.auth.getUser()` para revalidar al usuario, en lugar de confiar únicamente en la sesión local.
+- Separar estados `loading`, `allowed`, `denied` y `verification_error`.
+- No se modifican tablas, datos, roles ni políticas de acceso.
