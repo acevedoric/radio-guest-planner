@@ -335,6 +335,45 @@ export type Database = {
         }
         Relationships: []
       }
+      libretos_chunks: {
+        Row: {
+          content: string
+          created_at: string
+          day_of_week: string | null
+          fts: unknown
+          guest_name: string
+          guest_role: string | null
+          hour_number: number | null
+          id: string
+          source_file: string | null
+          year: number | null
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          day_of_week?: string | null
+          fts?: unknown
+          guest_name: string
+          guest_role?: string | null
+          hour_number?: number | null
+          id?: string
+          source_file?: string | null
+          year?: number | null
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          day_of_week?: string | null
+          fts?: unknown
+          guest_name?: string
+          guest_role?: string | null
+          hour_number?: number | null
+          id?: string
+          source_file?: string | null
+          year?: number | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -540,6 +579,20 @@ export type Database = {
       }
     }
     Functions: {
+      buscar_invitado: {
+        Args: { max_results?: number; query_text: string }
+        Returns: {
+          content: string
+          day_of_week: string
+          guest_name: string
+          guest_role: string
+          hour_number: number
+          id: string
+          rank: number
+          source_file: string
+          year: number
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
