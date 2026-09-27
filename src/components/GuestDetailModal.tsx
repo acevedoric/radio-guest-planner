@@ -228,7 +228,6 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
     let finalData: Guest = {
       ...formData,
       social_networks: Object.keys(cleanedSocialNetworks).length > 0 ? cleanedSocialNetworks : null,
-      email: null
     };
 
     // Un propuesto sin fecha de emisión se guarda sin slot (queda solo en la bandeja)

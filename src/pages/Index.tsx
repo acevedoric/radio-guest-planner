@@ -48,10 +48,9 @@ const Index = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   
   
+  const refreshRef = useRef<() => void>(() => {});
   const refreshData = useCallback(() => {
-    fetchGuests();
-    fetchAllRecordingGuests();
-    fetchProposedGuests();
+    refreshRef.current();
   }, []);
 
   const { undo, redo, pushAction, canUndo, canRedo } = useUndoRedo(refreshData);
@@ -532,7 +531,14 @@ const Index = () => {
       guests: (guestsRes.data || []) as Guest[],
       press: (pressRes.data || []) as Guest[],
     });
-  }, []);
+  }, [session]);
+
+  // Always point refresh at the latest fetchers (current session/week/view)
+  refreshRef.current = () => {
+    fetchGuests();
+    fetchAllRecordingGuests();
+    fetchProposedGuests();
+  };
 
   const handleGlobalResultClick = (guest: Guest) => {
     // Si no tiene fecha asignada, abrir directamente el modal sin navegar
