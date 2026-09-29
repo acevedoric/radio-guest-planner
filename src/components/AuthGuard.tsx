@@ -67,7 +67,8 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
 
     supabase.auth.getSession().then(({ data: { session } }) => check(session));
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "TOKEN_REFRESHED") return;
       check(session);
     });
 
