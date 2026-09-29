@@ -13,17 +13,19 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
   const [status, setStatus] = useState<"loading" | "allowed" | "denied" | "verification_error">("loading");
   const [email, setEmail] = useState<string>("");
   const [retryKey, setRetryKey] = useState(0);
+  const verifiedUserRef = useRef<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
     let checkId = 0;
 
-    const check = async (session: { user?: { email?: string | null } } | null) => {
+    const check = async (session: { user?: { id?: string; email?: string | null } } | null) => {
       const currentCheck = ++checkId;
       const isCurrent = () => mounted && currentCheck === checkId;
 
       if (!session) {
         // Acceso público de solo lectura
+        verifiedUserRef.current = null;
         if (isCurrent()) {
           setEmail("");
           setStatus("allowed");
@@ -31,7 +33,13 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
         return;
       }
 
+      // Ya verificado para este mismo usuario: no reiniciar la pantalla
+      if (verifiedUserRef.current && verifiedUserRef.current === session.user?.id) {
+        return;
+      }
+
       setStatus("loading");
+
       const { data: userData, error: userError } = await supabase.auth.getUser();
       if (!isCurrent()) return;
       if (userError || !userData.user) {
