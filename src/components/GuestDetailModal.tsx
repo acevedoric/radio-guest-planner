@@ -54,6 +54,11 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
     setAgendado(wasSent("agendar", guest?.id));
   }, [guest?.id, isOpen]);
 
+  const canAgendar =
+    formData.recording_status === "live"
+      ? Boolean(formData.week_date && formData.day_of_week && formData.time_slot)
+      : Boolean(formData.scheduled_date && formData.scheduled_time);
+
   const handleAgendar = async () => {
     setAgendarLoading(true);
     const result = await postWebhook(WEBHOOK_URL_AGENDAR, buildCalendarPayload(formData));
@@ -666,7 +671,7 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
             />
           </div>
 
-          {guest?.id && formData.scheduled_date && formData.scheduled_time && (
+          {guest?.id && canAgendar && (
             <div className="border-t pt-4">
               <Button
                 type="button"
