@@ -60,7 +60,24 @@ const Index = () => {
     slot: number;
     slotOrder?: number;
   } | null>(null);
-  const [editMode, setEditMode] = useState(false);
+  const [editMode, setEditMode] = useState(() => {
+    const m = initialParams.get("mode");
+    if (m === "edit") return true;
+    if (m === "present") return false;
+    try {
+      return localStorage.getItem("blu-edit-mode") === "1";
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("blu-edit-mode", editMode ? "1" : "0");
+    } catch {
+      // ignore
+    }
+  }, [editMode]);
   const [allRecordingGuests, setAllRecordingGuests] = useState<Guest[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
   
@@ -79,13 +96,14 @@ const Index = () => {
     params.set("week", format(selectedWeek, "yyyy-MM-dd"));
     params.set("day", selectedDay);
     params.set("month", format(selectedMonth, "yyyy-MM-dd"));
+    params.set("mode", editMode ? "edit" : "present");
     if (isModalOpen && selectedGuest?.id) params.set("guest", selectedGuest.id);
     else if (!pendingGuestIdRef.current) params.delete("guest");
     const next = `${window.location.pathname}?${params.toString()}${window.location.hash}`;
     if (next !== `${window.location.pathname}${window.location.search}${window.location.hash}`) {
       window.history.replaceState(window.history.state, "", next);
     }
-  }, [viewMode, selectedWeek, selectedDay, selectedMonth, isModalOpen, selectedGuest]);
+  }, [viewMode, selectedWeek, selectedDay, selectedMonth, isModalOpen, selectedGuest, editMode]);
 
   // Reopen guest from URL
   useEffect(() => {
@@ -103,7 +121,10 @@ const Index = () => {
 
   // Check authentication status
   useEffect(() => {
+    let currentUserId: string | null | undefined;
+
     supabase.auth.getSession().then(({ data: { session } }) => {
+      currentUserId = session?.user?.id ?? null;
       setSession(session);
       setLoading(false);
     });
@@ -111,6 +132,10 @@ const Index = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         if (event === "TOKEN_REFRESHED") return;
+        const nextUserId = session?.user?.id ?? null;
+        // Misma sesión (p. ej. al volver a la pestaña): no recargar nada
+        if (currentUserId !== undefined && nextUserId === currentUserId) return;
+        currentUserId = nextUserId;
         setSession(session);
         setLoading(false);
       }
@@ -118,6 +143,8 @@ const Index = () => {
 
     return () => subscription.unsubscribe();
   }, []);
+
+
 
   // Check admin role
   useEffect(() => {
