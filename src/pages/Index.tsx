@@ -60,7 +60,24 @@ const Index = () => {
     slot: number;
     slotOrder?: number;
   } | null>(null);
-  const [editMode, setEditMode] = useState(false);
+  const [editMode, setEditMode] = useState(() => {
+    const m = initialParams.get("mode");
+    if (m === "edit") return true;
+    if (m === "present") return false;
+    try {
+      return localStorage.getItem("blu-edit-mode") === "1";
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("blu-edit-mode", editMode ? "1" : "0");
+    } catch {
+      // ignore
+    }
+  }, [editMode]);
   const [allRecordingGuests, setAllRecordingGuests] = useState<Guest[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
   
