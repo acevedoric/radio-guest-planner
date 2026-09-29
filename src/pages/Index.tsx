@@ -25,13 +25,30 @@ const Index = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [guests, setGuests] = useState<Guest[]>([]);
-  const [viewMode, setViewMode] = useState<"day" | "week" | "month" | "proposed">("week");
+  const initialParams = useMemo(() => new URLSearchParams(window.location.search), []);
+  const parseParamDate = (value: string | null): Date | null => {
+    if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+    const d = new Date(value + "T00:00:00");
+    return isNaN(d.getTime()) ? null : d;
+  };
+  const pendingGuestIdRef = useRef<string | null>(initialParams.get("guest"));
+  const [viewMode, setViewMode] = useState<"day" | "week" | "month" | "proposed">(() => {
+    const v = initialParams.get("view");
+    return v === "day" || v === "week" || v === "month" || v === "proposed" ? v : "week";
+  });
   const [proposedGuests, setProposedGuests] = useState<Guest[]>([]);
-  const [selectedWeek, setSelectedWeek] = useState(startOfWeek(new Date(), {
-    weekStartsOn: 1
-  }));
-  const [selectedDay, setSelectedDay] = useState("monday");
-  const [selectedMonth, setSelectedMonth] = useState(startOfMonth(new Date()));
+  const [selectedWeek, setSelectedWeek] = useState(() => {
+    const d = parseParamDate(initialParams.get("week"));
+    return startOfWeek(d ?? new Date(), { weekStartsOn: 1 });
+  });
+  const [selectedDay, setSelectedDay] = useState(() => {
+    const d = initialParams.get("day");
+    return d && ["monday", "tuesday", "wednesday", "thursday"].includes(d) ? d : "monday";
+  });
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const d = parseParamDate(initialParams.get("month"));
+    return startOfMonth(d ?? new Date());
+  });
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [globalSearchResults, setGlobalSearchResults] = useState<{ guests: Guest[]; press: Guest[] }>({ guests: [], press: [] });
@@ -55,6 +72,35 @@ const Index = () => {
 
   const { undo, redo, pushAction, canUndo, canRedo } = useUndoRedo(refreshData);
 
+  // Sync view state (and open guest) to URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    params.set("view", viewMode);
+    params.set("week", format(selectedWeek, "yyyy-MM-dd"));
+    params.set("day", selectedDay);
+    params.set("month", format(selectedMonth, "yyyy-MM-dd"));
+    if (isModalOpen && selectedGuest?.id) params.set("guest", selectedGuest.id);
+    else if (!pendingGuestIdRef.current) params.delete("guest");
+    const next = `${window.location.pathname}?${params.toString()}${window.location.hash}`;
+    if (next !== `${window.location.pathname}${window.location.search}${window.location.hash}`) {
+      window.history.replaceState(window.history.state, "", next);
+    }
+  }, [viewMode, selectedWeek, selectedDay, selectedMonth, isModalOpen, selectedGuest]);
+
+  // Reopen guest from URL
+  useEffect(() => {
+    const guestId = pendingGuestIdRef.current;
+    if (loading || !guestId) return;
+    pendingGuestIdRef.current = null;
+    (supabase as any).from(guestsReadFrom(session)).select('*').eq('id', guestId).maybeSingle()
+      .then(({ data }: any) => {
+        if (data) {
+          setSelectedGuest(data as Guest);
+          setIsModalOpen(true);
+        }
+      });
+  }, [loading, session]);
+
   // Check authentication status
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -63,7 +109,8 @@ const Index = () => {
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      (event, session) => {
+        if (event === "TOKEN_REFRESHED") return;
         setSession(session);
         setLoading(false);
       }
