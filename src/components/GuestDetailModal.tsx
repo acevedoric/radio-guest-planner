@@ -16,7 +16,7 @@ import { AutocompleteInput } from "./AutocompleteInput";
 import { GuestDocuments } from "./GuestDocuments";
 import { useGuestAutocomplete } from "@/hooks/useGuestAutocomplete";
 import { supabase } from "@/integrations/supabase/client";
-import { WEBHOOK_URL_AGENDAR, buildGuestPayload, markSent, postWebhook, wasSent } from "@/lib/webhooks";
+import { WEBHOOK_URL_AGENDAR, buildCalendarPayload, markSent, postWebhook, wasSent } from "@/lib/webhooks";
 
 interface GuestDetailModalProps {
   guest: Guest | null;
@@ -56,7 +56,7 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
 
   const handleAgendar = async () => {
     setAgendarLoading(true);
-    const result = await postWebhook(WEBHOOK_URL_AGENDAR, buildGuestPayload(formData));
+    const result = await postWebhook(WEBHOOK_URL_AGENDAR, buildCalendarPayload(formData));
     setAgendarLoading(false);
 
     if (result.ok) {
