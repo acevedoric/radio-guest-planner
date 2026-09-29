@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { AccessDenied } from "./AccessDenied";
 import { Button } from "@/components/ui/button";
@@ -40,13 +40,18 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
 
       setStatus("loading");
 
+      const markAllowed = () => {
+        verifiedUserRef.current = session.user?.id ?? null;
+        setStatus("allowed");
+      };
+
       const { data: userData, error: userError } = await supabase.auth.getUser();
       if (!isCurrent()) return;
       if (userError || !userData.user) {
         const sessionEmail = (session.user?.email ?? "").trim().toLowerCase();
         if (sessionEmail.endsWith("@caracoltv.com.co")) {
           setEmail(sessionEmail);
-          setStatus("allowed");
+          markAllowed();
           return;
         }
         console.error("Could not verify the current user:", userError);
@@ -59,7 +64,7 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
 
       // Corporate accounts are explicitly permitted by the project's access policy.
       if (userEmail.endsWith("@caracoltv.com.co")) {
-        setStatus("allowed");
+        markAllowed();
         return;
       }
 
@@ -70,7 +75,11 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
         setStatus("verification_error");
         return;
       }
-      setStatus(data ? "allowed" : "denied");
+      if (data) markAllowed();
+      else {
+        verifiedUserRef.current = null;
+        setStatus("denied");
+      }
     };
 
     supabase.auth.getSession().then(({ data: { session } }) => check(session));
