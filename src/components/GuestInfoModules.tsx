@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, FileText, Upload, X, Loader2, Sparkles, ExternalLink, Link as LinkIcon } from "lucide-react";
+import { ChevronDown, Loader2, Sparkles, Link as LinkIcon } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -137,8 +137,6 @@ interface GuestInfoModulesProps {
 export const GuestInfoModules = ({ guest, editMode, onGuestUpdate, slot = 1 }: GuestInfoModulesProps) => {
   const [openModules, setOpenModules] = useState<Record<string, boolean>>({});
   const [editingContent, setEditingContent] = useState<Record<string, string>>({});
-  const [uploading, setUploading] = useState(false);
-  const [downloading, setDownloading] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
 
   const modules = slot === 1 ? MODULES_SLOT_1 : slot === 2 ? MODULES_SLOT_2 : MODULES_SLOT_3;
@@ -185,91 +183,6 @@ export const GuestInfoModules = ({ guest, editMode, onGuestUpdate, slot = 1 }: G
     }
   };
 
-  const handleDocumentUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file || !guest.id) return;
-
-    const validTypes = [
-      "application/pdf",
-      "application/msword",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    ];
-    if (!validTypes.includes(file.type)) {
-      toast({ title: "Archivo no válido", description: "Solo se permiten archivos PDF o Word (.doc, .docx)", variant: "destructive" });
-      return;
-    }
-
-    setUploading(true);
-    try {
-      const fileExt = file.name.split(".").pop();
-      const slotLabel = slot === 1 ? "tema-principal" : `h${slot}-doc`;
-      const fileName = `${guest.id}-${slotLabel}.${fileExt}`;
-      const filePath = `${guest.id}/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("guest-documents")
-        .upload(filePath, file, { upsert: true });
-      if (uploadError) throw uploadError;
-
-      const { error: updateError } = await supabase
-        .from("guests")
-        .update({
-          [config.urlKey]: filePath,
-          [config.nameKey]: file.name
-        })
-        .eq("id", guest.id);
-      if (updateError) throw updateError;
-
-      onGuestUpdate?.({
-        [config.urlKey]: filePath,
-        [config.nameKey]: file.name
-      });
-      toast({ title: "Documento subido", description: `${file.name} se subió correctamente` });
-    } catch (error) {
-      console.error("Error uploading document:", error);
-      toast({ title: "Error", description: "No se pudo subir el documento", variant: "destructive" });
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const handleDocumentDownload = async () => {
-    const docUrl = guest[config.urlKey] as string | null;
-    if (!docUrl) return;
-    setDownloading(true);
-    try {
-      const { data, error } = await supabase.storage
-        .from("guest-documents")
-        .createSignedUrl(docUrl, 3600);
-      if (error) throw error;
-      if (data?.signedUrl) {
-        window.open(data.signedUrl, "_blank", "noopener,noreferrer");
-      }
-    } catch (error) {
-      console.error("Error getting signed URL:", error);
-      toast({ title: "Error", description: "No se pudo acceder al documento", variant: "destructive" });
-    } finally {
-      setDownloading(false);
-    }
-  };
-
-  const handleDocumentRemove = async () => {
-    const docUrl = guest[config.urlKey] as string | null;
-    if (!guest.id || !docUrl) return;
-    try {
-      await supabase.storage.from("guest-documents").remove([docUrl]);
-      const { error } = await supabase
-        .from("guests")
-        .update({ [config.urlKey]: null, [config.nameKey]: null })
-        .eq("id", guest.id);
-      if (error) throw error;
-      onGuestUpdate?.({ [config.urlKey]: null, [config.nameKey]: null });
-      toast({ title: "Documento eliminado" });
-    } catch (error) {
-      console.error("Error removing document:", error);
-      toast({ title: "Error", description: "No se pudo eliminar el documento", variant: "destructive" });
-    }
-  };
 
   const getContent = (key: keyof Guest): string => {
     if (editingContent[key] !== undefined) return editingContent[key];
@@ -286,27 +199,8 @@ export const GuestInfoModules = ({ guest, editMode, onGuestUpdate, slot = 1 }: G
     try {
       toast({ title: "Buscando...", description: `Solicitando información con IA...` });
 
-      // Documento legado (columna en guests) + adjuntos múltiples de la hora
-      let legacyUrl: string | null = null;
-      const docUrlVal = guest[config.urlKey] as string | null;
-      if (docUrlVal) {
-        const { data: signedData } = await supabase.storage
-          .from("guest-documents")
-          .createSignedUrl(docUrlVal, 3600);
-        legacyUrl = signedData?.signedUrl || null;
-      }
-
-      const { documents, reference_urls } = await buildAttachmentsPayload(guest.id, slot);
-
-      const allDocuments = [...documents];
-      if (legacyUrl) {
-        allDocuments.unshift({
-          file_name: (guest[config.nameKey] as string) || "documento",
-          file_url: legacyUrl,
-          file_type: null,
-        });
-      }
-
+      // Los documentos se construyen en el backend desde guest_documents
+      const { reference_urls } = await buildAttachmentsPayload(guest.id, slot);
       const legacyLink = slot !== 1 ? ((guest[config.linkKey] as string | null) || null) : null;
       const allUrls = legacyLink ? [legacyLink, ...reference_urls] : reference_urls;
 
@@ -317,11 +211,7 @@ export const GuestInfoModules = ({ guest, editMode, onGuestUpdate, slot = 1 }: G
           position: guest.position || '',
           topic: guest.topic || '',
           hour_number: slot,
-          documents: allDocuments,
           reference_urls: allUrls,
-          // Compatibilidad con el workflow actual de n8n
-          document_url: allDocuments[0]?.file_url || null,
-          document_name: allDocuments[0]?.file_name || null,
           slot,
         }
       });
@@ -354,8 +244,6 @@ export const GuestInfoModules = ({ guest, editMode, onGuestUpdate, slot = 1 }: G
   };
 
   const n8nTimestamp = guest[config.n8nTimestampKey] as string | null;
-  const docUrl = guest[config.urlKey] as string | null;
-  const docName = guest[config.nameKey] as string | null;
   const linkInfo = slot !== 1 ? (guest[config.linkKey] as string | null) || "" : "";
 
   return (
@@ -457,51 +345,6 @@ export const GuestInfoModules = ({ guest, editMode, onGuestUpdate, slot = 1 }: G
                   renderMarkdown(getContent(module.key))
                 ) : (
                   <span className="italic">Sin información disponible</span>
-                )}
-              </div>
-            )}
-
-            {/* Document upload for TEMA PRINCIPAL (slot 1 only) */}
-            {slot === 1 && module.hasDocument && (
-              <div className="mt-3 pt-3 border-t">
-                <p className="text-xs font-medium mb-2 flex items-center gap-1">
-                  <FileText className="h-3 w-3" />
-                  Documento justificativo
-                </p>
-                {docUrl ? (
-                  <div className="flex items-center gap-2 text-sm bg-muted/50 p-2 rounded">
-                    <FileText className="h-4 w-4 text-primary" />
-                    <span className="flex-1 truncate">{docName}</span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleDocumentDownload}
-                      disabled={downloading}
-                      className="h-6 w-6 p-0 text-primary hover:text-primary"
-                      title="Descargar documento"
-                    >
-                      {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />}
-                    </Button>
-                    {editMode && (
-                      <Button variant="ghost" size="sm" onClick={handleDocumentRemove} className="h-6 w-6 p-0 text-destructive hover:text-destructive">
-                        <X className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                ) : editMode ? (
-                  <label className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors">
-                    {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                    <span>{uploading ? "Subiendo..." : "Subir documento (PDF/Word)"}</span>
-                    <input
-                      type="file"
-                      accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                      onChange={handleDocumentUpload}
-                      disabled={uploading}
-                      className="hidden"
-                    />
-                  </label>
-                ) : (
-                  <span className="text-xs text-muted-foreground italic">Sin documento adjunto</span>
                 )}
               </div>
             )}
