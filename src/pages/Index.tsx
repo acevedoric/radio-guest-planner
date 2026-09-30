@@ -61,6 +61,9 @@ const Index = () => {
     slotOrder?: number;
   } | null>(null);
   const [editMode, setEditMode] = useState(() => {
+    const e = initialParams.get("edit");
+    if (e === "1" || e === "true") return true;
+    if (e === "0" || e === "false") return false;
     const m = initialParams.get("mode");
     if (m === "edit") return true;
     if (m === "present") return false;
@@ -96,7 +99,8 @@ const Index = () => {
     params.set("week", format(selectedWeek, "yyyy-MM-dd"));
     params.set("day", selectedDay);
     params.set("month", format(selectedMonth, "yyyy-MM-dd"));
-    params.set("mode", editMode ? "edit" : "present");
+    params.set("edit", editMode ? "1" : "0");
+    params.delete("mode");
     if (isModalOpen && selectedGuest?.id) params.set("guest", selectedGuest.id);
     else if (!pendingGuestIdRef.current) params.delete("guest");
     const next = `${window.location.pathname}?${params.toString()}${window.location.hash}`;

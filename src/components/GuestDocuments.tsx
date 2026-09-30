@@ -1,10 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FileText, Loader2, Plus, Trash2, Upload } from "lucide-react";
+import { FileText, FileAudio, Image as ImageIcon, Loader2, Plus, Trash2, Upload } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import {
@@ -24,11 +34,50 @@ interface GuestDocumentsProps {
   compact?: boolean;
 }
 
+const MAX_SIZE = 25 * 1024 * 1024;
+
+const DOC_EXT = ["pdf", "docx", "doc", "txt"];
+const IMAGE_EXT = ["jpg", "jpeg", "png", "webp", "heic"];
+const AUDIO_EXT = ["mp3", "m4a", "wav", "ogg"];
+const ALLOWED_EXT = [...DOC_EXT, ...IMAGE_EXT, ...AUDIO_EXT];
+
+const ACCEPT = ALLOWED_EXT.map((e) => `.${e}`).join(",");
+
+const getExt = (name: string) => (name.split(".").pop() || "").toLowerCase();
+
+type Kind = "document" | "image" | "audio";
+
+const getKind = (doc: { file_name: string; file_type?: string | null }): Kind => {
+  const type = (doc.file_type || "").toLowerCase();
+  if (type.startsWith("image/")) return "image";
+  if (type.startsWith("audio/")) return "audio";
+  const ext = getExt(doc.file_name);
+  if (IMAGE_EXT.includes(ext)) return "image";
+  if (AUDIO_EXT.includes(ext)) return "audio";
+  return "document";
+};
+
 const formatSize = (bytes?: number | null) => {
   if (!bytes && bytes !== 0) return "—";
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+const MIME_BY_EXT: Record<string, string> = {
+  pdf: "application/pdf",
+  doc: "application/msword",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  txt: "text/plain",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  heic: "image/heic",
+  mp3: "audio/mpeg",
+  m4a: "audio/mp4",
+  wav: "audio/wav",
+  ogg: "audio/ogg",
 };
 
 export const GuestDocuments = ({
@@ -44,6 +93,8 @@ export const GuestDocuments = ({
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [hour, setHour] = useState<string>(String(fixedHour || defaultHour || 1));
   const [dragOver, setDragOver] = useState(false);
+  const [thumbs, setThumbs] = useState<Record<string, string>>({});
+  const [pendingDelete, setPendingDelete] = useState<GuestDocumentRow | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -66,22 +117,69 @@ export const GuestDocuments = ({
     loadDocs();
   }, [loadDocs]);
 
+  // Signed URLs for image thumbnails
+  useEffect(() => {
+    let cancelled = false;
+    const images = docs.filter((d) => getKind(d) === "image");
+    if (images.length === 0) return;
+    (async () => {
+      const entries = await Promise.all(
+        images.map(async (d) => {
+          try {
+            const url = await getSignedDocumentUrl(d.file_url);
+            return [d.id, url || ""] as const;
+          } catch {
+            return [d.id, ""] as const;
+          }
+        })
+      );
+      if (cancelled) return;
+      setThumbs((prev) => {
+        const next = { ...prev };
+        entries.forEach(([id, url]) => {
+          if (url) next[id] = url;
+        });
+        return next;
+      });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [docs]);
+
   const uploadFiles = async (files: File[]) => {
     if (!guestId || files.length === 0) return;
+
+    const valid: File[] = [];
+    for (const file of files) {
+      const ext = getExt(file.name);
+      if (!ALLOWED_EXT.includes(ext)) {
+        toast.error(`${file.name}: formato no permitido. Se aceptan PDF, Word, TXT, imágenes y audios.`);
+        continue;
+      }
+      if (file.size > MAX_SIZE) {
+        toast.error(`${file.name} pesa ${formatSize(file.size)}. El máximo permitido es 25 MB.`);
+        continue;
+      }
+      valid.push(file);
+    }
+    if (valid.length === 0) return;
+
     setUploading(true);
-    setProgress({ done: 0, total: files.length });
+    setProgress({ done: 0, total: valid.length });
 
     const hourNumber = Number(fixedHour || hour) || 1;
     let okCount = 0;
 
-    for (const file of files) {
+    for (const file of valid) {
       try {
         const safeName = file.name.replace(/[^\w.\-]+/g, "_");
         const path = `${guestId}/${hourNumber}/${Date.now()}_${safeName}`;
+        const mime = file.type || MIME_BY_EXT[getExt(file.name)] || "application/octet-stream";
 
         const { error: uploadError } = await supabase.storage
           .from(BUCKET)
-          .upload(path, file, { upsert: false, contentType: file.type || undefined });
+          .upload(path, file, { upsert: false, contentType: mime });
         if (uploadError) throw uploadError;
 
         const { error: insertError } = await (supabase as any).from("guest_documents").insert({
@@ -89,7 +187,7 @@ export const GuestDocuments = ({
           hour_number: hourNumber,
           file_name: file.name,
           file_url: path,
-          file_type: file.type || null,
+          file_type: mime,
           file_size: file.size,
         });
         if (insertError) throw insertError;
@@ -105,7 +203,7 @@ export const GuestDocuments = ({
 
     setUploading(false);
     setProgress({ done: 0, total: 0 });
-    if (okCount > 0) toast.success(`${okCount} documento(s) subido(s)`);
+    if (okCount > 0) toast.success(`${okCount} archivo(s) subido(s)`);
     loadDocs();
   };
 
@@ -115,7 +213,7 @@ export const GuestDocuments = ({
       if (signed) window.open(signed, "_blank", "noopener,noreferrer");
     } catch (error) {
       console.error("Error opening document:", error);
-      toast.error("No se pudo abrir el documento");
+      toast.error("No se pudo abrir el archivo");
     }
   };
 
@@ -125,19 +223,19 @@ export const GuestDocuments = ({
       const { error } = await (supabase as any).from("guest_documents").delete().eq("id", doc.id);
       if (error) throw error;
       setDocs((prev) => prev.filter((d) => d.id !== doc.id));
-      toast.success("Documento eliminado");
+      toast.success("Archivo eliminado");
     } catch (error) {
       console.error("Error deleting document:", error);
-      toast.error("No se pudo eliminar el documento");
+      toast.error("No se pudo eliminar el archivo");
     }
   };
 
   if (!guestId) {
     return (
       <div className="space-y-2">
-        <Label>Documentos</Label>
+        <Label>Archivos</Label>
         <p className="text-xs text-muted-foreground italic">
-          Guarda el invitado para poder adjuntar documentos.
+          Guarda el invitado para poder adjuntar archivos.
         </p>
       </div>
     );
@@ -155,6 +253,7 @@ export const GuestDocuments = ({
       ref={inputRef}
       type="file"
       multiple
+      accept={ACCEPT}
       className="hidden"
       onChange={(e) => {
         uploadFiles(Array.from(e.target.files || []));
@@ -163,12 +262,31 @@ export const GuestDocuments = ({
     />
   );
 
+  const renderIcon = (doc: GuestDocumentRow) => {
+    const kind = getKind(doc);
+    if (kind === "image") {
+      const thumb = thumbs[doc.id];
+      return thumb ? (
+        <img
+          src={thumb}
+          alt={doc.file_name}
+          className="h-8 w-8 shrink-0 rounded object-cover"
+          loading="lazy"
+        />
+      ) : (
+        <ImageIcon className="h-4 w-4 shrink-0 text-primary" />
+      );
+    }
+    if (kind === "audio") return <FileAudio className="h-4 w-4 shrink-0 text-primary" />;
+    return <FileText className="h-4 w-4 shrink-0 text-primary" />;
+  };
+
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2">
         <Label className={compact ? "text-xs font-medium flex items-center gap-1" : "text-base"}>
           <FileText className="h-3 w-3" />
-          Documentos adjuntos
+          Archivos adjuntos
         </Label>
         <div className="flex items-center gap-2">
           {!readOnly && !fixedHour && (
@@ -231,7 +349,9 @@ export const GuestDocuments = ({
             <>
               <Upload className="h-5 w-5" />
               <span>Arrastra archivos aquí o haz clic para seleccionar</span>
-              <span className="text-xs">PDF, Word, imágenes, cualquier tipo · varios a la vez</span>
+              <span className="text-xs">
+                PDF, Word, TXT, imágenes y audios · varios a la vez · máx. 25 MB por archivo
+              </span>
             </>
           )}
         </div>
@@ -239,9 +359,9 @@ export const GuestDocuments = ({
       {fileInput}
 
       {loading ? (
-        <p className="text-xs text-muted-foreground">Cargando documentos...</p>
+        <p className="text-xs text-muted-foreground">Cargando archivos...</p>
       ) : docs.length === 0 ? (
-        <p className="text-xs text-muted-foreground italic">Sin documentos adjuntos.</p>
+        <p className="text-xs text-muted-foreground italic">Sin archivos adjuntos.</p>
       ) : (
         <div className="space-y-3">
           {groups
@@ -255,7 +375,7 @@ export const GuestDocuments = ({
                 )}
                 {group.items.map((doc) => (
                   <div key={doc.id} className="flex items-center gap-2 rounded bg-muted/50 p-2 text-sm">
-                    <FileText className="h-4 w-4 shrink-0 text-primary" />
+                    {renderIcon(doc)}
                     <button
                       type="button"
                       onClick={() => handleOpen(doc)}
@@ -273,7 +393,8 @@ export const GuestDocuments = ({
                         variant="ghost"
                         size="sm"
                         className="h-6 w-6 p-0 text-destructive hover:text-destructive"
-                        onClick={() => handleDelete(doc)}
+                        onClick={() => setPendingDelete(doc)}
+                        title="Eliminar archivo"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -284,6 +405,28 @@ export const GuestDocuments = ({
             ))}
         </div>
       )}
+
+      <AlertDialog open={!!pendingDelete} onOpenChange={(open) => !open && setPendingDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar este archivo?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se eliminará «{pendingDelete?.file_name}» de forma permanente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (pendingDelete) handleDelete(pendingDelete);
+                setPendingDelete(null);
+              }}
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
