@@ -174,7 +174,38 @@ serve(async (req) => {
 
     const callbackUrl = `${supabaseUrl}/functions/v1/n8n-guest-info`;
 
-    const documents = payload.documents ?? [];
+    const adminClient = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Documentos: solo desde guest_documents de este invitado y esta hora, sin duplicados
+    const { data: docRows, error: docsError } = await adminClient
+      .from('guest_documents')
+      .select('file_name, file_url, file_type, uploaded_at')
+      .eq('guest_id', payload.guest_id)
+      .eq('hour_number', slot)
+      .order('uploaded_at', { ascending: true });
+
+    if (docsError) console.error('Error loading guest documents:', docsError);
+
+    const seen = new Set<string>();
+    const documents: { file_name: string; file_url: string; file_type: string | null }[] = [];
+    for (const row of docRows ?? []) {
+      const path = row.file_url as string | null;
+      if (!path || seen.has(path)) continue;
+      seen.add(path);
+      const { data: signed, error: signError } = await adminClient.storage
+        .from('guest-documents')
+        .createSignedUrl(path, 60 * 60 * 24);
+      if (signError || !signed?.signedUrl) {
+        console.error('Could not sign document url:', path, signError);
+        continue;
+      }
+      documents.push({
+        file_name: (row.file_name as string) || 'documento',
+        file_url: signed.signedUrl,
+        file_type: (row.file_type as string | null) ?? null,
+      });
+    }
+
     const referenceUrls = payload.reference_urls ?? [];
 
     const n8nPayload: Record<string, unknown> = {
@@ -189,12 +220,14 @@ serve(async (req) => {
       slot,
     };
 
-    // Compatibilidad con el workflow actual de n8n (un solo documento)
-    const firstDoc = documents[0];
-    const legacyUrl = payload.document_url ?? firstDoc?.file_url ?? null;
-    const legacyName = payload.document_name ?? firstDoc?.file_name ?? null;
-    if (legacyUrl) n8nPayload.document_url = legacyUrl;
-    if (legacyName) n8nPayload.document_name = legacyName;
+    // Compatibilidad con n8n: primer documento de texto (pdf, docx, doc, txt)
+    const TEXT_EXT = /\.(pdf|docx?|txt)(\?|$)/i;
+    const TEXT_MIME = /(pdf|msword|wordprocessingml|text\/plain)/i;
+    const firstText = documents.find(
+      (d) => TEXT_EXT.test(d.file_name) || TEXT_MIME.test(d.file_type ?? '')
+    );
+    n8nPayload.document_url = firstText?.file_url ?? null;
+    n8nPayload.document_name = firstText?.file_name ?? null;
 
 
     const n8nResponse = await fetch(n8nWebhookUrl, {
