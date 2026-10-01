@@ -201,6 +201,10 @@ export type Database = {
           program_type: string | null
           proposed_by: string | null
           recording_status: string
+          research_error: string | null
+          research_hour: string | null
+          research_status: string | null
+          research_updated_at: string | null
           scheduled_date: string | null
           scheduled_time: string | null
           slot_order: number
@@ -261,6 +265,10 @@ export type Database = {
           program_type?: string | null
           proposed_by?: string | null
           recording_status?: string
+          research_error?: string | null
+          research_hour?: string | null
+          research_status?: string | null
+          research_updated_at?: string | null
           scheduled_date?: string | null
           scheduled_time?: string | null
           slot_order?: number
@@ -321,6 +329,10 @@ export type Database = {
           program_type?: string | null
           proposed_by?: string | null
           recording_status?: string
+          research_error?: string | null
+          research_hour?: string | null
+          research_status?: string | null
+          research_updated_at?: string | null
           scheduled_date?: string | null
           scheduled_time?: string | null
           slot_order?: number
