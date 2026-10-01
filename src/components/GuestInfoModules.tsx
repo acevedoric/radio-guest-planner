@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { ChevronDown, Loader2, Sparkles, Link as LinkIcon } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ChevronDown, Loader2, Sparkles, Link as LinkIcon, AlertCircle } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -127,6 +127,9 @@ const SLOT_CONFIG: Record<number, SlotDocConfig> = {
   },
 };
 
+/** Tiempo máximo en pending antes de considerar que n8n no respondió. */
+const RESEARCH_TIMEOUT_MS = 10 * 60 * 1000;
+
 interface GuestInfoModulesProps {
   guest: Guest;
   editMode: boolean;
@@ -137,10 +140,105 @@ interface GuestInfoModulesProps {
 export const GuestInfoModules = ({ guest, editMode, onGuestUpdate, slot = 1 }: GuestInfoModulesProps) => {
   const [openModules, setOpenModules] = useState<Record<string, boolean>>({});
   const [editingContent, setEditingContent] = useState<Record<string, string>>({});
-  const [aiLoading, setAiLoading] = useState(false);
+  const hour = `H${slot}` as "H1" | "H2" | "H3";
+  const [research, setResearch] = useState<Pick<Guest, "research_status" | "research_hour" | "research_error" | "research_updated_at">>({
+    research_status: guest.research_status,
+    research_hour: guest.research_hour,
+    research_error: guest.research_error,
+    research_updated_at: guest.research_updated_at,
+  });
+  const [pendingTimedOut, setPendingTimedOut] = useState(false);
 
   const modules = slot === 1 ? MODULES_SLOT_1 : slot === 2 ? MODULES_SLOT_2 : MODULES_SLOT_3;
   const config = SLOT_CONFIG[slot];
+
+  useEffect(() => {
+    setResearch({
+      research_status: guest.research_status,
+      research_hour: guest.research_hour,
+      research_error: guest.research_error,
+      research_updated_at: guest.research_updated_at,
+    });
+  }, [guest.id, guest.research_status, guest.research_hour, guest.research_error, guest.research_updated_at]);
+
+  const isThisHour = research.research_hour === hour;
+  const rawPending = isThisHour && research.research_status === "pending";
+
+  // Un pending de más de 10 minutos (según research_updated_at) se trata como error
+  useEffect(() => {
+    setPendingTimedOut(false);
+    if (!rawPending) return;
+    const startedAt = research.research_updated_at ? new Date(research.research_updated_at).getTime() : NaN;
+    const remaining = Number.isNaN(startedAt) ? 0 : startedAt + RESEARCH_TIMEOUT_MS - Date.now();
+    if (remaining <= 0) {
+      setPendingTimedOut(true);
+      return;
+    }
+    const timer = setTimeout(() => setPendingTimedOut(true), remaining);
+    return () => clearTimeout(timer);
+  }, [rawPending, research.research_updated_at]);
+
+  const researchPending = rawPending && !pendingTimedOut;
+  const researchError = isThisHour && (research.research_status === "error" || (rawPending && pendingTimedOut));
+  const researchErrorMessage = rawPending && pendingTimedOut
+    ? "Sin respuesta de n8n"
+    : research.research_error || "n8n reportó un error";
+
+  // Mientras la investigación de esta hora está pendiente, escuchar la fila del invitado
+  useEffect(() => {
+    if (!guest.id || !researchPending) return;
+    const guestId = guest.id;
+    let handled = false;
+
+    const applyResearchRow = (row: Partial<Guest>) => {
+      if (handled || row.research_hour !== hour) return;
+      if (row.research_status !== "done" && row.research_status !== "error") return;
+      handled = true;
+
+      const updates: Partial<Guest> = {
+        research_status: row.research_status,
+        research_hour: row.research_hour,
+        research_error: row.research_error ?? null,
+        research_updated_at: row.research_updated_at ?? null,
+      };
+      for (const field of config.aiFields) {
+        (updates as Record<string, unknown>)[field] = (row as Record<string, unknown>)[field];
+      }
+      setResearch(updates);
+      setEditingContent({});
+      onGuestUpdate?.(updates);
+
+      if (row.research_status === "done") {
+        toast({ title: "✅ Información actualizada", description: "Los datos de IA se cargaron correctamente" });
+      } else {
+        toast({ title: "Error en la investigación", description: row.research_error || "n8n reportó un error", variant: "destructive" });
+      }
+    };
+
+    const channel = supabase
+      .channel(`guest-research-${guestId}-${hour}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "guests", filter: `id=eq.${guestId}` },
+        (payload) => applyResearchRow(payload.new as Partial<Guest>)
+      )
+      .subscribe((status) => {
+        // Si n8n respondió antes de que la suscripción estuviera lista, leer el estado actual
+        if (status !== "SUBSCRIBED") return;
+        supabase
+          .from("guests")
+          .select(["research_status", "research_hour", "research_error", "research_updated_at", ...config.aiFields].join(", "))
+          .eq("id", guestId)
+          .maybeSingle()
+          .then(({ data }) => {
+            if (data) applyResearchRow(data as unknown as Partial<Guest>);
+          });
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [guest.id, researchPending, hour]);
 
   const toggleModule = (key: string) => {
     setOpenModules(prev => ({ ...prev, [key]: !prev[key] }));
@@ -194,52 +292,45 @@ export const GuestInfoModules = ({ guest, editMode, onGuestUpdate, slot = 1 }: G
       toast({ title: "Error", description: "El invitado debe tener nombre para buscar información", variant: "destructive" });
       return;
     }
+    if (researchPending) return;
 
-    setAiLoading(true);
+    // pending de inmediato; el resultado llega por Realtime cuando n8n llame al callback
+    setResearch({ research_status: "pending", research_hour: hour, research_error: null, research_updated_at: new Date().toISOString() });
+    toast({ title: "Buscando...", description: "Solicitando información con IA..." });
+
+    const failRequest = (message: string) => {
+      setResearch({ research_status: "error", research_hour: hour, research_error: message });
+      toast({ title: "Error", description: message, variant: "destructive" });
+    };
+
     try {
-      toast({ title: "Buscando...", description: `Solicitando información con IA...` });
-
       // Los documentos se construyen en el backend desde guest_documents
       const { reference_urls } = await buildAttachmentsPayload(guest.id, slot);
       const legacyLink = slot !== 1 ? ((guest[config.linkKey] as string | null) || null) : null;
       const allUrls = legacyLink ? [legacyLink, ...reference_urls] : reference_urls;
 
-      const { data, error } = await supabase.functions.invoke('trigger-n8n-scraping', {
-        body: {
-          guest_id: guest.id,
-          name: guest.name,
-          position: guest.position || '',
-          topic: guest.topic || '',
-          hour_number: slot,
-          reference_urls: allUrls,
-          slot,
-        }
-      });
-
-
-      if (error) throw error;
-
-      if (data?.data_saved) {
-        const selectFields = config.aiFields.join(", ");
-        const { data: updatedGuest, error: fetchError } = await supabase
-          .from("guests")
-          .select(selectFields)
-          .eq("id", guest.id)
-          .single();
-
-        if (!fetchError && updatedGuest) {
-          onGuestUpdate?.(updatedGuest as unknown as Partial<Guest>);
-          setEditingContent({});
-          toast({ title: "✅ Información actualizada", description: "Los datos de IA se cargaron correctamente" });
-        }
-      } else {
-        toast({ title: "Solicitud enviada", description: "La información se actualizará cuando esté lista" });
-      }
+      // La edge function responde en cuanto deja el invitado en pending; no espera a n8n
+      supabase.functions
+        .invoke('trigger-n8n-scraping', {
+          body: {
+            guest_id: guest.id,
+            name: guest.name,
+            position: guest.position || '',
+            topic: guest.topic || '',
+            hour_number: slot,
+            reference_urls: allUrls,
+            slot,
+          }
+        })
+        .then(({ error }) => {
+          if (error) {
+            console.error("Error triggering AI:", error);
+            failRequest("No se pudo solicitar la información");
+          }
+        });
     } catch (error) {
       console.error("Error triggering AI:", error);
-      toast({ title: "Error", description: "No se pudo solicitar la información", variant: "destructive" });
-    } finally {
-      setAiLoading(false);
+      failRequest("No se pudo solicitar la información");
     }
   };
 
@@ -251,6 +342,20 @@ export const GuestInfoModules = ({ guest, editMode, onGuestUpdate, slot = 1 }: G
       {n8nTimestamp && (
         <p className="text-xs text-muted-foreground mb-2">
           🤖 Actualizado por IA: {new Date(n8nTimestamp).toLocaleString()}
+        </p>
+      )}
+
+      {researchPending && (
+        <p className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+          <Loader2 className="h-3 w-3 animate-spin text-primary" />
+          Investigando con IA… los datos aparecerán aquí cuando estén listos.
+        </p>
+      )}
+
+      {researchError && (
+        <p className="flex items-start gap-2 text-xs text-destructive mb-2">
+          <AlertCircle className="h-3.5 w-3.5 mt-px shrink-0" />
+          <span>Error en la investigación: {researchErrorMessage}</span>
         </p>
       )}
 
@@ -316,11 +421,11 @@ export const GuestInfoModules = ({ guest, editMode, onGuestUpdate, slot = 1 }: G
                 e.stopPropagation();
                 handleTriggerAI();
               }}
-              disabled={aiLoading}
-              title="Generar con IA"
+              disabled={researchPending}
+              title={researchPending ? "Investigación en curso" : "Generar con IA"}
               className="h-10 w-10 p-0 hover:bg-primary/10"
             >
-              {aiLoading ? (
+              {researchPending ? (
                 <Loader2 className="h-4 w-4 animate-spin text-primary" />
               ) : (
                 <Sparkles className="h-4 w-4 text-primary" />

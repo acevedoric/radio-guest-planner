@@ -32,9 +32,69 @@ const getSocial = (guest: Guest | undefined, platform: string): string => {
   return sn[platform] || sn[platform.toLowerCase()] || "[PENDIENTE]";
 };
 
-const textRun = (text: string, opts?: { bold?: boolean; italics?: boolean; highlight?: boolean; size?: number }) =>
+/* ---------- Limpieza de markdown (texto generado por IA) ---------- */
+
+const MD_RULE_LINE = /^\s*(-{3,}|\*{3,})\s*$/;
+const MD_HEADING = /^\s*#{1,6}\s+/;
+const MD_BULLET = /^\s*-\s+/;
+
+/** Quita los marcadores de markdown que no tienen equivalente en el docx. */
+const stripMarkdown = (text: string): string =>
+  text
+    .split(/\r?\n/)
+    .filter((line) => !MD_RULE_LINE.test(line))
+    .map((line) => line.replace(MD_HEADING, "").replace(/\*\*|__/g, ""))
+    .join("\n");
+
+type RunOpts = { bold?: boolean; italics?: boolean; highlight?: boolean; size?: number };
+
+/** Convierte una línea con **negrillas** en runs del docx (bold real). */
+const markdownRuns = (line: string, opts?: RunOpts): TextRun[] =>
+  line
+    .split(/(\*\*[^*]+?\*\*)/g)
+    .filter(Boolean)
+    .map((part) => {
+      const isBold = /^\*\*[^*]+\*\*$/.test(part);
+      const content = (isBold ? part.slice(2, -2) : part).replace(/\*\*|__/g, "");
+      return textRun(content, { ...opts, bold: opts?.bold || isBold });
+    });
+
+/**
+ * Texto largo en markdown → párrafos del docx: quita #, ---, ***, __;
+ * "- " al inicio de línea pasa a viñeta real y **texto** a negrilla.
+ */
+const markdownParagraphs = (text: string | null | undefined): Paragraph[] => {
+  const paragraphs: Paragraph[] = [];
+  for (const raw of (text ?? "").split(/\r?\n/)) {
+    if (MD_RULE_LINE.test(raw)) continue;
+    const line = raw.replace(MD_HEADING, "").trim();
+    if (!line) continue;
+    if (MD_BULLET.test(line)) {
+      paragraphs.push(new Paragraph({
+        children: markdownRuns(line.replace(MD_BULLET, "")),
+        bullet: { level: 0 },
+        spacing: { before: 60, after: 60 },
+      }));
+    } else {
+      paragraphs.push(new Paragraph({
+        children: markdownRuns(line),
+        spacing: { before: 60, after: 60 },
+        indent: { left: 360 },
+      }));
+    }
+  }
+  return paragraphs;
+};
+
+/** Bloque de contenido de IA; si está vacío, deja la viñeta [PENDIENTE]. */
+const contentBlock = (text: string | null | undefined): Paragraph[] => {
+  const paragraphs = markdownParagraphs(text);
+  return paragraphs.length ? paragraphs : [bulletParagraph(v(text))];
+};
+
+const textRun = (text: string, opts?: RunOpts) =>
   new TextRun({
-    text,
+    text: stripMarkdown(text),
     bold: opts?.bold,
     italics: opts?.italics,
     size: opts?.size ?? 24,
@@ -121,13 +181,13 @@ const buildTuesdayDoc = (h1: Guest | undefined, h2: Guest | undefined, h3: Guest
   paragraphs.push(new Paragraph({
     children: [textRun("2. Primer segmento: ", {}), textRun("Bienvenida.", { bold: true })],
   }));
-  paragraphs.push(bulletParagraph(v(h1?.tema_principal)));
+  paragraphs.push(...contentBlock(h1?.tema_principal));
   paragraphs.push(emptyLine());
 
   paragraphs.push(new Paragraph({
     children: [textRun("Infancia y vida personal", { bold: true })],
   }));
-  paragraphs.push(bulletParagraph(v(h1?.infancia_vida_privada)));
+  paragraphs.push(...contentBlock(h1?.infancia_vida_privada));
   paragraphs.push(emptyLine());
 
   paragraphs.push(new Paragraph({
@@ -138,7 +198,7 @@ const buildTuesdayDoc = (h1: Guest | undefined, h2: Guest | undefined, h3: Guest
   paragraphs.push(new Paragraph({
     children: [textRun("5. Segundo segmento: ", {}), textRun("Carrera", { bold: true })],
   }));
-  paragraphs.push(bulletParagraph(v(h1?.carrera_profesional)));
+  paragraphs.push(...contentBlock(h1?.carrera_profesional));
   paragraphs.push(emptyLine());
 
   // Avance segunda hora + Encuesta
@@ -162,7 +222,7 @@ const buildTuesdayDoc = (h1: Guest | undefined, h2: Guest | undefined, h3: Guest
   paragraphs.push(new Paragraph({
     children: [textRun("8. Tercer segmento: ", {}), textRun("Datos curiosos", { bold: true })],
   }));
-  paragraphs.push(bulletParagraph(v(h1?.datos_curiosos)));
+  paragraphs.push(...contentBlock(h1?.datos_curiosos));
   paragraphs.push(emptyLine());
 
   paragraphs.push(new Paragraph({
@@ -173,7 +233,7 @@ const buildTuesdayDoc = (h1: Guest | undefined, h2: Guest | undefined, h3: Guest
 
   if (h1?.h1_canciones) {
     paragraphs.push(new Paragraph({ children: [textRun("Canciones en stock:", { bold: true })] }));
-    paragraphs.push(new Paragraph({ children: [textRun(h1.h1_canciones)] }));
+    paragraphs.push(...markdownParagraphs(h1.h1_canciones));
     paragraphs.push(emptyLine());
   }
 
@@ -220,7 +280,7 @@ const buildTuesdayDoc = (h1: Guest | undefined, h2: Guest | undefined, h3: Guest
     children: [textRun("Invitado: ", { bold: true }), textRun(v(h2?.name))],
   }));
   if (h2?.h2_info_personal) {
-    paragraphs.push(new Paragraph({ children: [textRun(h2.h2_info_personal)] }));
+    paragraphs.push(...markdownParagraphs(h2.h2_info_personal));
   }
   paragraphs.push(emptyLine());
 
@@ -262,7 +322,7 @@ const buildTuesdayDoc = (h1: Guest | undefined, h2: Guest | undefined, h3: Guest
     paragraphs.push(new Paragraph({
       children: [textRun("PREGUNTAS SUGERIDAS SEGÚN EL TEMA A TRATAR", { bold: true })],
     }));
-    paragraphs.push(new Paragraph({ children: [textRun(h2.h2_preguntas_sugeridas)] }));
+    paragraphs.push(...markdownParagraphs(h2.h2_preguntas_sugeridas));
     paragraphs.push(emptyLine());
   }
 
@@ -277,7 +337,7 @@ const buildTuesdayDoc = (h1: Guest | undefined, h2: Guest | undefined, h3: Guest
 
   if (h2?.h2_canciones) {
     paragraphs.push(new Paragraph({ children: [textRun("Canciones en stock:", { bold: true })] }));
-    paragraphs.push(new Paragraph({ children: [textRun(h2.h2_canciones)] }));
+    paragraphs.push(...markdownParagraphs(h2.h2_canciones));
     paragraphs.push(emptyLine());
   }
 
@@ -308,22 +368,19 @@ const buildTuesdayDoc = (h1: Guest | undefined, h2: Guest | undefined, h3: Guest
   paragraphs.push(emptyLine());
 
   if (h3?.h3_datos_personales) {
-    paragraphs.push(new Paragraph({
-      children: [textRun("Info: ", { bold: true }), textRun(h3.h3_datos_personales)],
-    }));
+    paragraphs.push(new Paragraph({ children: [textRun("Info: ", { bold: true })] }));
+    paragraphs.push(...markdownParagraphs(h3.h3_datos_personales));
     paragraphs.push(emptyLine());
   }
 
   if (h3?.h3_comunicado_prensa) {
-    paragraphs.push(new Paragraph({
-      children: [textRun(h3.h3_comunicado_prensa)],
-    }));
+    paragraphs.push(...markdownParagraphs(h3.h3_comunicado_prensa));
     paragraphs.push(emptyLine());
   }
 
   if (h3?.h3_canciones) {
     paragraphs.push(new Paragraph({ children: [textRun("Canciones en stock:", { bold: true })] }));
-    paragraphs.push(new Paragraph({ children: [textRun(h3.h3_canciones)] }));
+    paragraphs.push(...markdownParagraphs(h3.h3_canciones));
   }
 
   return paragraphs;
@@ -369,18 +426,18 @@ const buildThursdayDoc = (h1: Guest | undefined, h2: Guest | undefined, h3: Gues
   paragraphs.push(new Paragraph({
     children: [textRun("2. Primer segmento: "), textRun("Bienvenida", { bold: true })],
   }));
-  paragraphs.push(bulletParagraph(v(h1?.tema_principal)));
+  paragraphs.push(...contentBlock(h1?.tema_principal));
   paragraphs.push(emptyLine());
 
   paragraphs.push(new Paragraph({ children: [textRun("Infancia y vida personal", { bold: true })] }));
-  paragraphs.push(bulletParagraph(v(h1?.infancia_vida_privada)));
+  paragraphs.push(...contentBlock(h1?.infancia_vida_privada));
   paragraphs.push(emptyLine());
 
   paragraphs.push(new Paragraph({ children: [textRun("3. Clip 2 COMEDIANTE")] }));
   paragraphs.push(new Paragraph({
     children: [textRun("4. Segundo segmento: "), textRun("Carrera", { bold: true })],
   }));
-  paragraphs.push(bulletParagraph(v(h1?.carrera_profesional)));
+  paragraphs.push(...contentBlock(h1?.carrera_profesional));
   paragraphs.push(emptyLine());
 
   paragraphs.push(new Paragraph({ children: [textRun("5. Clip 3 COMEDIANTE")] }));
@@ -403,7 +460,7 @@ const buildThursdayDoc = (h1: Guest | undefined, h2: Guest | undefined, h3: Gues
   paragraphs.push(new Paragraph({
     children: [textRun("7. Tercer segmento: "), textRun("Datos curiosos", { bold: true })],
   }));
-  paragraphs.push(bulletParagraph(v(h1?.datos_curiosos)));
+  paragraphs.push(...contentBlock(h1?.datos_curiosos));
   paragraphs.push(emptyLine());
 
   paragraphs.push(new Paragraph({ children: [textRun("8. Clip 4 COMEDIANTE")] }));
@@ -414,7 +471,7 @@ const buildThursdayDoc = (h1: Guest | undefined, h2: Guest | undefined, h3: Gues
 
   if (h1?.h1_canciones) {
     paragraphs.push(new Paragraph({ children: [textRun("Clips de comediante:", { bold: true })] }));
-    paragraphs.push(new Paragraph({ children: [textRun(h1.h1_canciones)] }));
+    paragraphs.push(...markdownParagraphs(h1.h1_canciones));
     paragraphs.push(emptyLine());
   }
 
@@ -437,7 +494,7 @@ const buildThursdayDoc = (h1: Guest | undefined, h2: Guest | undefined, h3: Gues
   paragraphs.push(emptyLine());
 
   paragraphs.push(new Paragraph({
-    children: [textRun("Contexto: ", { bold: true }), textRun(v(h2?.h2_contexto))],
+    children: [textRun("Contexto: ", { bold: true }), ...markdownRuns(v(h2?.h2_contexto))],
   }));
   paragraphs.push(emptyLine());
 
@@ -471,13 +528,13 @@ const buildThursdayDoc = (h1: Guest | undefined, h2: Guest | undefined, h3: Gues
   paragraphs.push(emptyLine());
 
   if (h2?.h2_info_personal) {
-    paragraphs.push(new Paragraph({ children: [textRun(h2.h2_info_personal)] }));
+    paragraphs.push(...markdownParagraphs(h2.h2_info_personal));
     paragraphs.push(emptyLine());
   }
 
   if (h2?.h2_preguntas_sugeridas) {
     paragraphs.push(new Paragraph({ children: [textRun("PREGUNTAS SUGERIDAS:", { bold: true })] }));
-    paragraphs.push(new Paragraph({ children: [textRun(h2.h2_preguntas_sugeridas)] }));
+    paragraphs.push(...markdownParagraphs(h2.h2_preguntas_sugeridas));
     paragraphs.push(emptyLine());
   }
 
@@ -490,7 +547,7 @@ const buildThursdayDoc = (h1: Guest | undefined, h2: Guest | undefined, h3: Gues
 
   if (h2?.h2_canciones) {
     paragraphs.push(new Paragraph({ children: [textRun("Canciones en stock:", { bold: true })] }));
-    paragraphs.push(new Paragraph({ children: [textRun(h2.h2_canciones)] }));
+    paragraphs.push(...markdownParagraphs(h2.h2_canciones));
     paragraphs.push(emptyLine());
   }
 
@@ -530,20 +587,19 @@ const buildThursdayDoc = (h1: Guest | undefined, h2: Guest | undefined, h3: Gues
   paragraphs.push(emptyLine());
 
   if (h3?.h3_datos_personales) {
-    paragraphs.push(new Paragraph({
-      children: [textRun("Info: ", { bold: true }), textRun(h3.h3_datos_personales)],
-    }));
+    paragraphs.push(new Paragraph({ children: [textRun("Info: ", { bold: true })] }));
+    paragraphs.push(...markdownParagraphs(h3.h3_datos_personales));
     paragraphs.push(emptyLine());
   }
 
   if (h3?.h3_comunicado_prensa) {
-    paragraphs.push(new Paragraph({ children: [textRun(h3.h3_comunicado_prensa)] }));
+    paragraphs.push(...markdownParagraphs(h3.h3_comunicado_prensa));
     paragraphs.push(emptyLine());
   }
 
   if (h3?.h3_canciones) {
     paragraphs.push(new Paragraph({ children: [textRun("Canciones en stock:", { bold: true })] }));
-    paragraphs.push(new Paragraph({ children: [textRun(h3.h3_canciones)] }));
+    paragraphs.push(...markdownParagraphs(h3.h3_canciones));
   }
 
   return paragraphs;

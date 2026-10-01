@@ -31,6 +31,12 @@ export interface Guest {
   press_email?: string | null;
   proposed_by?: string | null;
 
+  // Estado de la investigación con IA (n8n)
+  research_status?: "pending" | "done" | "error" | null;
+  research_hour?: "H1" | "H2" | "H3" | null;
+  research_error?: string | null;
+  research_updated_at?: string | null;
+
   // Módulos de información (HORA 2)
   h2_info_personal?: string | null;
   h2_preguntas_sugeridas?: string | null;

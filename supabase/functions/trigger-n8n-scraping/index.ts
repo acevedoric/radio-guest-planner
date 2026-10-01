@@ -119,6 +119,23 @@ function parseOutputSections(text: string, slot: number): Record<string, string>
   return { [slotConfig.fields[0]]: text.trim() };
 }
 
+const DAY_OFFSETS: Record<string, number> = { monday: 0, tuesday: 1, wednesday: 2, thursday: 3 };
+
+/**
+ * Fecha de emisión (YYYY-MM-DD, America/Bogota): week_date + día del programa.
+ * Son fechas de calendario sin hora, así que se suman en UTC y el resultado no
+ * depende de la zona del servidor. Sin slot asignado se usa scheduled_date.
+ */
+function programDate(guest: { week_date: string | null; day_of_week: string | null; scheduled_date: string | null }): string | null {
+  const offset = guest.day_of_week ? DAY_OFFSETS[guest.day_of_week] : undefined;
+  if (guest.week_date && offset !== undefined) {
+    const d = new Date(`${guest.week_date}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + offset);
+    return d.toISOString().slice(0, 10);
+  }
+  return guest.scheduled_date ?? null;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -169,12 +186,27 @@ serve(async (req) => {
     const payload = parseResult.data;
     const slot = payload.hour_number ?? payload.slot;
     const slotConfig = SLOT_FIELD_MAP[slot];
+    const hour = `H${slot}`;
 
     console.log(`Triggering n8n scraping for guest: ${payload.name} (${payload.position}), slot: ${slot}`);
 
     const callbackUrl = `${supabaseUrl}/functions/v1/n8n-guest-info`;
 
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
+
+    const { data: guestRow, error: guestError } = await adminClient
+      .from('guests')
+      .select('week_date, day_of_week, scheduled_date')
+      .eq('id', payload.guest_id)
+      .maybeSingle();
+
+    if (guestError) console.error('Error loading guest:', guestError);
+    if (!guestRow) {
+      return new Response(
+        JSON.stringify({ error: 'Guest not found' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Documentos: solo desde guest_documents de este invitado y esta hora, sin duplicados
     const { data: docRows, error: docsError } = await adminClient
@@ -213,6 +245,8 @@ serve(async (req) => {
       name: payload.name,
       position: payload.position,
       topic: payload.topic || '',
+      program_date: programDate(guestRow),
+      hour,
       hour_number: slot,
       documents,
       reference_urls: referenceUrls,
@@ -229,26 +263,42 @@ serve(async (req) => {
     n8nPayload.document_url = firstText?.file_url ?? null;
     n8nPayload.document_name = firstText?.file_name ?? null;
 
+    const setResearch = async (fields: Record<string, string | null>) => {
+      const { error } = await adminClient
+        .from('guests')
+        .update({ ...fields, research_hour: hour, research_updated_at: new Date().toISOString() })
+        .eq('id', payload.guest_id);
+      if (error) console.error('Could not update research status:', error);
+    };
 
-    const n8nResponse = await fetch(n8nWebhookUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(n8nPayload),
-    });
+    await setResearch({ research_status: 'pending', research_error: null });
 
-    if (!n8nResponse.ok) {
-      console.error(`n8n webhook error: ${n8nResponse.status}`);
-      return new Response(
-        JSON.stringify({ error: 'Failed to trigger n8n webhook' }),
-        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    // n8n puede tardar minutos: se llama en segundo plano y el resultado llega por el
+    // callback n8n-guest-info (o en la respuesta síncrona, si el workflow la devuelve).
+    const runN8n = async () => {
+      try {
+        const n8nResponse = await fetch(n8nWebhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(n8nPayload),
+        });
 
-    let dataSaved = false;
-    try {
-      const responseText = await n8nResponse.text();
-      if (responseText) {
-        let n8nData = JSON.parse(responseText);
+        if (!n8nResponse.ok) {
+          console.error(`n8n webhook error: ${n8nResponse.status}`);
+          await setResearch({ research_status: 'error', research_error: `n8n respondió con error ${n8nResponse.status}` });
+          return;
+        }
+
+        const responseText = await n8nResponse.text();
+        if (!responseText) return;
+
+        let n8nData;
+        try {
+          n8nData = JSON.parse(responseText);
+        } catch {
+          console.log('Could not parse n8n response');
+          return;
+        }
         if (Array.isArray(n8nData)) n8nData = n8nData[0] || {};
 
         let extractedData: Record<string, string | undefined> = {};
@@ -263,44 +313,42 @@ serve(async (req) => {
         }
 
         const hasData = slotConfig.fields.some(f => extractedData[f]);
-        if (hasData) {
-          const supabase = createClient(supabaseUrl, supabaseServiceKey);
-          const timestampKey = slot === 1 ? 'n8n_updated_at' : `h${slot}_n8n_updated_at`;
-          const updateData: Record<string, string> = {
-            [timestampKey]: new Date().toISOString(),
-          };
+        if (!hasData) return;
 
-          for (const field of slotConfig.fields) {
-            if (extractedData[field] !== undefined) {
-              updateData[field] = String(extractedData[field]).slice(0, 10000);
-            }
-          }
-
-          const { error } = await supabase
-            .from('guests')
-            .update(updateData)
-            .eq('id', payload.guest_id);
-
-          if (error) {
-            console.error('Database update error:', error);
-          } else {
-            dataSaved = true;
-            console.log('Guest data saved successfully for slot', slot);
+        const timestampKey = slot === 1 ? 'n8n_updated_at' : `h${slot}_n8n_updated_at`;
+        const updateData: Record<string, string | null> = {
+          [timestampKey]: new Date().toISOString(),
+          research_status: 'done',
+          research_error: null,
+        };
+        for (const field of slotConfig.fields) {
+          if (extractedData[field] !== undefined) {
+            updateData[field] = String(extractedData[field]).slice(0, 10000);
           }
         }
+        await setResearch(updateData);
+        console.log('Guest data saved from synchronous n8n response for slot', slot);
+      } catch (err) {
+        console.error('Error calling n8n:', err);
+        await setResearch({ research_status: 'error', research_error: 'No se pudo contactar a n8n' });
       }
-    } catch (parseErr) {
-      console.log('Could not parse n8n response');
+    };
+
+    const edgeRuntime = (globalThis as { EdgeRuntime?: { waitUntil: (p: Promise<unknown>) => void } }).EdgeRuntime;
+    if (edgeRuntime?.waitUntil) {
+      edgeRuntime.waitUntil(runN8n());
+    } else {
+      await runN8n();
     }
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: dataSaved ? 'Data saved from n8n response' : 'Scraping workflow triggered',
-        data_saved: dataSaved,
+        message: 'Scraping workflow triggered',
+        research_status: 'pending',
         guest_id: payload.guest_id,
       }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 202, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
     console.error('Error in trigger-n8n-scraping:', error);

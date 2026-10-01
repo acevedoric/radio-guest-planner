@@ -3,123 +3,139 @@ import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-webhook-secret",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-callback-secret",
 };
 
-const N8nPayloadSchema = z.object({
+// Campos que n8n devuelve por hora → columna en public.guests
+const HOUR_FIELD_MAP: Record<"H1" | "H2" | "H3", Record<string, string>> = {
+  H1: {
+    coyuntura: "tema_principal",
+    infancia: "infancia_vida_privada",
+    carrera: "carrera_profesional",
+    curiosidades: "datos_curiosos",
+  },
+  H2: {
+    info_personal: "h2_info_personal",
+    preguntas_sugeridas: "h2_preguntas_sugeridas",
+  },
+  H3: {
+    datos_personales: "h3_datos_personales",
+    comunicado_prensa: "h3_comunicado_prensa",
+  },
+};
+
+const HOUR_TIMESTAMP_KEY: Record<"H1" | "H2" | "H3", string> = {
+  H1: "n8n_updated_at",
+  H2: "h2_n8n_updated_at",
+  H3: "h3_n8n_updated_at",
+};
+
+const MAX_FIELD_LENGTH = 10000;
+
+const CallbackPayloadSchema = z.object({
   guest_id: z.string().uuid("guest_id must be a valid UUID"),
-  tema_principal: z.string().max(10000).optional(),
-  infancia_vida_privada: z.string().max(10000).optional(),
-  carrera_profesional: z.string().max(10000).optional(),
-  datos_curiosos: z.string().max(10000).optional(),
+  hour: z.enum(["H1", "H2", "H3"]),
+  status: z.enum(["ok", "error"]),
+  fields: z.record(z.string().nullable()).optional().default({}),
+  error_message: z.string().max(2000).nullable().optional(),
 });
 
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+
+/** Comparación en tiempo constante para no filtrar el secret por timing. */
+function safeEqual(a: string, b: string): boolean {
+  const enc = new TextEncoder();
+  const x = enc.encode(a);
+  const y = enc.encode(b);
+  let diff = x.length ^ y.length;
+  for (let i = 0; i < Math.max(x.length, y.length); i++) {
+    diff |= (x[i] ?? 0) ^ (y[i] ?? 0);
+  }
+  return diff === 0;
+}
+
 Deno.serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Only allow POST requests
     if (req.method !== "POST") {
-      return new Response(
-        JSON.stringify({ error: "Method not allowed" }),
-        { status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return json({ error: "Method not allowed" }, 405);
     }
 
-    // Verify webhook secret
-    const webhookSecret = req.headers.get("x-webhook-secret");
-    const expectedSecret = Deno.env.get("N8N_WEBHOOK_SECRET");
-
-    if (expectedSecret && (!webhookSecret || webhookSecret !== expectedSecret)) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    const expectedSecret = Deno.env.get("N8N_CALLBACK_SECRET");
+    if (!expectedSecret) {
+      console.error("N8N_CALLBACK_SECRET secret not configured");
+      return json({ error: "Callback secret not configured" }, 500);
+    }
+    const providedSecret = req.headers.get("x-callback-secret") ?? "";
+    if (!safeEqual(providedSecret, expectedSecret)) {
+      return json({ error: "Unauthorized" }, 401);
     }
 
-    // Parse and validate request body
     const rawPayload = await req.json();
-    const parseResult = N8nPayloadSchema.safeParse(rawPayload);
-
+    const parseResult = CallbackPayloadSchema.safeParse(rawPayload);
     if (!parseResult.success) {
-      return new Response(
-        JSON.stringify({ error: "Invalid input", details: parseResult.error.issues }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return json({ error: "Invalid input", details: parseResult.error.issues }, 400);
     }
 
     const payload = parseResult.data;
-    console.log("Received validated n8n payload for guest:", payload.guest_id);
+    const now = new Date().toISOString();
+    console.log(`n8n callback for guest ${payload.guest_id}, ${payload.hour}: ${payload.status}`);
 
-    // Create Supabase client with service role for admin access
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Build update object with only provided fields
-    const updateData: Record<string, string | Date> = {
-      n8n_updated_at: new Date().toISOString(),
+    const updateData: Record<string, string | null> = {
+      research_hour: payload.hour,
+      research_updated_at: now,
     };
 
-    if (payload.tema_principal !== undefined) {
-      updateData.tema_principal = payload.tema_principal;
-    }
-    if (payload.infancia_vida_privada !== undefined) {
-      updateData.infancia_vida_privada = payload.infancia_vida_privada;
-    }
-    if (payload.carrera_profesional !== undefined) {
-      updateData.carrera_profesional = payload.carrera_profesional;
-    }
-    if (payload.datos_curiosos !== undefined) {
-      updateData.datos_curiosos = payload.datos_curiosos;
+    if (payload.status === "ok") {
+      const fieldMap = HOUR_FIELD_MAP[payload.hour];
+      for (const [incoming, column] of Object.entries(fieldMap)) {
+        const value = payload.fields[incoming];
+        if (typeof value === "string") {
+          updateData[column] = value.slice(0, MAX_FIELD_LENGTH);
+        }
+      }
+      updateData[HOUR_TIMESTAMP_KEY[payload.hour]] = now;
+      updateData.research_status = "done";
+      updateData.research_error = null;
+    } else {
+      updateData.research_status = "error";
+      updateData.research_error = payload.error_message?.trim() || "La investigación falló en n8n";
     }
 
-    console.log("Updating guest with data:", JSON.stringify(updateData, null, 2));
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Update the guest record
     const { data, error } = await supabase
       .from("guests")
       .update(updateData)
       .eq("id", payload.guest_id)
-      .select()
-      .single();
+      .select("id, research_status, research_updated_at")
+      .maybeSingle();
 
     if (error) {
       console.error("Database error:", error);
-      return new Response(
-        JSON.stringify({ error: "Failed to update guest record" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return json({ error: "Failed to update guest record" }, 500);
     }
-
     if (!data) {
-      return new Response(
-        JSON.stringify({ error: "Guest not found" }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return json({ error: "Guest not found" }, 404);
     }
 
-    console.log("Guest updated successfully:", data.id);
-
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: "Guest information updated",
-        guest_id: data.id,
-        updated_at: data.n8n_updated_at
-      }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-
+    return json({
+      success: true,
+      guest_id: data.id,
+      research_status: data.research_status,
+      research_updated_at: data.research_updated_at,
+    });
   } catch (error: unknown) {
     console.error("Error processing request:", error);
-    return new Response(
-      JSON.stringify({ error: "Internal server error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return json({ error: "Internal server error" }, 500);
   }
 });

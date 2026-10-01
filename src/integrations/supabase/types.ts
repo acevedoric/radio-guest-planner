@@ -200,6 +200,10 @@ export type Database = {
           press_phone: string | null
           program_type: string | null
           proposed_by: string | null
+          research_error: string | null
+          research_hour: string | null
+          research_status: string | null
+          research_updated_at: string | null
           recording_status: string
           scheduled_date: string | null
           scheduled_time: string | null
@@ -260,6 +264,10 @@ export type Database = {
           press_phone?: string | null
           program_type?: string | null
           proposed_by?: string | null
+          research_error?: string | null
+          research_hour?: string | null
+          research_status?: string | null
+          research_updated_at?: string | null
           recording_status?: string
           scheduled_date?: string | null
           scheduled_time?: string | null
@@ -320,6 +328,10 @@ export type Database = {
           press_phone?: string | null
           program_type?: string | null
           proposed_by?: string | null
+          research_error?: string | null
+          research_hour?: string | null
+          research_status?: string | null
+          research_updated_at?: string | null
           recording_status?: string
           scheduled_date?: string | null
           scheduled_time?: string | null
