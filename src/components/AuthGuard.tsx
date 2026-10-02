@@ -45,21 +45,28 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
         setStatus("allowed");
       };
 
-      const { data: userData, error: userError } = await supabase.auth.getUser();
-      if (!isCurrent()) return;
-      if (userError || !userData.user) {
-        const sessionEmail = (session.user?.email ?? "").trim().toLowerCase();
-        if (sessionEmail.endsWith("@caracoltv.com.co")) {
-          setEmail(sessionEmail);
-          markAllowed();
+      // Usar primero los datos de la sesión local; solo llamar a getUser()
+      // cuando la sesión no trae email (evita 403 bad_jwt con tokens inválidos).
+      const sessionEmail = (session.user?.email ?? "").trim().toLowerCase();
+      let userEmail = sessionEmail;
+
+      if (!userEmail) {
+        const { data: userData, error: userError } = await supabase.auth.getUser();
+        if (!isCurrent()) return;
+        if (userError || !userData.user) {
+          // Token inválido o expirado: cerrar sesión y volver al acceso público
+          // de solo lectura en lugar de mostrar un error sin salida.
+          console.error("Could not verify the current user:", userError);
+          await supabase.auth.signOut();
+          verifiedUserRef.current = null;
+          if (isCurrent()) {
+            setEmail("");
+            setStatus("allowed");
+          }
           return;
         }
-        console.error("Could not verify the current user:", userError);
-        setStatus("verification_error");
-        return;
+        userEmail = (userData.user.email ?? "").trim().toLowerCase();
       }
-
-      const userEmail = (userData.user.email ?? session.user?.email ?? "").trim().toLowerCase();
       setEmail(userEmail);
 
       // Corporate accounts are explicitly permitted by the project's access policy.
