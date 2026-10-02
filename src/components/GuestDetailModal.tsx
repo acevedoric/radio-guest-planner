@@ -242,7 +242,8 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
 
 
     if (!formData.id && !formData.proposed_by) {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
       if (user) {
         finalData.proposed_by = user.email || user.id;
       }
@@ -671,7 +672,7 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
             />
           </div>
 
-          {guest?.id && canAgendar && (
+          {guest?.id && !readOnly && canAgendar && (
             <div className="border-t pt-4">
               <Button
                 type="button"
