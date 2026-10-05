@@ -215,7 +215,10 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
         return;
       }
     }
-
+    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      toast.error("El correo del invitado no es válido");
+      return;
+    }
 
 
     // Combinar todas las redes sociales
