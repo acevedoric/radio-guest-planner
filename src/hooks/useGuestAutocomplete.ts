@@ -5,6 +5,7 @@ interface GuestSuggestion {
   name: string;
   position: string | null;
   phone: string | null;
+  email?: string | null;
   social_networks: any;
 }
 
