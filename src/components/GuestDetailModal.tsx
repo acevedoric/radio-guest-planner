@@ -215,7 +215,10 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
         return;
       }
     }
-
+    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      toast.error("El correo del invitado no es válido");
+      return;
+    }
 
 
     // Combinar todas las redes sociales
@@ -307,6 +310,7 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
                       name: g.name,
                       position: prev.position || g.position || "",
                       phone: prev.phone || g.phone || "",
+                      email: prev.email || (g as any).email || "",
                     }));
                     // Apply social networks if empty
                     if (g.social_networks && typeof g.social_networks === "object") {
@@ -493,6 +497,26 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
               required
               disabled={readOnly}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="guest_email">Correo del Invitado</Label>
+            {readOnly && formData.email ? (
+              <ContactLink type="email" value={formData.email} />
+            ) : (
+              <Input
+                id="guest_email"
+                type="email"
+                maxLength={255}
+                value={formData.email || ""}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value.trim() })}
+                placeholder="invitado@correo.com"
+                disabled={readOnly}
+              />
+            )}
+            <p className="text-xs text-muted-foreground">
+              Recibirá la invitación del calendario y la confirmación al agendar.
+            </p>
           </div>
 
           {/* Nueva sección de redes sociales */}
