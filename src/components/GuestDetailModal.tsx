@@ -310,6 +310,7 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
                       name: g.name,
                       position: prev.position || g.position || "",
                       phone: prev.phone || g.phone || "",
+                      email: prev.email || (g as any).email || "",
                     }));
                     // Apply social networks if empty
                     if (g.social_networks && typeof g.social_networks === "object") {

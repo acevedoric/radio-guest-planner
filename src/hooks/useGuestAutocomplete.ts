@@ -32,7 +32,7 @@ export function useGuestAutocomplete() {
     guestTimer.current = setTimeout(async () => {
       const { data } = await supabase
         .from("guests")
-        .select("name, position, phone, social_networks")
+        .select("name, position, phone, email, social_networks")
         .ilike("name", `%${term}%`)
         .order("updated_at", { ascending: false })
         .limit(20);
