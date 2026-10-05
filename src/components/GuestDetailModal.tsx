@@ -495,6 +495,26 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
             />
           </div>
 
+          <div className="space-y-2">
+            <Label htmlFor="guest_email">Correo del Invitado</Label>
+            {readOnly && formData.email ? (
+              <ContactLink type="email" value={formData.email} />
+            ) : (
+              <Input
+                id="guest_email"
+                type="email"
+                maxLength={255}
+                value={formData.email || ""}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value.trim() })}
+                placeholder="invitado@correo.com"
+                disabled={readOnly}
+              />
+            )}
+            <p className="text-xs text-muted-foreground">
+              Recibirá la invitación del calendario y la confirmación al agendar.
+            </p>
+          </div>
+
           {/* Nueva sección de redes sociales */}
           <div className="space-y-4">
             <Label>Redes Sociales</Label>
