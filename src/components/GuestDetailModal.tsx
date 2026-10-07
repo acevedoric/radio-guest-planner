@@ -61,7 +61,8 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
 
   const handleAgendar = async () => {
     setAgendarLoading(true);
-    const result = await postWebhook(WEBHOOK_URL_AGENDAR, buildCalendarPayload(formData));
+    const shared = await isThirdHourShared(formData);
+    const result = await postWebhook(WEBHOOK_URL_AGENDAR, buildCalendarPayload(formData, shared));
     setAgendarLoading(false);
 
     if (result.ok) {
@@ -172,26 +173,34 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
       toast.error("No se pudo verificar la disponibilidad del slot");
       return;
     }
-    const slotOrder = formData.slot_order ?? 1;
-    const occupant = (dayGuests || []).find(
-      (g) => g.time_slot === Number(proposedHour) && (g.slot_order ?? 1) === slotOrder
-    );
-    if (occupant) {
-      const taken = new Set((dayGuests || []).filter((g) => (g.slot_order ?? 1) === 1).map((g) => g.time_slot));
-      const free = [1, 2, 3].filter((h) => !taken.has(h));
-      const hourLabels: Record<number, string> = { 1: "1ra", 2: "2da", 3: "3ra" };
-      const freeMsg = free.length
-        ? ` Horas libres: ${free.map((h) => hourLabels[h]).join(", ")}.`
-        : " No hay horas libres ese día (puedes usar co-invitado en 3ra hora).";
-      toast.error(`${hourLabels[Number(proposedHour)]} hora ya está ocupada por ${occupant.name}.${freeMsg}`);
-      return;
+    const hourNum = Number(proposedHour);
+    const inHour = (dayGuests || []).filter((g) => g.time_slot === hourNum);
+    const usedOrders = new Set(inHour.map((g) => g.slot_order ?? 1));
+    let slotOrder = formData.slot_order ?? 1;
+    const hourLabels: Record<number, string> = { 1: "1ra", 2: "2da", 3: "3ra" };
+    if (usedOrders.has(slotOrder)) {
+      const alt = slotOrder === 1 ? 2 : 1;
+      if (hourNum === 3 && !usedOrders.has(alt)) {
+        slotOrder = alt;
+        if (alt === 2) toast.info("Puesto principal ocupado: asignado como co-invitado en 3ra hora.");
+      } else {
+        const occupant = inHour[0];
+        const taken = new Set((dayGuests || []).filter((g) => (g.slot_order ?? 1) === 1).map((g) => g.time_slot));
+        const free = [1, 2, 3].filter((h) => !taken.has(h));
+        const freeMsg = free.length
+          ? ` Horas libres: ${free.map((h) => hourLabels[h]).join(", ")}.`
+          : " No hay horas libres ese día.";
+        toast.error(`${hourLabels[hourNum]} hora ya está ocupada por ${occupant?.name}.${freeMsg}`);
+        return;
+      }
     }
 
     setFormData({
       ...formData,
       week_date: weekDate,
       day_of_week: dayName,
-      time_slot: Number(proposedHour),
+      time_slot: hourNum,
+      slot_order: slotOrder,
     });
     setEmissionDate(targetDate);
     const hourLabel = proposedHour === "1" ? "1ra" : proposedHour === "2" ? "2da" : "3ra";
