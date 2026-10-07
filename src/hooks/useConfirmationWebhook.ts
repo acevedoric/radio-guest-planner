@@ -1,9 +1,17 @@
 import { toast } from "sonner";
 import { Guest } from "@/types/guest";
-import { WEBHOOK_URL_CONFIRMACION, buildGuestPayload, markSent, postWebhook, wasSent } from "@/lib/webhooks";
+import {
+  WEBHOOK_URL_AGENDAR,
+  buildCalendarPayload,
+  isThirdHourShared,
+  markSent,
+  postWebhook,
+  wasSent,
+} from "@/lib/webhooks";
 
 /**
- * Dispara el correo al PR cuando confirmed_blu y confirmed_pr quedan ambos en TRUE.
+ * Cuando confirmed_blu y confirmed_pr quedan ambos en TRUE, agenda automáticamente
+ * (mismo flujo que el botón "Agendar": Google Calendar + correo a PR e invitado).
  * Sólo se envía una vez por invitado (control en localStorage).
  */
 export async function maybeSendConfirmationEmail(
@@ -14,19 +22,15 @@ export async function maybeSendConfirmationEmail(
   const pr = changes.confirmed_pr ?? guest.confirmed_pr ?? false;
 
   if (!blu || !pr) return;
-  if (wasSent("confirmacion", guest.id)) return;
+  if (wasSent("agendar", guest.id)) return;
 
-  if (!guest.press_email) {
-    toast.warning("No hay email del PR registrado — correo no enviado.");
-    return;
-  }
-
-  const result = await postWebhook(WEBHOOK_URL_CONFIRMACION, buildGuestPayload(guest));
+  const shared = await isThirdHourShared(guest);
+  const result = await postWebhook(WEBHOOK_URL_AGENDAR, buildCalendarPayload(guest, shared));
 
   if (result.ok) {
-    markSent("confirmacion", guest.id);
-    toast.success(`Correo de confirmación enviado a ${guest.press_contact || guest.press_email}`);
+    markSent("agendar", guest.id);
+    toast.success(`Cita agendada y notificada para ${guest.name}`);
   } else {
-    toast.error(`No se pudo enviar el correo de confirmación: ${result.message}`);
+    toast.error(`No se pudo agendar automáticamente: ${result.message}`);
   }
 }
