@@ -16,7 +16,7 @@ import { AutocompleteInput } from "./AutocompleteInput";
 import { GuestDocuments } from "./GuestDocuments";
 import { useGuestAutocomplete } from "@/hooks/useGuestAutocomplete";
 import { supabase } from "@/integrations/supabase/client";
-import { WEBHOOK_URL_AGENDAR, buildCalendarPayload, markSent, postWebhook, wasSent } from "@/lib/webhooks";
+import { WEBHOOK_URL_AGENDAR, buildCalendarPayload, isThirdHourShared, markSent, postWebhook, wasSent } from "@/lib/webhooks";
 
 interface GuestDetailModalProps {
   guest: Guest | null;
