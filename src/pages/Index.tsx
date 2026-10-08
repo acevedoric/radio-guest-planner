@@ -883,6 +883,7 @@ const Index = () => {
           onDelete={handleDeleteGuest}
           readOnly={!editMode}
           isAdmin={isAdmin}
+          isProducer={isProducer}
         />
       </main>
     </div>;

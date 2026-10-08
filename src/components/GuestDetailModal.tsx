@@ -28,9 +28,10 @@ interface GuestDetailModalProps {
   onDelete?: (guestId: string) => void;
   readOnly?: boolean;
   isAdmin?: boolean;
+  isProducer?: boolean;
 }
 
-export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, readOnly = false, isAdmin = false }: GuestDetailModalProps) => {
+export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, readOnly = false, isAdmin = false, isProducer = false }: GuestDetailModalProps) => {
   const [formData, setFormData] = useState<Guest>({
     name: "",
     position: "",
@@ -59,7 +60,11 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
 
   const blacklist = useBlacklistCheck(formData.name);
   const blacklistOverridden = !!formData.blacklist_override_by;
-  const blacklistBlocking = blacklist.blocked && !blacklistOverridden;
+  // Un usuario sin rol producer/admin no ve motivo/categoría ni confirma si es
+  // la misma persona: cualquier coincidencia (exacta o aproximada) bloquea directo.
+  const canSeeBlacklistDetails = isAdmin || isProducer;
+  const blacklistBlocking =
+    !blacklistOverridden && (canSeeBlacklistDetails ? blacklist.blocked : !!blacklist.match);
 
   const [blacklistRules, setBlacklistRules] = useState<BlacklistRule[]>([]);
   useEffect(() => {
@@ -390,7 +395,19 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
             </div>
           </div>
 
-          {blacklist.pendingConfirmation && blacklist.match && (
+          {!canSeeBlacklistDetails && !!blacklist.match && !blacklistOverridden && (
+            <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm">
+              <div className="flex items-start gap-2">
+                <ShieldAlert className="h-4 w-4 shrink-0 text-destructive mt-0.5" />
+                <span>
+                  <strong>Invitado no disponible para agendar.</strong> Contacta a un productor o
+                  administrador.
+                </span>
+              </div>
+            </div>
+          )}
+
+          {canSeeBlacklistDetails && blacklist.pendingConfirmation && blacklist.match && (
             <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm space-y-2">
               <div className="flex items-start gap-2">
                 <ShieldAlert className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />
@@ -412,7 +429,7 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
             </div>
           )}
 
-          {blacklist.blocked && blacklist.match && (
+          {canSeeBlacklistDetails && blacklist.blocked && blacklist.match && (
             <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm space-y-2">
               <div className="flex items-start gap-2">
                 <ShieldAlert className="h-4 w-4 shrink-0 text-destructive mt-0.5" />
