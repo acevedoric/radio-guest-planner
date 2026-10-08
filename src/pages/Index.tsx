@@ -19,6 +19,7 @@ import { useUndoRedo } from "@/hooks/useUndoRedo";
 import { guestsReadFrom } from "@/lib/guestsSource";
 import { ImportExcelModal } from "@/components/ImportExcelModal";
 import { HistoricalSearchDialog } from "@/components/HistoricalSearchDialog";
+import { BlacklistManager } from "@/components/BlacklistManager";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -83,6 +84,7 @@ const Index = () => {
   }, [editMode]);
   const [allRecordingGuests, setAllRecordingGuests] = useState<Guest[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isProducer, setIsProducer] = useState(false);
   
   
   const refreshRef = useRef<() => void>(() => {});
@@ -150,11 +152,13 @@ const Index = () => {
 
 
 
-  // Check admin role
+  // Check admin / producer role
   useEffect(() => {
-    if (!session) { setIsAdmin(false); return; }
+    if (!session) { setIsAdmin(false); setIsProducer(false); return; }
     (supabase.rpc as any)("has_role", { _user_id: session.user.id, _role: "admin" })
       .then(({ data }: any) => setIsAdmin(!!data));
+    (supabase.rpc as any)("has_role", { _user_id: session.user.id, _role: "producer" })
+      .then(({ data }: any) => setIsProducer(!!data));
   }, [session]);
 
 
@@ -754,6 +758,7 @@ const Index = () => {
                     <Redo2 className="h-4 w-4" />
                   </Button>
                   {isAdmin && <ImportExcelModal onImported={refreshData} />}
+                  {(isAdmin || isProducer) && <BlacklistManager />}
                   <Button variant="ghost" size="sm" onClick={handleLogout}>
                     <LogOut className="h-4 w-4 mr-2" />
                     Salir
@@ -874,9 +879,10 @@ const Index = () => {
             setSelectedGuest(null);
             setNewGuestSlot(null);
           }} 
-          onSave={handleSaveGuest} 
+          onSave={handleSaveGuest}
           onDelete={handleDeleteGuest}
           readOnly={!editMode}
+          isAdmin={isAdmin}
         />
       </main>
     </div>;

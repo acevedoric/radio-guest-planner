@@ -19,7 +19,11 @@ export interface Guest {
   scheduled_time?: string | null;
   confirmed_blu?: boolean;
   confirmed_pr?: boolean;
-  
+
+  // Lista negra: registro de quién forzó el guardado pese a una coincidencia
+  blacklist_override_by?: string | null;
+  blacklist_override_at?: string | null;
+
   // Módulos de información (HORA 1)
   tema_principal?: string | null;
   tema_principal_documento_url?: string | null;

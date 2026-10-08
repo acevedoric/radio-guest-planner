@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trash2, Loader2 } from "lucide-react";
+import { Trash2, Loader2, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 import { Guest } from "@/types/guest";
 import { ContactLink } from "./ContactLink";
@@ -15,6 +15,7 @@ import { SocialNetworkLink, getSocialPlatformOptions } from "./SocialNetworkLink
 import { AutocompleteInput } from "./AutocompleteInput";
 import { GuestDocuments } from "./GuestDocuments";
 import { useGuestAutocomplete } from "@/hooks/useGuestAutocomplete";
+import { useBlacklistCheck } from "@/hooks/useBlacklistCheck";
 import { supabase } from "@/integrations/supabase/client";
 import { WEBHOOK_URL_AGENDAR, buildCalendarPayload, isThirdHourShared, markSent, postWebhook, wasSent } from "@/lib/webhooks";
 
@@ -25,9 +26,10 @@ interface GuestDetailModalProps {
   onSave: (guest: Guest) => Promise<boolean>;
   onDelete?: (guestId: string) => void;
   readOnly?: boolean;
+  isAdmin?: boolean;
 }
 
-export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, readOnly = false }: GuestDetailModalProps) => {
+export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, readOnly = false, isAdmin = false }: GuestDetailModalProps) => {
   const [formData, setFormData] = useState<Guest>({
     name: "",
     position: "",
@@ -54,10 +56,24 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
     setAgendado(wasSent("agendar", guest?.id));
   }, [guest?.id, isOpen]);
 
+  const blacklist = useBlacklistCheck(formData.name);
+  const blacklistOverridden = !!formData.blacklist_override_by;
+  const blacklistBlocking = blacklist.blocked && !blacklistOverridden;
+
+  const handleForceBlacklistOverride = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    setFormData((prev) => ({
+      ...prev,
+      blacklist_override_by: session?.user?.id || null,
+      blacklist_override_at: new Date().toISOString(),
+    }));
+    toast.success("Guardado forzado habilitado. Quedó registrado tu usuario.");
+  };
+
   const canAgendar =
-    formData.recording_status === "live"
+    (formData.recording_status === "live"
       ? Boolean(formData.week_date && formData.day_of_week && formData.time_slot)
-      : Boolean(formData.scheduled_date && formData.scheduled_time);
+      : Boolean(formData.scheduled_date && formData.scheduled_time)) && !blacklistBlocking;
 
   const handleAgendar = async () => {
     setAgendarLoading(true);
@@ -229,6 +245,13 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
       return;
     }
 
+    if (blacklistBlocking && ["live", "recorded"].includes(formData.recording_status)) {
+      toast.error(
+        "Este invitado está en la lista negra. Solo un administrador puede forzar el guardado como EN VIVO o GRABADO."
+      );
+      return;
+    }
+
 
     // Combinar todas las redes sociales
     const allSocialNetworks = {
@@ -355,6 +378,67 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
               />
             </div>
           </div>
+
+          {blacklist.pendingConfirmation && blacklist.match && (
+            <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm space-y-2">
+              <div className="flex items-start gap-2">
+                <ShieldAlert className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />
+                <span>
+                  Posible coincidencia con la lista negra: <strong>{blacklist.match.name}</strong>
+                  {blacklist.match.reason ? ` — ${blacklist.match.reason}` : ""}. ¿Es la misma persona?
+                </span>
+              </div>
+              {!readOnly && (
+                <div className="flex gap-2">
+                  <Button type="button" size="sm" variant="destructive" onClick={blacklist.confirm}>
+                    Sí, es la misma persona
+                  </Button>
+                  <Button type="button" size="sm" variant="outline" onClick={blacklist.dismiss}>
+                    No es la misma persona
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {blacklist.blocked && blacklist.match && (
+            <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm space-y-2">
+              <div className="flex items-start gap-2">
+                <ShieldAlert className="h-4 w-4 shrink-0 text-destructive mt-0.5" />
+                <span>
+                  <strong>Este invitado está en la lista negra.</strong>
+                  {blacklist.match.reason ? ` Motivo: ${blacklist.match.reason}` : ""}
+                  {blacklistOverridden
+                    ? " — Guardado forzado por un administrador."
+                    : " No se puede guardar como EN VIVO/GRABADO, agendar en Calendar ni enviar confirmación por correo."}
+                </span>
+              </div>
+              {!readOnly && !blacklistOverridden && isAdmin && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button type="button" size="sm" variant="outline">
+                      Forzar guardado (admin)
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>¿Forzar guardado pese a la lista negra?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Quedará registrado que tu usuario autorizó guardar a este invitado pese a la
+                        coincidencia con la lista negra.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleForceBlacklistOverride}>
+                        Sí, forzar guardado
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
