@@ -62,6 +62,54 @@ export type Database = {
         }
         Relationships: []
       }
+      blacklist: {
+        Row: {
+          category: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          name_normalized: string | null
+          reason: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          name_normalized?: string | null
+          reason?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          name_normalized?: string | null
+          reason?: string | null
+        }
+        Relationships: []
+      }
+      blacklist_rules: {
+        Row: {
+          created_at: string
+          id: string
+          text: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          text: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          text?: string
+        }
+        Relationships: []
+      }
       guest_documents: {
         Row: {
           file_name: string
@@ -156,6 +204,8 @@ export type Database = {
         Row: {
           avance_h2: string | null
           avance_h3: string | null
+          blacklist_override_at: string | null
+          blacklist_override_by: string | null
           carrera_profesional: string | null
           confirmed_blu: boolean
           confirmed_pr: boolean
@@ -220,6 +270,8 @@ export type Database = {
         Insert: {
           avance_h2?: string | null
           avance_h3?: string | null
+          blacklist_override_at?: string | null
+          blacklist_override_by?: string | null
           carrera_profesional?: string | null
           confirmed_blu?: boolean
           confirmed_pr?: boolean
@@ -284,6 +336,8 @@ export type Database = {
         Update: {
           avance_h2?: string | null
           avance_h3?: string | null
+          blacklist_override_at?: string | null
+          blacklist_override_by?: string | null
           carrera_profesional?: string | null
           confirmed_blu?: boolean
           confirmed_pr?: boolean
@@ -605,6 +659,16 @@ export type Database = {
           year: number
         }[]
       }
+      check_blacklist: {
+        Args: { p_name: string }
+        Returns: {
+          id: string
+          match_type: string
+          name: string
+          reason: string
+          similarity: number
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -613,6 +677,10 @@ export type Database = {
         Returns: boolean
       }
       is_email_allowed: { Args: { _email: string }; Returns: boolean }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
+      unaccent: { Args: { "": string }; Returns: string }
+      unaccent_immutable: { Args: { "": string }; Returns: string }
     }
     Enums: {
       app_role: "admin" | "producer" | "viewer"
