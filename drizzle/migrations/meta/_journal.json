@@ -15,6 +15,13 @@
       "when": 1791501525487,
       "tag": "0001_blacklist_import",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791501545875,
+      "tag": "0002_blacklist_category_rules",
+      "breakpoints": true
     }
   ]
 }

@@ -64,6 +64,7 @@ export type Database = {
       }
       blacklist: {
         Row: {
+          category: string | null
           created_at: string
           created_by: string | null
           id: string
@@ -72,6 +73,7 @@ export type Database = {
           reason: string | null
         }
         Insert: {
+          category?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
@@ -80,12 +82,31 @@ export type Database = {
           reason?: string | null
         }
         Update: {
+          category?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
           name?: string
           name_normalized?: string | null
           reason?: string | null
+        }
+        Relationships: []
+      }
+      blacklist_rules: {
+        Row: {
+          created_at: string
+          id: string
+          text: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          text: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          text?: string
         }
         Relationships: []
       }
