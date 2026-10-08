@@ -384,7 +384,7 @@ export const GuestInfoModules = ({ guest, editMode, onGuestUpdate, slot = 1 }: G
       {/* Documentos múltiples y enlaces de referencia (todas las horas) */}
       {guest.id && (
         <div className="mb-3 space-y-3 rounded-md border border-border/60 p-3">
-          <GuestDocuments guestId={guest.id} hour={slot} readOnly={!editMode} compact />
+          <GuestDocuments guestId={guest.id} guestName={guest.name} hour={slot} readOnly={!editMode} compact />
           <GuestUrls guestId={guest.id} hour={slot} readOnly={!editMode} compact />
         </div>
       )}

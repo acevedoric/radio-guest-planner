@@ -1,10 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FileText, FileAudio, Image as ImageIcon, Loader2, Plus, Trash2, Upload } from "lucide-react";
+import { ClipboardPaste, FileText, FileAudio, Image as ImageIcon, Loader2, Plus, Trash2, Upload } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,6 +35,8 @@ import {
 
 interface GuestDocumentsProps {
   guestId?: string | null;
+  /** Guest name, used as the default name when pasting text. */
+  guestName?: string | null;
   /** Fixed hour: hides the hour selector and only shows that hour's documents. */
   hour?: number | null;
   /** Default hour when the selector is shown. */
@@ -64,6 +75,21 @@ const formatSize = (bytes?: number | null) => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
+/** Convierte HTML pegado desde el portapapeles a texto plano, conservando párrafos. */
+const htmlToPlainText = (html: string): string => {
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  doc.querySelectorAll("br").forEach((br) => br.replaceWith("\n"));
+  doc.querySelectorAll("p, div, li, h1, h2, h3, h4, h5, h6, tr, blockquote").forEach((el) => {
+    el.append("\n\n");
+  });
+  const text = doc.body.textContent || "";
+  return text
+    .replace(/\r\n/g, "\n")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+};
+
 const MIME_BY_EXT: Record<string, string> = {
   pdf: "application/pdf",
   doc: "application/msword",
@@ -82,6 +108,7 @@ const MIME_BY_EXT: Record<string, string> = {
 
 export const GuestDocuments = ({
   guestId,
+  guestName,
   hour: fixedHour,
   defaultHour,
   readOnly = false,
@@ -95,7 +122,15 @@ export const GuestDocuments = ({
   const [dragOver, setDragOver] = useState(false);
   const [thumbs, setThumbs] = useState<Record<string, string>>({});
   const [pendingDelete, setPendingDelete] = useState<GuestDocumentRow | null>(null);
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const [pasteName, setPasteName] = useState("");
+  const [pasteText, setPasteText] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const defaultPasteName = useCallback(() => {
+    const date = format(new Date(), "dd/MM/yyyy");
+    return guestName ? `Comunicado ${guestName} ${date}` : `Comunicado ${date}`;
+  }, [guestName]);
 
   useEffect(() => {
     setHour(String(fixedHour || defaultHour || 1));
@@ -207,6 +242,34 @@ export const GuestDocuments = ({
     loadDocs();
   };
 
+  const openPasteModal = () => {
+    setPasteName(defaultPasteName());
+    setPasteText("");
+    setPasteOpen(true);
+  };
+
+  const handlePasteTextArea = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const html = e.clipboardData.getData("text/html");
+    if (!html) return; // texto plano: dejar el comportamiento nativo del textarea
+    e.preventDefault();
+    const plain = htmlToPlainText(html);
+    const target = e.currentTarget;
+    const { selectionStart, selectionEnd, value } = target;
+    setPasteText(value.slice(0, selectionStart) + plain + value.slice(selectionEnd));
+  };
+
+  const handleSavePastedText = async () => {
+    const text = pasteText.trim();
+    if (!text) {
+      toast.error("El texto no puede estar vacío");
+      return;
+    }
+    const baseName = (pasteName.trim() || defaultPasteName()).replace(/\.txt$/i, "");
+    const file = new File([text], `${baseName}.txt`, { type: "text/plain;charset=utf-8" });
+    setPasteOpen(false);
+    await uploadFiles([file]);
+  };
+
   const handleOpen = async (doc: GuestDocumentRow) => {
     try {
       const signed = await getSignedDocumentUrl(doc.file_url);
@@ -303,6 +366,20 @@ export const GuestDocuments = ({
                 </SelectContent>
               </Select>
             </>
+          )}
+          {!readOnly && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-8"
+              onClick={openPasteModal}
+              disabled={uploading}
+              title="Pegar texto"
+            >
+              <ClipboardPaste className="h-4 w-4" />
+              {!compact && <span className="ml-1">Pegar texto</span>}
+            </Button>
           )}
           {!readOnly && (
             <Button
@@ -427,6 +504,44 @@ export const GuestDocuments = ({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={pasteOpen} onOpenChange={setPasteOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Pegar texto</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label htmlFor="paste-doc-name">Nombre</Label>
+              <Input
+                id="paste-doc-name"
+                value={pasteName}
+                onChange={(e) => setPasteName(e.target.value)}
+                placeholder={defaultPasteName()}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="paste-doc-text">Texto</Label>
+              <Textarea
+                id="paste-doc-text"
+                value={pasteText}
+                onChange={(e) => setPasteText(e.target.value)}
+                onPaste={handlePasteTextArea}
+                rows={14}
+                placeholder="Pega aquí el comunicado..."
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setPasteOpen(false)}>
+              Cancelar
+            </Button>
+            <Button type="button" onClick={handleSavePastedText} disabled={uploading || !pasteText.trim()}>
+              Guardar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

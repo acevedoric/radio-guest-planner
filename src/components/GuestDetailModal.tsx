@@ -700,6 +700,7 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
           <div className="border-t pt-4">
             <GuestDocuments
               guestId={guest?.id}
+              guestName={formData.name}
               defaultHour={formData.time_slot || 1}
               readOnly={readOnly}
             />
