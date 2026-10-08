@@ -8,10 +8,19 @@ export interface BlacklistMatch {
   similarity: number;
 }
 
+export type BlacklistCategory = "actores" | "coaches_influencers_periodistas" | "comediantes";
+
+export const BLACKLIST_CATEGORY_LABEL: Record<BlacklistCategory, string> = {
+  actores: "Actores",
+  coaches_influencers_periodistas: "Coaches / influencers / periodistas",
+  comediantes: "Comediantes",
+};
+
 export interface BlacklistRow {
   id: string;
   name: string;
   reason: string | null;
+  category: BlacklistCategory | null;
   created_at: string;
   created_by: string | null;
 }
@@ -34,11 +43,12 @@ export async function fetchBlacklist(): Promise<BlacklistRow[]> {
   return (data || []) as BlacklistRow[];
 }
 
-export async function addToBlacklist(name: string, reason: string | null) {
+export async function addToBlacklist(name: string, reason: string | null, category: BlacklistCategory | null = null) {
   const { data: { session } } = await supabase.auth.getSession();
   const { error } = await (supabase as any).from("blacklist").insert({
     name: name.trim(),
     reason: reason?.trim() || null,
+    category,
     created_by: session?.user?.id ?? null,
   });
   if (error) throw error;

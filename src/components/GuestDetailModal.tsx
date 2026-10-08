@@ -16,6 +16,7 @@ import { AutocompleteInput } from "./AutocompleteInput";
 import { GuestDocuments } from "./GuestDocuments";
 import { useGuestAutocomplete } from "@/hooks/useGuestAutocomplete";
 import { useBlacklistCheck } from "@/hooks/useBlacklistCheck";
+import { fetchBlacklistRules, BlacklistRule } from "@/lib/blacklistRules";
 import { supabase } from "@/integrations/supabase/client";
 import { WEBHOOK_URL_AGENDAR, buildCalendarPayload, isThirdHourShared, markSent, postWebhook, wasSent } from "@/lib/webhooks";
 
@@ -59,6 +60,16 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
   const blacklist = useBlacklistCheck(formData.name);
   const blacklistOverridden = !!formData.blacklist_override_by;
   const blacklistBlocking = blacklist.blocked && !blacklistOverridden;
+
+  const [blacklistRules, setBlacklistRules] = useState<BlacklistRule[]>([]);
+  useEffect(() => {
+    fetchBlacklistRules()
+      .then(setBlacklistRules)
+      .catch((error) => console.error("Error loading blacklist rules:", error));
+  }, []);
+  const mentionsCasaDeLosFamosos = /casa de los famosos/i.test(
+    `${formData.position || ""} ${formData.topic || ""}`
+  );
 
   const handleForceBlacklistOverride = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -591,6 +602,19 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
               disabled={readOnly}
             />
           </div>
+
+          {mentionsCasaDeLosFamosos && blacklistRules.length > 0 && (
+            <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm space-y-1">
+              <div className="flex items-start gap-2">
+                <ShieldAlert className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />
+                <div className="space-y-1">
+                  {blacklistRules.map((rule) => (
+                    <p key={rule.id}>{rule.text}</p>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="guest_email">Correo del Invitado</Label>
