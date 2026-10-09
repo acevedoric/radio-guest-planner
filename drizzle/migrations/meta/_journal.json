@@ -85,6 +85,13 @@
       "when": 1791559425005,
       "tag": "0011_fix_buscar_invitados_rank_ambiguous_and_role_gate",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1791560380928,
+      "tag": "0012_hide_research_anon_revoke_writes",
+      "breakpoints": true
     }
   ]
 }
