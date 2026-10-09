@@ -564,6 +564,7 @@ export type Database = {
           guest_name_normalized: string | null
           hour_number: number | null
           id: string
+          prensa_raw: string | null
           source_file: string | null
           tema: string | null
           year: number | null
@@ -577,6 +578,7 @@ export type Database = {
           guest_name_normalized?: string | null
           hour_number?: number | null
           id?: string
+          prensa_raw?: string | null
           source_file?: string | null
           tema?: string | null
           year?: number | null
@@ -590,6 +592,7 @@ export type Database = {
           guest_name_normalized?: string | null
           hour_number?: number | null
           id?: string
+          prensa_raw?: string | null
           source_file?: string | null
           tema?: string | null
           year?: number | null
@@ -613,6 +616,8 @@ export type Database = {
       }
       libretos_chunks: {
         Row: {
+          conflicto: boolean
+          conflicto_nota: string | null
           content: string
           created_at: string
           day_of_week: string | null
@@ -626,6 +631,8 @@ export type Database = {
           year: number | null
         }
         Insert: {
+          conflicto?: boolean
+          conflicto_nota?: string | null
           content: string
           created_at?: string
           day_of_week?: string | null
@@ -639,6 +646,8 @@ export type Database = {
           year?: number | null
         }
         Update: {
+          conflicto?: boolean
+          conflicto_nota?: string | null
           content?: string
           created_at?: string
           day_of_week?: string | null
