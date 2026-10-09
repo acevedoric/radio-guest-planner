@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Script local de importación del histórico BBB (lee archivos fuera del repo,
+# nunca debe subirse: no queremos libretos/promos/calendarios en GitHub).
+/bbb-ingest
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.get-libreto]
 verify_jwt = false
+
+[functions.ingest-libreto]
+verify_jwt = false
