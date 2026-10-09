@@ -99,6 +99,13 @@
       "when": 1791569006678,
       "tag": "0013_historico_cargo_grabado_con_anticipacion",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1791569224064,
+      "tag": "0014_20261009040000_guests_anon_hide_internal_notes",
+      "breakpoints": true
     }
   ]
 }
