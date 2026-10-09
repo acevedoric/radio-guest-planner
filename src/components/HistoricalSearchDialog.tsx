@@ -23,12 +23,13 @@ interface HistoricalResult {
 interface AppGuestResult {
   id: string;
   name: string | null;
-  position: string | null;
+  guest_position: string | null;
   topic: string | null;
   day_of_week: string | null;
   time_slot: number | null;
   week_date: string | null;
   scheduled_date: string | null;
+  tier: number | null;
   rank: number | null;
 }
 
@@ -81,7 +82,7 @@ export const HistoricalSearchDialog = ({ onGuestClick }: HistoricalSearchDialogP
     if (q.length < 2) return;
     setLoading(true);
     const [appRes, histRes] = await Promise.all([
-      (supabase as any).rpc("buscar_invitados_app", { query_text: q, max_results: 10 }),
+      (supabase as any).rpc("buscar_invitados_rank", { query_text: q, max_results: 10 }),
       (supabase as any).rpc("buscar_invitado", { query_text: q, max_results: 10 }),
     ]);
     setLoading(false);
@@ -167,9 +168,9 @@ export const HistoricalSearchDialog = ({ onGuestClick }: HistoricalSearchDialogP
                             .join(" · ")}
                         </div>
                       </div>
-                      {(r.position || r.topic) && (
+                      {(r.guest_position || r.topic) && (
                         <p className="text-xs text-muted-foreground truncate">
-                          {[r.position, r.topic].filter(Boolean).join(" — ")}
+                          {[r.guest_position, r.topic].filter(Boolean).join(" — ")}
                         </p>
                       )}
                       {opening === r.id && <Loader2 className="h-3.5 w-3.5 animate-spin" />}

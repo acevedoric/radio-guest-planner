@@ -322,7 +322,7 @@ export const FilterBar = ({
                     <span className="text-xs font-semibold uppercase tracking-wide text-primary">Invitados</span>
                     <span className="text-xs text-muted-foreground">({globalSearchResults.guests.length})</span>
                   </div>
-                  {globalSearchResults.guests.slice(0, 4).map((guest) => {
+                  {globalSearchResults.guests.slice(0, 5).map((guest) => {
                     const weekDate = guest.week_date ? new Date(guest.week_date + 'T12:00:00') : null;
                     const dateLabel = weekDate ? format(weekDate, "d 'de' MMMM yyyy", { locale: es }) : "Sin fecha";
                     return (

@@ -589,16 +589,8 @@ const Index = () => {
     }
     setIsSearching(true);
 
-    const readFrom = guestsReadFrom(session);
-    const guestOr = session
-      ? `name.ilike.%${query}%,topic.ilike.%${query}%,position.ilike.%${query}%,notes.ilike.%${query}%,program_type.ilike.%${query}%,tema_principal.ilike.%${query}%`
-      : `name.ilike.%${query}%,topic.ilike.%${query}%,position.ilike.%${query}%,program_type.ilike.%${query}%,tema_principal.ilike.%${query}%`;
-    const [guestsRes, pressRes] = await Promise.all([
-      (supabase as any)
-        .from(readFrom)
-        .select('*')
-        .or(guestOr)
-        .limit(20),
+    const [rankRes, pressRes] = await Promise.all([
+      (supabase.rpc as any)("buscar_invitados_rank", { query_text: query, max_results: 20 }),
       session
         ? supabase
             .from('guests')
@@ -609,8 +601,22 @@ const Index = () => {
     ]);
 
     setIsSearching(false);
+    if (rankRes.error) console.error("Error en búsqueda unificada de invitados:", rankRes.error);
+
+    const rankedGuests: Guest[] = ((rankRes.data || []) as any[]).map((r) => ({
+      id: r.id,
+      name: r.name,
+      position: r.guest_position,
+      topic: r.topic,
+      recording_status: r.recording_status,
+      day_of_week: r.day_of_week,
+      time_slot: r.time_slot,
+      week_date: r.week_date,
+      scheduled_date: r.scheduled_date,
+    }));
+
     setGlobalSearchResults({
-      guests: (guestsRes.data || []) as Guest[],
+      guests: rankedGuests,
       press: (pressRes.data || []) as Guest[],
     });
   }, [session]);
@@ -622,10 +628,23 @@ const Index = () => {
     fetchProposedGuests();
   };
 
-  const handleGlobalResultClick = (guest: Guest) => {
+  const handleGlobalResultClick = async (guest: Guest) => {
+    // El resultado de búsqueda puede venir parcial (buscar_invitados_rank no
+    // trae todas las columnas): se recarga el invitado completo antes de
+    // abrir el modal para no arriesgar perder datos al guardar.
+    let fullGuest = guest;
+    if (guest.id) {
+      const { data } = await (supabase as any)
+        .from(guestsReadFrom(session))
+        .select('*')
+        .eq('id', guest.id)
+        .maybeSingle();
+      if (data) fullGuest = data as Guest;
+    }
+
     // Si no tiene fecha asignada, abrir directamente el modal sin navegar
-    if (!guest.week_date || !guest.day_of_week) {
-      setSelectedGuest(guest);
+    if (!fullGuest.week_date || !fullGuest.day_of_week) {
+      setSelectedGuest(fullGuest);
       setNewGuestSlot(null);
       setIsModalOpen(true);
       setSearchQuery("");
@@ -634,7 +653,7 @@ const Index = () => {
     }
 
     // Navegar a la semana/día del invitado
-    const weekDate = new Date(guest.week_date + 'T12:00:00');
+    const weekDate = new Date(fullGuest.week_date + 'T12:00:00');
     const weekStart = startOfWeek(weekDate, { weekStartsOn: 1 });
     setSelectedWeek(weekStart);
 
@@ -644,13 +663,13 @@ const Index = () => {
       wednesday: "wednesday",
       thursday: "thursday",
     };
-    if (dayMap[guest.day_of_week]) {
-      setSelectedDay(guest.day_of_week);
+    if (dayMap[fullGuest.day_of_week]) {
+      setSelectedDay(fullGuest.day_of_week);
     }
     setViewMode("day");
 
     // Abrir el modal con ese invitado
-    setSelectedGuest(guest);
+    setSelectedGuest(fullGuest);
     setNewGuestSlot(null);
     setIsModalOpen(true);
 

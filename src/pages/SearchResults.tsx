@@ -66,15 +66,8 @@ const SearchResults = () => {
     const fetchResults = async () => {
       setLoading(true);
 
-      const [guestsRes, pressRes] = await Promise.all([
-        supabase
-          .from("guests")
-          .select("*")
-          .or(
-            `name.ilike.%${query}%,topic.ilike.%${query}%,position.ilike.%${query}%,notes.ilike.%${query}%,program_type.ilike.%${query}%,tema_principal.ilike.%${query}%`
-          )
-          .order("week_date", { ascending: false })
-          .limit(100),
+      const [rankRes, pressRes] = await Promise.all([
+        (supabase.rpc as any)("buscar_invitados_rank", { query_text: query, max_results: 100 }),
         supabase
           .from("guests")
           .select("*")
@@ -83,7 +76,22 @@ const SearchResults = () => {
           .limit(100),
       ]);
 
-      if (!guestsRes.error && guestsRes.data) setGuestResults(guestsRes.data as Guest[]);
+      if (rankRes.error) console.error("Error en búsqueda unificada de invitados:", rankRes.error);
+      else {
+        // Mismo orden de relevancia que el desplegable: no reordenar aquí.
+        const rankedGuests: Guest[] = ((rankRes.data || []) as any[]).map((r) => ({
+          id: r.id,
+          name: r.name,
+          position: r.guest_position,
+          topic: r.topic,
+          recording_status: r.recording_status,
+          day_of_week: r.day_of_week,
+          time_slot: r.time_slot,
+          week_date: r.week_date,
+          scheduled_date: r.scheduled_date,
+        }));
+        setGuestResults(rankedGuests);
+      }
       if (!pressRes.error && pressRes.data) setPressResults(pressRes.data as Guest[]);
       setLoading(false);
     };
