@@ -659,6 +659,22 @@ export type Database = {
           year: number
         }[]
       }
+      buscar_invitados_rank: {
+        Args: { max_results?: number; query_text: string }
+        Returns: {
+          day_of_week: string
+          guest_position: string
+          id: string
+          name: string
+          rank: number
+          recording_status: string
+          scheduled_date: string
+          tier: number
+          time_slot: number
+          topic: string
+          week_date: string
+        }[]
+      }
       check_blacklist: {
         Args: { p_name: string }
         Returns: {

@@ -29,6 +29,20 @@
       "when": 1791506985991,
       "tag": "0003_blacklist_privacy",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791513314654,
+      "tag": "0004_buscar_invitados_rank",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791513332536,
+      "tag": "0005_buscar_invitados_rank_permisos",
+      "breakpoints": true
     }
   ]
 }
