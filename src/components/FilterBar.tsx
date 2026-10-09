@@ -31,14 +31,24 @@ interface FilterBarProps {
   onGlobalResultClick: (guest: Guest) => void;
 }
 
-const isQuestion = (text: string): boolean => {
+export const isQuestion = (text: string): boolean => {
   const t = text.trim().toLowerCase();
   return /^[¿?]/.test(t) ||
     /\?$/.test(t) ||
     /^(cuándo|cuando|hace cuánto|hace cuanto|quién|quien|cuántos|cuantos|último|ultima|alguna vez|primera vez|por qué|porque|dime|cuál|cual|cómo|como|qué|que tan)/i.test(t);
 };
 
-const AiAnswerWithLinks = ({ text, onNavigate }: { text: string; onNavigate: (weekDate: string, dayOfWeek: string) => void }) => {
+/** Negrita **texto** -> <strong>, dentro de un segmento de texto plano (ya
+ * separado de los enlaces [[...]] por AiAnswerWithLinks). */
+const renderBold = (text: string, keyPrefix: string) => {
+  const segments = text.split(/(\*\*.+?\*\*)/g);
+  return segments.map((seg, i) => {
+    const m = seg.match(/^\*\*(.+?)\*\*$/);
+    return m ? <strong key={`${keyPrefix}-${i}`}>{m[1]}</strong> : <span key={`${keyPrefix}-${i}`}>{seg}</span>;
+  });
+};
+
+export const AiAnswerWithLinks = ({ text, onNavigate }: { text: string; onNavigate: (weekDate: string, dayOfWeek: string) => void }) => {
   const dayLabelsMap: Record<string, string> = {
     monday: "lunes", tuesday: "martes", wednesday: "miércoles", thursday: "jueves",
   };
@@ -64,7 +74,7 @@ const AiAnswerWithLinks = ({ text, onNavigate }: { text: string; onNavigate: (we
             </button>
           );
         }
-        return <span key={i}>{part}</span>;
+        return <span key={i}>{renderBold(part, `b${i}`)}</span>;
       })}
     </p>
   );
@@ -203,6 +213,28 @@ export const FilterBar = ({
     return day.charAt(0).toUpperCase() + day.slice(1);
   };
 
+  const SPANISH_DAY_OFFSET: Record<string, number> = { lunes: 0, martes: 1, "miércoles": 2, jueves: 3 };
+
+  /** Fecha real de emisión: week_date es el LUNES de la semana, no el día
+   * que emitió — hay que sumarle el desplazamiento del día (antes se
+   * mostraba week_date tal cual con la etiqueta del día real, lo que daba
+   * fechas que no correspondían, p.ej. "Jueves · 19 de febrero" cuando en
+   * realidad fue el 22). Para historico/libreto no hay week_date (ya viene
+   * la fecha real en scheduled_date), así que no se desplaza. */
+  const resolveResultDate = (guest: any): Date | null => {
+    if (guest.week_date) {
+      const monday = new Date(guest.week_date + "T12:00:00");
+      const offset = SPANISH_DAY_OFFSET[guest.day_of_week as string];
+      if (offset !== undefined) {
+        monday.setDate(monday.getDate() + offset);
+        return monday;
+      }
+      return monday;
+    }
+    if (guest.scheduled_date) return new Date(guest.scheduled_date + "T12:00:00");
+    return null;
+  };
+
   const hasResults = (globalSearchResults?.guests?.length || 0) > 0 || (globalSearchResults?.press?.length || 0) > 0;
 
   const SOURCE_GROUPS: { key: "app" | "historico" | "libreto"; label: string }[] = [
@@ -210,11 +242,32 @@ export const FilterBar = ({
     { key: "historico", label: "Histórico" },
     { key: "libreto", label: "Libreto" },
   ];
+  // Deduplicación: una fila "historico" que ya está enlazada a un guest
+  // (guest_id) no se muestra aparte si ese mismo guest ya aparece en la
+  // Agenda — se le agrega una etiqueta "+ histórico" a la fila de Agenda
+  // en su lugar (requiere que buscar_invitados_rank devuelva guest_id en
+  // las filas de histórico; si no lo trae, simplemente no hay nada que
+  // deduplicar y se muestran ambas).
+  const appIds = new Set(globalSearchResults.guests.filter((g) => ((g as any).source || "app") === "app").map((g) => g.id));
+  const linkedHistoricoIds = new Set(
+    globalSearchResults.guests
+      .filter((g) => (g as any).source === "historico" && (g as any).guest_id && appIds.has((g as any).guest_id))
+      .map((g) => (g as any).guest_id)
+  );
+
   const guestsBySource = SOURCE_GROUPS.map(({ key, label }) => ({
     key,
     label,
-    items: globalSearchResults.guests.filter((g) => ((g as any).source || "app") === key),
+    items: globalSearchResults.guests.filter((g) => {
+      const source = (g as any).source || "app";
+      if (source !== key) return false;
+      if (source === "historico" && (g as any).guest_id && appIds.has((g as any).guest_id)) return false;
+      return true;
+    }),
   })).filter((group) => group.items.length > 0);
+
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+  const PAGE_SIZE = 5;
 
   return (
     <div className="space-y-4">
@@ -335,23 +388,22 @@ export const FilterBar = ({
               )}
 
               {/* Secciones de INVITADOS agrupadas por fuente: Agenda / Histórico / Libreto */}
-              {guestsBySource.map(({ key: source, label, items }) => (
+              {guestsBySource.map(({ key: source, label, items }) => {
+                const expanded = !!expandedGroups[source];
+                const visibleItems = expanded ? items : items.slice(0, PAGE_SIZE);
+                return (
                 <div key={source}>
                   <div className="px-4 py-2 bg-muted/50 border-b border-border flex items-center gap-2">
                     <User className="w-3.5 h-3.5 text-primary" />
                     <span className="text-xs font-semibold uppercase tracking-wide text-primary">{label}</span>
                     <span className="text-xs text-muted-foreground">({items.length})</span>
                   </div>
-                  {items.slice(0, 5).map((guest) => {
-                    const weekDate = guest.week_date ? new Date(guest.week_date + 'T12:00:00') : null;
-                    const scheduledDate = (guest as any).scheduled_date ? new Date((guest as any).scheduled_date + 'T12:00:00') : null;
-                    const dateLabel = weekDate
-                      ? format(weekDate, "d 'de' MMMM yyyy", { locale: es })
-                      : scheduledDate
-                      ? format(scheduledDate, "d 'de' MMMM yyyy", { locale: es })
-                      : "Sin fecha";
+                  {visibleItems.map((guest) => {
+                    const resultDate = resolveResultDate(guest);
+                    const dateLabel = resultDate ? format(resultDate, "d 'de' MMMM yyyy", { locale: es }) : "Sin fecha";
                     const snippet = (guest as any).snippet as string | null | undefined;
                     const clickable = source === "app";
+                    const hasHistorico = source === "app" && linkedHistoricoIds.has(guest.id);
                     const body = (
                       <>
                         <CalendarDays className="w-4 h-4 mt-0.5 text-primary shrink-0" />
@@ -359,6 +411,9 @@ export const FilterBar = ({
                           <div className="font-medium text-sm truncate flex items-center gap-1.5">
                             {guest.name}
                             {guest.position && <span className="text-muted-foreground font-normal"> · {guest.position}</span>}
+                            {hasHistorico && (
+                              <span className="text-[10px] px-1 py-0.5 rounded bg-amber-500/10 text-amber-700 shrink-0">+ histórico</span>
+                            )}
                           </div>
                           <div className="text-xs text-muted-foreground truncate">{snippet || guest.topic}</div>
                           <div className="text-xs text-primary mt-0.5">
@@ -386,8 +441,18 @@ export const FilterBar = ({
                       </div>
                     );
                   })}
+                  {items.length > PAGE_SIZE && (
+                    <button
+                      type="button"
+                      className="w-full text-center px-4 py-2 text-xs font-medium text-primary hover:bg-accent transition-colors border-b border-border"
+                      onClick={() => setExpandedGroups((prev) => ({ ...prev, [source]: !expanded }))}
+                    >
+                      {expanded ? "Ver menos" : `Ver más (${items.length - PAGE_SIZE} más)`}
+                    </button>
+                  )}
                 </div>
-              ))}
+                );
+              })}
 
               {/* Sección PRENSA */}
               {globalSearchResults.press.length > 0 && (

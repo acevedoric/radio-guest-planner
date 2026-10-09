@@ -590,7 +590,7 @@ const Index = () => {
     setIsSearching(true);
 
     const [rankRes, pressRes] = await Promise.all([
-      (supabase.rpc as any)("buscar_invitados_rank", { query_text: query, max_results: 20 }),
+      (supabase.rpc as any)("buscar_invitados_rank", { query_text: query, max_results: 60 }),
       session
         ? supabase
             .from('guests')

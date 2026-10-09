@@ -44,30 +44,58 @@ function emissionDateFromWeek(weekDate: string | null, dayOfWeek: string | null)
 }
 
 /**
- * Enlaza un invitado histórico con un guest existente: nombre normalizado
- * (sin tildes/mayúsculas) exacto + fecha de emisión (o scheduled_date)
- * coincidente. Sin fecha no enlaza (evita falsos positivos por homónimos).
+ * Enlaza un invitado histórico con un guest existente. Dos reglas, en este
+ * orden (la primera que encuentre algo gana):
+ * 1. Nombre normalizado (sin tildes/mayúsculas) EXACTO + fecha de emisión
+ *    (o scheduled_date) coincidente.
+ * 2. Nombre normalizado CONTENIDO uno dentro del otro (en cualquier
+ *    dirección, p.ej. "Ezequiel López" ⊂ "Ezequiel López Peralta") +
+ *    fecha Y hora coincidentes (hour_number == time_slot) — la hora se
+ *    exige aquí porque el match ya no es exacto, para no enlazar
+ *    homónimos/coincidencias parciales por casualidad. El nombre más
+ *    corto de los dos debe tener al menos 2 palabras (evita que un solo
+ *    nombre de pila común enganche a cualquiera que lo contenga).
+ * Sin fecha no enlaza en ningún caso (evita falsos positivos).
  */
 async function findGuest(
   // deno-lint-ignore no-explicit-any
   supabase: any,
   name: string | null | undefined,
-  fecha: string | null | undefined
-): Promise<{ id: string; name: string } | null> {
+  fecha: string | null | undefined,
+  hourNumber: number | null | undefined
+): Promise<{ id: string; name: string; method: "exact" | "contains" } | null> {
   if (!name || !fecha) return null;
   const firstWord = name.trim().split(/\s+/)[0];
   if (!firstWord) return null;
   const { data } = await supabase
     .from("guests")
-    .select("id, name, week_date, day_of_week, scheduled_date")
+    .select("id, name, week_date, day_of_week, scheduled_date, time_slot")
     .ilike("name", `%${firstWord}%`)
     .limit(50);
   if (!data) return null;
   const target = normalizeName(name);
-  for (const g of data) {
-    if (normalizeName(g.name) !== target) continue;
+
+  const dateMatches = (g: any): boolean => {
     const emission = emissionDateFromWeek(g.week_date, g.day_of_week);
-    if (emission === fecha || g.scheduled_date === fecha) return { id: g.id, name: g.name };
+    return emission === fecha || g.scheduled_date === fecha;
+  };
+
+  for (const g of data) {
+    if (normalizeName(g.name) === target && dateMatches(g)) {
+      return { id: g.id, name: g.name, method: "exact" };
+    }
+  }
+
+  if (hourNumber != null) {
+    for (const g of data) {
+      const gNorm = normalizeName(g.name);
+      const shorter = gNorm.length <= target.length ? gNorm : target;
+      if (shorter.trim().split(/\s+/).length < 2) continue;
+      const contains = target.includes(gNorm) || gNorm.includes(target);
+      if (contains && dateMatches(g) && g.time_slot === hourNumber) {
+        return { id: g.id, name: g.name, method: "contains" };
+      }
+    }
   }
   return null;
 }
@@ -143,7 +171,7 @@ const DELETABLE_KINDS = ["invitados_historicos", "libretos_chunks", "canciones_u
 const PayloadSchema = z.object({
   kind: z.enum(["invitados_historicos", "libretos_chunks", "canciones", "canciones_uso", "cancion_segmento"]),
   source_file: z.string().min(1).max(300).optional(),
-  mode: z.enum(["replace", "append", "delete"]).default("replace"),
+  mode: z.enum(["replace", "append", "delete", "relink_check"]).default("replace"),
   // rows no es obligatorio en mode="delete" (solo borra, no inserta nada).
   rows: z.array(z.record(z.unknown())).max(2000).default([]),
 });
@@ -197,6 +225,40 @@ Deno.serve(async (req) => {
       return json({ ok: true, kind, mode: "delete", source_file, deleted: count ?? 0 });
     }
 
+    // Solo lectura: calcula qué filas enlazarían con guests (findGuest, con
+    // la nueva regla de nombre contenido + fecha/hora) SIN insertar ni
+    // modificar nada — para medir el impacto de un cambio de regla de
+    // enlace antes de decidir recargar.
+    if (mode === "relink_check") {
+      if (kind !== "invitados_historicos") {
+        return json({ error: "mode=relink_check solo soportado para kind=invitados_historicos" }, 400);
+      }
+      const linkedDetails: { historico_name: string; guest_name: string; guest_id: string; fecha: string | null | undefined; method: string }[] = [];
+      const relinkErrors: string[] = [];
+      for (const [i, row] of rows.entries()) {
+        const r = InvitadoHistoricoRow.safeParse(row);
+        if (!r.success) {
+          relinkErrors.push(`row ${i}: ${JSON.stringify(r.error.issues)}`);
+          continue;
+        }
+        const match = await findGuest(supabase, r.data.guest_name, r.data.fecha, r.data.hour_number);
+        if (match) {
+          linkedDetails.push({ historico_name: r.data.guest_name, guest_name: match.name, guest_id: match.id, fecha: r.data.fecha, method: match.method });
+        }
+      }
+      return json({
+        ok: true,
+        kind,
+        mode: "relink_check",
+        total: rows.length,
+        linked: linkedDetails.length,
+        linked_exact: linkedDetails.filter((l) => l.method === "exact").length,
+        linked_contains: linkedDetails.filter((l) => l.method === "contains").length,
+        linked_details: linkedDetails,
+        errors: relinkErrors.slice(0, 20),
+      });
+    }
+
     if (rows.length === 0) {
       return json({ error: "rows requerido (min 1) salvo en mode=delete" }, 400);
     }
@@ -213,7 +275,7 @@ Deno.serve(async (req) => {
       const schema = kind === "invitados_historicos" ? InvitadoHistoricoRow : LibretoChunkRow;
       const validRows: Record<string, unknown>[] = [];
       let linked = 0;
-      const linkedDetails: { historico_name: string; guest_name: string; guest_id: string; fecha: string | null | undefined }[] = [];
+      const linkedDetails: { historico_name: string; guest_name: string; guest_id: string; fecha: string | null | undefined; method: string }[] = [];
       for (const [i, row] of rows.entries()) {
         const r = schema.safeParse(row);
         if (!r.success) {
@@ -223,11 +285,11 @@ Deno.serve(async (req) => {
         const built: Record<string, unknown> = { ...r.data, source_file: source_file ?? null };
         if (kind === "invitados_historicos") {
           const data = r.data as z.infer<typeof InvitadoHistoricoRow>;
-          const match = await findGuest(supabase, data.guest_name, data.fecha);
+          const match = await findGuest(supabase, data.guest_name, data.fecha, data.hour_number);
           built.guest_id = match?.id ?? null;
           if (match) {
             linked++;
-            linkedDetails.push({ historico_name: data.guest_name, guest_name: match.name, guest_id: match.id, fecha: data.fecha });
+            linkedDetails.push({ historico_name: data.guest_name, guest_name: match.name, guest_id: match.id, fecha: data.fecha, method: match.method });
           }
         } else if (kind === "libretos_chunks") {
           // guest_name es NOT NULL en la tabla; algunos bloques (sin línea

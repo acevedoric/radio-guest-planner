@@ -46,6 +46,7 @@ const MONTHS: Record<string, number> = {
 // sin traducir a inglés.
 const SPANISH_DAYS = new Set(["lunes", "martes", "miércoles", "miercoles", "jueves"]);
 const CUANTO_RE = /\bcu[áa]nt[oa]s?\b/i;
+const RANKING_RE = /\b(m[áa]s veces|m[áa]s frecuente|qui[ée]n(?:\s+ha)?\s+(?:venido|estado|aparecido)\s+m[áa]s|con m[áa]s apariciones|ranking)\b/i;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -142,6 +143,11 @@ serve(async (req) => {
     }
     let results = Array.from(resultMap.values());
 
+    // Dedup: histórico ya enlazado a un guest que también aparece en la
+    // agenda no se cuenta/muestra aparte (misma persona).
+    const appIds = new Set(results.filter((r) => r.source === "app").map((r) => r.id));
+    results = results.filter((r) => !(r.source === "historico" && r.guest_id && appIds.has(r.guest_id)));
+
     if (dateRange) {
       results = results.filter((r) => {
         const d = r.scheduled_date || r.week_date;
@@ -159,7 +165,11 @@ serve(async (req) => {
     // palabra clave (eso sí podría inducir a "contar desde chunks").
 
     // --- Herramienta 2: contar_invitados (única fuente para cantidades) ---
-    let officialCount: { total: number; apariciones: any[] } | null = null;
+    // apariciones ahora es UNA FILA POR PERSONA ({nombre, fechas: [...]}),
+    // por lo que total siempre es exactamente igual a la cantidad de
+    // elementos de apariciones — no puede haber más nombres listados que
+    // el total, ni menos.
+    let officialCount: { total: number; apariciones: { nombre: string; fechas: string[] }[] } | null = null;
     if (isQuantityQuestion) {
       const term = keywords.join(" ") || question;
       const { data, error } = await userClient.rpc("contar_invitados", {
@@ -170,6 +180,17 @@ serve(async (req) => {
       if (!error && data && data[0]) {
         officialCount = { total: data[0].total, apariciones: data[0].apariciones || [] };
       }
+    }
+
+    // --- Herramienta 4: ranking_invitados ("¿quién ha venido más veces?") ---
+    let ranking: { nombre: string; apariciones: number; dia_mas_frecuente: string | null; hora_mas_frecuente: number | null }[] | null = null;
+    if (RANKING_RE.test(question)) {
+      const { data, error } = await userClient.rpc("ranking_invitados", {
+        p_desde: dateRange?.from ?? null,
+        p_hasta: dateRange?.to ?? null,
+        p_limite: 10,
+      });
+      if (!error && data) ranking = data;
     }
 
     const sourceLabels: Record<string, string> = { app: "Agenda", historico: "Histórico", libreto: "Guion (fragmento)" };
@@ -192,9 +213,15 @@ serve(async (req) => {
     ].filter(Boolean).join(" | ") || "ninguno";
 
     const countBlock = officialCount
-      ? `CONTEO OFICIAL (de contar_invitados, única fuente válida para cantidades): total=${officialCount.total}. Apariciones: ${JSON.stringify(officialCount.apariciones)}`
+      ? `CONTEO OFICIAL (de contar_invitados, única fuente válida para cantidades): total=${officialCount.total} persona(s) distinta(s). Lista EXACTA de nombres (uno por persona, con sus fechas de aparición) — no agregues ni quites ninguno: ${JSON.stringify(officialCount.apariciones)}`
       : isQuantityQuestion
         ? "CONTEO OFICIAL: no se pudo calcular (sin resultados de contar_invitados)."
+        : null;
+
+    const rankingBlock = ranking
+      ? `RANKING OFICIAL (de ranking_invitados, única fuente válida para "quién ha venido más veces"): ${JSON.stringify(ranking)}`
+      : RANKING_RE.test(question)
+        ? "RANKING OFICIAL: no se pudo calcular (sin resultados de ranking_invitados)."
         : null;
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -211,20 +238,22 @@ serve(async (req) => {
             content: `Eres un asistente de un programa de radio/TV. Respondes preguntas sobre invitados (agendados, histórico y guiones). La fecha de hoy es ${today}. Responde de forma concisa en español. Los días de emisión son de lunes a jueves.
 
 REGLAS DE CONSISTENCIA (MUY IMPORTANTE):
-- NUNCA cuentes filas de "Invitados disponibles" para responder una pregunta de cantidad. Si hay un bloque "CONTEO OFICIAL", ESE es el único número válido — repítelo tal cual, no lo recalcules ni lo ajustes contando filas.
+- NUNCA cuentes filas de "Invitados disponibles" para responder una pregunta de cantidad. Si hay un bloque "CONTEO OFICIAL", ESE es el único número válido, y su lista de nombres es la ÚNICA lista válida — repite el total tal cual y lista EXACTAMENTE esos nombres (ni uno más, ni uno menos; si alguien aparece varias fechas, es la MISMA persona, menciónala una sola vez con sus fechas).
 - Si la pregunta es de cantidad y no hay bloque "CONTEO OFICIAL" con total, dilo explícitamente en vez de contar filas del contexto.
+- Si la pregunta es sobre quién ha venido más veces/con más frecuencia y hay un bloque "RANKING OFICIAL", ESA es la única fuente válida — no la recalcules contando filas.
 - Las filas [Guion (fragmento)] son fragmentos de texto para contexto cualitativo (qué se dijo, de qué se habló) — NUNCA las uses para contar personas, pueden repetir al mismo invitado varias veces (un chunk por fragmento del guion).
 - Las filas [Agenda] y [Histórico] son registros de invitados individuales.
 - No hagas distinción de género en profesiones para decidir relevancia ("actor"/"actriz", "escritor"/"escritora", etc. son la misma categoría).
-- Si no hay filas relevantes ni conteo oficial, dilo claramente en lugar de inventar.
+- Si no hay filas relevantes ni conteo/ranking oficial, dilo claramente en lugar de inventar.
 - Incluye fecha, día y cargo/profesión cuando estén disponibles.
+- Puedes usar **negrita** en Markdown para resaltar nombres o números; el formato se renderiza correctamente.
 
 FORMATO DE ENLACES: cuando menciones un invitado de la Agenda con su fecha, usa: [[nombre|day_of_week_en_ingles|week_date]]. Ejemplo: [[Carlos Vives|tuesday|2025-04-08]]. Para invitados de Histórico/Guion no agregues ese formato de enlace (no son editables en la agenda).`,
           },
           {
             role: "user",
             content: `Filtros detectados: ${filterSummary}
-${countBlock ? `\n${countBlock}\n` : ""}
+${countBlock ? `\n${countBlock}\n` : ""}${rankingBlock ? `\n${rankingBlock}\n` : ""}
 Invitados disponibles:
 ${guestContext}
 
