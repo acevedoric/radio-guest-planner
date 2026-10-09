@@ -20,6 +20,8 @@ interface HistoricalResult {
   rank: number | null;
 }
 
+type ResultSource = "app" | "historico" | "libreto";
+
 interface AppGuestResult {
   id: string;
   name: string | null;
@@ -31,7 +33,20 @@ interface AppGuestResult {
   scheduled_date: string | null;
   tier: number | null;
   rank: number | null;
+  source: ResultSource;
+  snippet: string | null;
 }
+
+const SOURCE_LABEL: Record<ResultSource, string> = {
+  app: "En la app",
+  historico: "Histórico",
+  libreto: "Libreto",
+};
+const SOURCE_BADGE_CLASS: Record<ResultSource, string> = {
+  app: "bg-primary/10 text-primary",
+  historico: "bg-amber-500/10 text-amber-700",
+  libreto: "bg-blue-500/10 text-blue-700",
+};
 
 const DAY_LABEL: Record<string, string> = {
   monday: "Lunes",
@@ -147,17 +162,17 @@ export const HistoricalSearchDialog = ({ onGuestClick }: HistoricalSearchDialogP
             ) : (
               <div className="space-y-2">
                 {appResults.map((r) => {
-                  const fecha = emissionDate(r.week_date, r.day_of_week);
-                  return (
-                    <button
-                      key={r.id}
-                      type="button"
-                      disabled={opening === r.id}
-                      onClick={() => handleOpenGuest(r.id)}
-                      className="w-full text-left rounded-md border bg-card p-3 space-y-1 hover:border-primary/50 transition-colors disabled:opacity-60"
-                    >
+                  const fecha = emissionDate(r.week_date, r.day_of_week) || r.scheduled_date;
+                  const clickable = r.source === "app";
+                  const content = (
+                    <>
                       <div className="flex items-start justify-between gap-2">
-                        <p className="font-semibold text-sm">{r.name || "Sin nombre"}</p>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <p className="font-semibold text-sm truncate">{r.name || "Sin nombre"}</p>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded shrink-0 ${SOURCE_BADGE_CLASS[r.source]}`}>
+                            {SOURCE_LABEL[r.source]}
+                          </span>
+                        </div>
                         <div className="text-right text-xs text-muted-foreground shrink-0">
                           {[
                             fecha,
@@ -173,8 +188,26 @@ export const HistoricalSearchDialog = ({ onGuestClick }: HistoricalSearchDialogP
                           {[r.guest_position, r.topic].filter(Boolean).join(" — ")}
                         </p>
                       )}
+                      {r.snippet && (
+                        <p className="text-xs text-muted-foreground line-clamp-2">{highlight(r.snippet, query)}</p>
+                      )}
                       {opening === r.id && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                    </>
+                  );
+                  return clickable ? (
+                    <button
+                      key={r.id}
+                      type="button"
+                      disabled={opening === r.id}
+                      onClick={() => handleOpenGuest(r.id)}
+                      className="w-full text-left rounded-md border bg-card p-3 space-y-1 hover:border-primary/50 transition-colors disabled:opacity-60"
+                    >
+                      {content}
                     </button>
+                  ) : (
+                    <div key={r.id} className="w-full text-left rounded-md border bg-card p-3 space-y-1">
+                      {content}
+                    </div>
                   );
                 })}
               </div>

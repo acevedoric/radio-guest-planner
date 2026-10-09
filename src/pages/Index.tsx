@@ -603,7 +603,7 @@ const Index = () => {
     setIsSearching(false);
     if (rankRes.error) console.error("Error en búsqueda unificada de invitados:", rankRes.error);
 
-    const rankedGuests: Guest[] = ((rankRes.data || []) as any[]).map((r) => ({
+    const rankedGuests = ((rankRes.data || []) as any[]).map((r) => ({
       id: r.id,
       name: r.name,
       position: r.guest_position,
@@ -613,7 +613,9 @@ const Index = () => {
       time_slot: r.time_slot,
       week_date: r.week_date,
       scheduled_date: r.scheduled_date,
-    }));
+      source: r.source as "app" | "historico" | "libreto",
+      snippet: r.snippet as string | null,
+    })) as Guest[];
 
     setGlobalSearchResults({
       guests: rankedGuests,

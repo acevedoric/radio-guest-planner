@@ -325,25 +325,46 @@ export const FilterBar = ({
                   {globalSearchResults.guests.slice(0, 5).map((guest) => {
                     const weekDate = guest.week_date ? new Date(guest.week_date + 'T12:00:00') : null;
                     const dateLabel = weekDate ? format(weekDate, "d 'de' MMMM yyyy", { locale: es }) : "Sin fecha";
-                    return (
+                    const source = (guest as any).source as "app" | "historico" | "libreto" | undefined;
+                    const snippet = (guest as any).snippet as string | null | undefined;
+                    const clickable = !source || source === "app";
+                    const body = (
+                      <>
+                        <CalendarDays className="w-4 h-4 mt-0.5 text-primary shrink-0" />
+                        <div className="min-w-0">
+                          <div className="font-medium text-sm truncate flex items-center gap-1.5">
+                            {guest.name}
+                            {guest.position && <span className="text-muted-foreground font-normal"> · {guest.position}</span>}
+                            {source && source !== "app" && (
+                              <span className="text-[10px] px-1 py-0.5 rounded bg-muted text-muted-foreground shrink-0">
+                                {source === "historico" ? "Histórico" : "Libreto"}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-xs text-muted-foreground truncate">{snippet || guest.topic}</div>
+                          <div className="text-xs text-primary mt-0.5">
+                            {dayLabels[guest.day_of_week] || guest.day_of_week} · {dateLabel}
+                            {guest.time_slot ? ` · Bloque ${guest.time_slot}` : ""}
+                          </div>
+                        </div>
+                      </>
+                    );
+                    return clickable ? (
                       <button
                         key={guest.id}
                         type="button"
                         className="w-full text-left px-4 py-3 hover:bg-accent transition-colors border-b border-border last:border-0 flex items-start gap-3"
                         onClick={() => onGlobalResultClick(guest)}
                       >
-                        <CalendarDays className="w-4 h-4 mt-0.5 text-primary shrink-0" />
-                        <div className="min-w-0">
-                          <div className="font-medium text-sm truncate">
-                            {guest.name}
-                            {guest.position && <span className="text-muted-foreground font-normal"> · {guest.position}</span>}
-                          </div>
-                          <div className="text-xs text-muted-foreground truncate">{guest.topic}</div>
-                          <div className="text-xs text-primary mt-0.5">
-                            {dayLabels[guest.day_of_week] || guest.day_of_week} · {dateLabel} · Bloque {guest.time_slot}
-                          </div>
-                        </div>
+                        {body}
                       </button>
+                    ) : (
+                      <div
+                        key={guest.id}
+                        className="w-full text-left px-4 py-3 border-b border-border last:border-0 flex items-start gap-3 opacity-80"
+                      >
+                        {body}
+                      </div>
                     );
                   })}
                 </>

@@ -79,7 +79,7 @@ const SearchResults = () => {
       if (rankRes.error) console.error("Error en búsqueda unificada de invitados:", rankRes.error);
       else {
         // Mismo orden de relevancia que el desplegable: no reordenar aquí.
-        const rankedGuests: Guest[] = ((rankRes.data || []) as any[]).map((r) => ({
+        const rankedGuests = ((rankRes.data || []) as any[]).map((r) => ({
           id: r.id,
           name: r.name,
           position: r.guest_position,
@@ -89,7 +89,9 @@ const SearchResults = () => {
           time_slot: r.time_slot,
           week_date: r.week_date,
           scheduled_date: r.scheduled_date,
-        }));
+          source: r.source as "app" | "historico" | "libreto",
+          snippet: r.snippet as string | null,
+        })) as Guest[];
         setGuestResults(rankedGuests);
       }
       if (!pressRes.error && pressRes.data) setPressResults(pressRes.data as Guest[]);
@@ -181,14 +183,17 @@ const SearchResults = () => {
               ) : (
                 <div className="space-y-3">
                   {guestResults.map((guest) => {
-                    const weekDate = new Date(guest.week_date + "T12:00:00");
-                    const dateLabel = format(weekDate, "d 'de' MMMM yyyy", { locale: es });
-                    return (
-                      <button
-                        key={guest.id}
-                        onClick={() => handleGuestClick(guest)}
-                        className="w-full text-left p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors flex items-start gap-4"
-                      >
+                    const source = (guest as any).source as "app" | "historico" | "libreto" | undefined;
+                    const snippet = (guest as any).snippet as string | null | undefined;
+                    const clickable = !source || source === "app";
+                    const weekDate = guest.week_date ? new Date(guest.week_date + "T12:00:00") : null;
+                    const dateLabel = weekDate
+                      ? format(weekDate, "d 'de' MMMM yyyy", { locale: es })
+                      : guest.scheduled_date
+                        ? format(new Date(guest.scheduled_date + "T12:00:00"), "d 'de' MMMM yyyy", { locale: es })
+                        : "Sin fecha";
+                    const body = (
+                      <>
                         <CalendarDays className="h-5 w-5 text-primary mt-0.5 shrink-0" />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
@@ -196,21 +201,46 @@ const SearchResults = () => {
                             {guest.position && (
                               <span className="text-sm text-muted-foreground">· {guest.position}</span>
                             )}
-                            <Badge variant="outline" className={`text-xs ${statusColors[guest.recording_status] || ""}`}>
-                              {statusLabels[guest.recording_status] || guest.recording_status}
-                            </Badge>
+                            {clickable ? (
+                              <Badge variant="outline" className={`text-xs ${statusColors[guest.recording_status] || ""}`}>
+                                {statusLabels[guest.recording_status] || guest.recording_status}
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-xs">
+                                {source === "historico" ? "Histórico" : "Libreto"}
+                              </Badge>
+                            )}
                           </div>
-                          {guest.topic && (
-                            <p className="text-sm text-muted-foreground mt-1 truncate">Tema: {guest.topic}</p>
+                          {(snippet || guest.topic) && (
+                            <p className="text-sm text-muted-foreground mt-1 truncate">
+                              {snippet ? snippet : `Tema: ${guest.topic}`}
+                            </p>
                           )}
                           <div className="text-xs text-primary mt-1">
-                            {dayLabels[guest.day_of_week] || guest.day_of_week} · Semana del {dateLabel} · Bloque {guest.time_slot}
+                            {dayLabels[guest.day_of_week] || guest.day_of_week} · Semana del {dateLabel}
+                            {guest.time_slot ? ` · Bloque ${guest.time_slot}` : ""}
                           </div>
                           {guest.notes && (
                             <p className="text-xs text-muted-foreground mt-1 line-clamp-1">📝 {guest.notes}</p>
                           )}
                         </div>
+                      </>
+                    );
+                    return clickable ? (
+                      <button
+                        key={guest.id}
+                        onClick={() => handleGuestClick(guest)}
+                        className="w-full text-left p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors flex items-start gap-4"
+                      >
+                        {body}
                       </button>
+                    ) : (
+                      <div
+                        key={guest.id}
+                        className="w-full text-left p-4 rounded-lg border bg-card flex items-start gap-4 opacity-80"
+                      >
+                        {body}
+                      </div>
                     );
                   })}
                 </div>
