@@ -78,6 +78,13 @@
       "when": 1791559352910,
       "tag": "0010_security_hardening_historico_guests_anon",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1791559425005,
+      "tag": "0011_fix_buscar_invitados_rank_ambiguous_and_role_gate",
+      "breakpoints": true
     }
   ]
 }
