@@ -134,8 +134,8 @@ export function BlacklistManager() {
           <Ban className="h-4 w-4" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-lg max-h-[85vh] flex flex-col">
-        <DialogHeader>
+      <DialogContent className="max-w-lg max-h-[85vh] flex flex-col overflow-hidden">
+        <DialogHeader className="shrink-0">
           <DialogTitle>Lista negra</DialogTitle>
           <DialogDescription>
             Invitados que no deben programarse. Al escribir un nombre al crear/editar un invitado se
@@ -143,7 +143,7 @@ export function BlacklistManager() {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3">
+        <div className="shrink-0 space-y-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3">
           <p className="text-xs font-semibold text-amber-700">Reglas editoriales</p>
           {rules.map((rule) => (
             <div key={rule.id} className="flex items-start gap-2 text-sm">
@@ -174,7 +174,7 @@ export function BlacklistManager() {
           </div>
         </div>
 
-        <div className="space-y-2 border rounded-md p-3">
+        <div className="shrink-0 space-y-2 border rounded-md p-3">
           <div className="space-y-1">
             <Label htmlFor="bl-name">Nombre</Label>
             <Input
@@ -216,7 +216,7 @@ export function BlacklistManager() {
           </Button>
         </div>
 
-        <ScrollArea className="flex-1 border rounded-md">
+        <ScrollArea className="flex-1 min-h-0 border rounded-md">
           {loading ? (
             <p className="p-3 text-xs text-muted-foreground">Cargando...</p>
           ) : rows.length === 0 ? (
