@@ -564,6 +564,7 @@ export type Database = {
           guest_name_normalized: string | null
           hour_number: number | null
           id: string
+          prensa_raw: string | null
           source_file: string | null
           tema: string | null
           year: number | null
@@ -577,6 +578,7 @@ export type Database = {
           guest_name_normalized?: string | null
           hour_number?: number | null
           id?: string
+          prensa_raw?: string | null
           source_file?: string | null
           tema?: string | null
           year?: number | null
@@ -590,6 +592,7 @@ export type Database = {
           guest_name_normalized?: string | null
           hour_number?: number | null
           id?: string
+          prensa_raw?: string | null
           source_file?: string | null
           tema?: string | null
           year?: number | null
@@ -613,6 +616,8 @@ export type Database = {
       }
       libretos_chunks: {
         Row: {
+          conflicto: boolean
+          conflicto_nota: string | null
           content: string
           created_at: string
           day_of_week: string | null
@@ -626,6 +631,8 @@ export type Database = {
           year: number | null
         }
         Insert: {
+          conflicto?: boolean
+          conflicto_nota?: string | null
           content: string
           created_at?: string
           day_of_week?: string | null
@@ -639,6 +646,8 @@ export type Database = {
           year?: number | null
         }
         Update: {
+          conflicto?: boolean
+          conflicto_nota?: string | null
           content?: string
           created_at?: string
           day_of_week?: string | null
@@ -689,6 +698,7 @@ export type Database = {
           email: string | null
           encuesta_hashtag: string | null
           encuesta_pregunta: string | null
+          festivo: boolean | null
           h1_canciones: string | null
           h1_lanzamiento_musical: string | null
           h1_notas_adicionales: string | null
@@ -727,6 +737,7 @@ export type Database = {
           recording_status: string | null
           scheduled_date: string | null
           scheduled_time: string | null
+          slot_order: number | null
           social_networks: Json | null
           tema_principal: string | null
           tema_principal_documento_nombre: string | null
@@ -748,6 +759,7 @@ export type Database = {
           email?: never
           encuesta_hashtag?: string | null
           encuesta_pregunta?: string | null
+          festivo?: boolean | null
           h1_canciones?: string | null
           h1_lanzamiento_musical?: string | null
           h1_notas_adicionales?: string | null
@@ -786,6 +798,7 @@ export type Database = {
           recording_status?: string | null
           scheduled_date?: string | null
           scheduled_time?: string | null
+          slot_order?: number | null
           social_networks?: Json | null
           tema_principal?: string | null
           tema_principal_documento_nombre?: string | null
@@ -807,6 +820,7 @@ export type Database = {
           email?: never
           encuesta_hashtag?: string | null
           encuesta_pregunta?: string | null
+          festivo?: boolean | null
           h1_canciones?: string | null
           h1_lanzamiento_musical?: string | null
           h1_notas_adicionales?: string | null
@@ -845,6 +859,7 @@ export type Database = {
           recording_status?: string | null
           scheduled_date?: string | null
           scheduled_time?: string | null
+          slot_order?: number | null
           social_networks?: Json | null
           tema_principal?: string | null
           tema_principal_documento_nombre?: string | null
@@ -900,6 +915,7 @@ export type Database = {
           similarity: number
         }[]
       }
+      has_any_role: { Args: { _user_id: string }; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
