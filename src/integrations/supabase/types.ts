@@ -215,6 +215,7 @@ export type Database = {
           email: string | null
           encuesta_hashtag: string | null
           encuesta_pregunta: string | null
+          festivo: boolean
           h1_canciones: string | null
           h1_lanzamiento_musical: string | null
           h1_notas_adicionales: string | null
@@ -281,6 +282,7 @@ export type Database = {
           email?: string | null
           encuesta_hashtag?: string | null
           encuesta_pregunta?: string | null
+          festivo?: boolean
           h1_canciones?: string | null
           h1_lanzamiento_musical?: string | null
           h1_notas_adicionales?: string | null
@@ -347,6 +349,7 @@ export type Database = {
           email?: string | null
           encuesta_hashtag?: string | null
           encuesta_pregunta?: string | null
+          festivo?: boolean
           h1_canciones?: string | null
           h1_lanzamiento_musical?: string | null
           h1_notas_adicionales?: string | null
@@ -401,11 +404,69 @@ export type Database = {
         }
         Relationships: []
       }
+      invitados_historicos: {
+        Row: {
+          created_at: string
+          day_of_week: string | null
+          fecha: string | null
+          guest_id: string | null
+          guest_name: string
+          guest_name_normalized: string | null
+          hour_number: number | null
+          id: string
+          source_file: string | null
+          tema: string | null
+          year: number | null
+        }
+        Insert: {
+          created_at?: string
+          day_of_week?: string | null
+          fecha?: string | null
+          guest_id?: string | null
+          guest_name: string
+          guest_name_normalized?: string | null
+          hour_number?: number | null
+          id?: string
+          source_file?: string | null
+          tema?: string | null
+          year?: number | null
+        }
+        Update: {
+          created_at?: string
+          day_of_week?: string | null
+          fecha?: string | null
+          guest_id?: string | null
+          guest_name?: string
+          guest_name_normalized?: string | null
+          hour_number?: number | null
+          id?: string
+          source_file?: string | null
+          tema?: string | null
+          year?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invitados_historicos_guest_id_fkey"
+            columns: ["guest_id"]
+            isOneToOne: false
+            referencedRelation: "guests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invitados_historicos_guest_id_fkey"
+            columns: ["guest_id"]
+            isOneToOne: false
+            referencedRelation: "guests_anon"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       libretos_chunks: {
         Row: {
           content: string
           created_at: string
           day_of_week: string | null
+          fecha: string | null
           fts: unknown
           guest_name: string
           guest_role: string | null
@@ -418,6 +479,7 @@ export type Database = {
           content: string
           created_at?: string
           day_of_week?: string | null
+          fecha?: string | null
           fts?: unknown
           guest_name: string
           guest_role?: string | null
@@ -430,6 +492,7 @@ export type Database = {
           content?: string
           created_at?: string
           day_of_week?: string | null
+          fecha?: string | null
           fts?: unknown
           guest_name?: string
           guest_role?: string | null
