@@ -92,6 +92,13 @@
       "when": 1791560380928,
       "tag": "0012_hide_research_anon_revoke_writes",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1791569006678,
+      "tag": "0013_historico_cargo_grabado_con_anticipacion",
+      "breakpoints": true
     }
   ]
 }
