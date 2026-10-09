@@ -83,6 +83,14 @@ const InvitadoHistoricoRow = z.object({
   // (lib/normalize.js: cutPrensaFromName) — se conserva para auditoría, no
   // se usa para nada dentro de la app.
   prensa_raw: z.string().nullable().optional(),
+  // Cargo/ocupación/agrupación cortado del nombre en la primera coma
+  // ("Miguel González, actor" -> cargo="actor").
+  cargo: z.string().nullable().optional(),
+  // Festivo colombiano (Ley Emiliani), calculado en bbb-ingest/lib/festivos_co.js.
+  festivo: z.boolean().optional().default(false),
+  // true cuando la fila viene de un bloque "GRABA" (grabación anticipada)
+  // fusionado con su fila de emisión real — la misma aparición, no dos.
+  grabado_con_anticipacion: z.boolean().optional().default(false),
   // guest_id NO se recibe del cliente: se calcula aquí abajo (findGuestId),
   // porque solo esta función tiene SUPABASE_SERVICE_ROLE_KEY. El script
   // local no debe tener esa key.
