@@ -182,6 +182,10 @@ Deno.serve(async (req) => {
           const guestId = await findGuestId(supabase, data.guest_name, data.fecha);
           built.guest_id = guestId;
           if (guestId) linked++;
+        } else if (kind === "libretos_chunks") {
+          // guest_name es NOT NULL en la tabla; algunos bloques (sin línea
+          // "Invitado:"/"Programa con:") llegan sin nombre identificable.
+          built.guest_name = (built.guest_name as string | null) ?? "";
         }
         validRows.push(built);
       }
