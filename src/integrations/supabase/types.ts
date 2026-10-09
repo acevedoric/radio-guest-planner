@@ -882,6 +882,8 @@ export type Database = {
           rank: number
           recording_status: string
           scheduled_date: string
+          snippet: string
+          source: string
           tier: number
           time_slot: number
           topic: string
