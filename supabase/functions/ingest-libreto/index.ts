@@ -86,10 +86,10 @@ const InvitadoHistoricoRow = z.object({
   // Cargo/ocupación/agrupación cortado del nombre en la primera coma
   // ("Miguel González, actor" -> cargo="actor").
   cargo: z.string().nullable().optional(),
-  // Festivo colombiano (Ley Emiliani), calculado en bbb-ingest/lib/festivos_co.js.
-  festivo: z.boolean().optional().default(false),
   // true cuando la fila viene de un bloque "GRABA" (grabación anticipada)
-  // fusionado con su fila de emisión real — la misma aparición, no dos.
+  // fusionado con su fila de emisión real, O cuando la fecha es festivo en
+  // Colombia (festivos_co.js) — el programa de un festivo siempre se graba
+  // la semana anterior, aunque no haya fila "GRABA" explícita.
   grabado_con_anticipacion: z.boolean().optional().default(false),
   // guest_id NO se recibe del cliente: se calcula aquí abajo (findGuestId),
   // porque solo esta función tiene SUPABASE_SERVICE_ROLE_KEY. El script
