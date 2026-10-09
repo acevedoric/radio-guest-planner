@@ -29,6 +29,49 @@ function safeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
+function normalizeName(s: string): string {
+  return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+}
+
+const DAY_OFFSETS: Record<string, number> = { monday: 0, tuesday: 1, wednesday: 2, thursday: 3 };
+
+/** Fecha de emisión (YYYY-MM-DD) a partir de week_date + day_of_week, igual que src/lib/webhooks.ts. */
+function emissionDateFromWeek(weekDate: string | null, dayOfWeek: string | null): string | null {
+  if (!weekDate || !dayOfWeek || !(dayOfWeek in DAY_OFFSETS)) return null;
+  const [y, m, d] = weekDate.split("-").map(Number);
+  const date = new Date(y, m - 1, d + DAY_OFFSETS[dayOfWeek]);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+/**
+ * Enlaza un invitado histórico con un guest existente: nombre normalizado
+ * (sin tildes/mayúsculas) exacto + fecha de emisión (o scheduled_date)
+ * coincidente. Sin fecha no enlaza (evita falsos positivos por homónimos).
+ */
+async function findGuestId(
+  // deno-lint-ignore no-explicit-any
+  supabase: any,
+  name: string | null | undefined,
+  fecha: string | null | undefined
+): Promise<string | null> {
+  if (!name || !fecha) return null;
+  const firstWord = name.trim().split(/\s+/)[0];
+  if (!firstWord) return null;
+  const { data } = await supabase
+    .from("guests")
+    .select("id, name, week_date, day_of_week, scheduled_date")
+    .ilike("name", `%${firstWord}%`)
+    .limit(50);
+  if (!data) return null;
+  const target = normalizeName(name);
+  for (const g of data) {
+    if (normalizeName(g.name) !== target) continue;
+    const emission = emissionDateFromWeek(g.week_date, g.day_of_week);
+    if (emission === fecha || g.scheduled_date === fecha) return g.id;
+  }
+  return null;
+}
+
 const InvitadoHistoricoRow = z.object({
   fecha: z.string().nullable().optional(),
   day_of_week: z.enum(["monday", "tuesday", "wednesday", "thursday"]).nullable().optional(),
@@ -36,7 +79,9 @@ const InvitadoHistoricoRow = z.object({
   guest_name: z.string().min(1),
   tema: z.string().nullable().optional(),
   year: z.number().int().nullable().optional(),
-  guest_id: z.string().uuid().nullable().optional(),
+  // guest_id NO se recibe del cliente: se calcula aquí abajo (findGuestId),
+  // porque solo esta función tiene SUPABASE_SERVICE_ROLE_KEY. El script
+  // local no debe tener esa key.
 });
 
 const LibretoChunkRow = z.object({
@@ -124,18 +169,29 @@ Deno.serve(async (req) => {
 
       const schema = kind === "invitados_historicos" ? InvitadoHistoricoRow : LibretoChunkRow;
       const validRows: Record<string, unknown>[] = [];
+      let linked = 0;
       for (const [i, row] of rows.entries()) {
         const r = schema.safeParse(row);
         if (!r.success) {
           errors.push(`row ${i}: ${JSON.stringify(r.error.issues)}`);
           continue;
         }
-        validRows.push({ ...r.data, source_file: source_file ?? null });
+        const built: Record<string, unknown> = { ...r.data, source_file: source_file ?? null };
+        if (kind === "invitados_historicos") {
+          const data = r.data as z.infer<typeof InvitadoHistoricoRow>;
+          const guestId = await findGuestId(supabase, data.guest_name, data.fecha);
+          built.guest_id = guestId;
+          if (guestId) linked++;
+        }
+        validRows.push(built);
       }
       if (validRows.length > 0) {
         const { error: insError, count } = await supabase.from(kind).insert(validRows, { count: "exact" });
         if (insError) return json({ error: `insert failed: ${insError.message}`, parse_errors: errors }, 500);
         inserted = count ?? validRows.length;
+      }
+      if (kind === "invitados_historicos") {
+        return json({ ok: true, kind, inserted, linked, total: rows.length, errors: errors.slice(0, 20) });
       }
     } else if (kind === "canciones") {
       for (const [i, row] of rows.entries()) {
