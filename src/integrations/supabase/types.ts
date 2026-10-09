@@ -750,11 +750,11 @@ export type Database = {
         Insert: {
           avance_h2?: string | null
           avance_h3?: string | null
-          carrera_profesional?: string | null
+          carrera_profesional?: never
           confirmed_blu?: boolean | null
           confirmed_pr?: boolean | null
           created_at?: string | null
-          datos_curiosos?: string | null
+          datos_curiosos?: never
           day_of_week?: string | null
           email?: never
           encuesta_hashtag?: string | null
@@ -765,26 +765,26 @@ export type Database = {
           h1_notas_adicionales?: string | null
           h1_periodista_voces_sonidos?: string | null
           h2_canciones?: string | null
-          h2_contexto?: string | null
-          h2_documento_nombre?: string | null
-          h2_documento_url?: string | null
-          h2_info_personal?: string | null
+          h2_contexto?: never
+          h2_documento_nombre?: never
+          h2_documento_url?: never
+          h2_info_personal?: never
           h2_lanzamiento_musical?: string | null
-          h2_link_info?: string | null
+          h2_link_info?: never
           h2_n8n_updated_at?: string | null
           h2_notas_adicionales?: string | null
           h2_periodista_voces_sonidos?: string | null
-          h2_preguntas_sugeridas?: string | null
+          h2_preguntas_sugeridas?: never
           h3_canciones?: string | null
-          h3_comunicado_prensa?: string | null
-          h3_datos_personales?: string | null
-          h3_documento_nombre?: string | null
-          h3_documento_url?: string | null
-          h3_link_info?: string | null
+          h3_comunicado_prensa?: never
+          h3_datos_personales?: never
+          h3_documento_nombre?: never
+          h3_documento_url?: never
+          h3_link_info?: never
           h3_n8n_updated_at?: string | null
           h3_notas_adicionales?: string | null
           id?: string | null
-          infancia_vida_privada?: string | null
+          infancia_vida_privada?: never
           n8n_updated_at?: string | null
           name?: string | null
           notes?: never
@@ -800,9 +800,9 @@ export type Database = {
           scheduled_time?: string | null
           slot_order?: number | null
           social_networks?: Json | null
-          tema_principal?: string | null
-          tema_principal_documento_nombre?: string | null
-          tema_principal_documento_url?: string | null
+          tema_principal?: never
+          tema_principal_documento_nombre?: never
+          tema_principal_documento_url?: never
           time_slot?: number | null
           topic?: string | null
           updated_at?: string | null
@@ -811,11 +811,11 @@ export type Database = {
         Update: {
           avance_h2?: string | null
           avance_h3?: string | null
-          carrera_profesional?: string | null
+          carrera_profesional?: never
           confirmed_blu?: boolean | null
           confirmed_pr?: boolean | null
           created_at?: string | null
-          datos_curiosos?: string | null
+          datos_curiosos?: never
           day_of_week?: string | null
           email?: never
           encuesta_hashtag?: string | null
@@ -826,26 +826,26 @@ export type Database = {
           h1_notas_adicionales?: string | null
           h1_periodista_voces_sonidos?: string | null
           h2_canciones?: string | null
-          h2_contexto?: string | null
-          h2_documento_nombre?: string | null
-          h2_documento_url?: string | null
-          h2_info_personal?: string | null
+          h2_contexto?: never
+          h2_documento_nombre?: never
+          h2_documento_url?: never
+          h2_info_personal?: never
           h2_lanzamiento_musical?: string | null
-          h2_link_info?: string | null
+          h2_link_info?: never
           h2_n8n_updated_at?: string | null
           h2_notas_adicionales?: string | null
           h2_periodista_voces_sonidos?: string | null
-          h2_preguntas_sugeridas?: string | null
+          h2_preguntas_sugeridas?: never
           h3_canciones?: string | null
-          h3_comunicado_prensa?: string | null
-          h3_datos_personales?: string | null
-          h3_documento_nombre?: string | null
-          h3_documento_url?: string | null
-          h3_link_info?: string | null
+          h3_comunicado_prensa?: never
+          h3_datos_personales?: never
+          h3_documento_nombre?: never
+          h3_documento_url?: never
+          h3_link_info?: never
           h3_n8n_updated_at?: string | null
           h3_notas_adicionales?: string | null
           id?: string | null
-          infancia_vida_privada?: string | null
+          infancia_vida_privada?: never
           n8n_updated_at?: string | null
           name?: string | null
           notes?: never
@@ -861,9 +861,9 @@ export type Database = {
           scheduled_time?: string | null
           slot_order?: number | null
           social_networks?: Json | null
-          tema_principal?: string | null
-          tema_principal_documento_nombre?: string | null
-          tema_principal_documento_url?: string | null
+          tema_principal?: never
+          tema_principal_documento_nombre?: never
+          tema_principal_documento_url?: never
           time_slot?: number | null
           topic?: string | null
           updated_at?: string | null
