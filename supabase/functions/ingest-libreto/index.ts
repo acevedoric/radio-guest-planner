@@ -48,12 +48,12 @@ function emissionDateFromWeek(weekDate: string | null, dayOfWeek: string | null)
  * (sin tildes/mayúsculas) exacto + fecha de emisión (o scheduled_date)
  * coincidente. Sin fecha no enlaza (evita falsos positivos por homónimos).
  */
-async function findGuestId(
+async function findGuest(
   // deno-lint-ignore no-explicit-any
   supabase: any,
   name: string | null | undefined,
   fecha: string | null | undefined
-): Promise<string | null> {
+): Promise<{ id: string; name: string } | null> {
   if (!name || !fecha) return null;
   const firstWord = name.trim().split(/\s+/)[0];
   if (!firstWord) return null;
@@ -67,7 +67,7 @@ async function findGuestId(
   for (const g of data) {
     if (normalizeName(g.name) !== target) continue;
     const emission = emissionDateFromWeek(g.week_date, g.day_of_week);
-    if (emission === fecha || g.scheduled_date === fecha) return g.id;
+    if (emission === fecha || g.scheduled_date === fecha) return { id: g.id, name: g.name };
   }
   return null;
 }
@@ -170,6 +170,7 @@ Deno.serve(async (req) => {
       const schema = kind === "invitados_historicos" ? InvitadoHistoricoRow : LibretoChunkRow;
       const validRows: Record<string, unknown>[] = [];
       let linked = 0;
+      const linkedDetails: { historico_name: string; guest_name: string; guest_id: string; fecha: string | null | undefined }[] = [];
       for (const [i, row] of rows.entries()) {
         const r = schema.safeParse(row);
         if (!r.success) {
@@ -179,9 +180,12 @@ Deno.serve(async (req) => {
         const built: Record<string, unknown> = { ...r.data, source_file: source_file ?? null };
         if (kind === "invitados_historicos") {
           const data = r.data as z.infer<typeof InvitadoHistoricoRow>;
-          const guestId = await findGuestId(supabase, data.guest_name, data.fecha);
-          built.guest_id = guestId;
-          if (guestId) linked++;
+          const match = await findGuest(supabase, data.guest_name, data.fecha);
+          built.guest_id = match?.id ?? null;
+          if (match) {
+            linked++;
+            linkedDetails.push({ historico_name: data.guest_name, guest_name: match.name, guest_id: match.id, fecha: data.fecha });
+          }
         } else if (kind === "libretos_chunks") {
           // guest_name es NOT NULL en la tabla; algunos bloques (sin línea
           // "Invitado:"/"Programa con:") llegan sin nombre identificable.
@@ -195,7 +199,7 @@ Deno.serve(async (req) => {
         inserted = count ?? validRows.length;
       }
       if (kind === "invitados_historicos") {
-        return json({ ok: true, kind, inserted, linked, total: rows.length, errors: errors.slice(0, 20) });
+        return json({ ok: true, kind, inserted, linked, linked_details: linkedDetails, total: rows.length, errors: errors.slice(0, 20) });
       }
     } else if (kind === "canciones") {
       for (const [i, row] of rows.entries()) {
