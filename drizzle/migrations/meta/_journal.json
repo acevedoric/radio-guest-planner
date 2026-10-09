@@ -43,6 +43,27 @@
       "when": 1791513332536,
       "tag": "0005_buscar_invitados_rank_permisos",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791517520649,
+      "tag": "0006_historico_invitados_estructura",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791517554420,
+      "tag": "0007_canciones_catalogo_uso_segmento_ajustes",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791517584309,
+      "tag": "0008_buscar_invitados_rank_historico_libreto",
+      "breakpoints": true
     }
   ]
 }

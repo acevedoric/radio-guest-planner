@@ -38,6 +38,24 @@ export type Database = {
         }
         Relationships: []
       }
+      ajustes: {
+        Row: {
+          clave: string
+          updated_at: string
+          valor: string
+        }
+        Insert: {
+          clave: string
+          updated_at?: string
+          valor: string
+        }
+        Update: {
+          clave?: string
+          updated_at?: string
+          valor?: string
+        }
+        Relationships: []
+      }
       allowed_emails: {
         Row: {
           created_at: string
@@ -109,6 +127,138 @@ export type Database = {
           text?: string
         }
         Relationships: []
+      }
+      cancion_segmento: {
+        Row: {
+          cancion_id: string
+          created_at: string
+          day_of_week: string | null
+          es_firma: boolean
+          hour_number: number | null
+          id: string
+          segmento: string
+          updated_at: string
+        }
+        Insert: {
+          cancion_id: string
+          created_at?: string
+          day_of_week?: string | null
+          es_firma?: boolean
+          hour_number?: number | null
+          id?: string
+          segmento: string
+          updated_at?: string
+        }
+        Update: {
+          cancion_id?: string
+          created_at?: string
+          day_of_week?: string | null
+          es_firma?: boolean
+          hour_number?: number | null
+          id?: string
+          segmento?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cancion_segmento_cancion_id_fkey"
+            columns: ["cancion_id"]
+            isOneToOne: false
+            referencedRelation: "canciones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      canciones: {
+        Row: {
+          anio: number | null
+          artista: string | null
+          catalogo: string
+          created_at: string
+          es_cortinilla: boolean
+          id: string
+          titulo: string
+          titulo_normalizado: string | null
+        }
+        Insert: {
+          anio?: number | null
+          artista?: string | null
+          catalogo?: string
+          created_at?: string
+          es_cortinilla?: boolean
+          id?: string
+          titulo: string
+          titulo_normalizado?: string | null
+        }
+        Update: {
+          anio?: number | null
+          artista?: string | null
+          catalogo?: string
+          created_at?: string
+          es_cortinilla?: boolean
+          id?: string
+          titulo?: string
+          titulo_normalizado?: string | null
+        }
+        Relationships: []
+      }
+      canciones_uso: {
+        Row: {
+          cancion_id: string
+          created_at: string
+          day_of_week: string | null
+          fecha: string | null
+          guest_id: string | null
+          hour_number: number | null
+          id: string
+          segmento: string | null
+          source_file: string | null
+        }
+        Insert: {
+          cancion_id: string
+          created_at?: string
+          day_of_week?: string | null
+          fecha?: string | null
+          guest_id?: string | null
+          hour_number?: number | null
+          id?: string
+          segmento?: string | null
+          source_file?: string | null
+        }
+        Update: {
+          cancion_id?: string
+          created_at?: string
+          day_of_week?: string | null
+          fecha?: string | null
+          guest_id?: string | null
+          hour_number?: number | null
+          id?: string
+          segmento?: string | null
+          source_file?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "canciones_uso_cancion_id_fkey"
+            columns: ["cancion_id"]
+            isOneToOne: false
+            referencedRelation: "canciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "canciones_uso_guest_id_fkey"
+            columns: ["guest_id"]
+            isOneToOne: false
+            referencedRelation: "guests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "canciones_uso_guest_id_fkey"
+            columns: ["guest_id"]
+            isOneToOne: false
+            referencedRelation: "guests_anon"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       guest_documents: {
         Row: {
@@ -215,6 +365,7 @@ export type Database = {
           email: string | null
           encuesta_hashtag: string | null
           encuesta_pregunta: string | null
+          festivo: boolean
           h1_canciones: string | null
           h1_lanzamiento_musical: string | null
           h1_notas_adicionales: string | null
@@ -281,6 +432,7 @@ export type Database = {
           email?: string | null
           encuesta_hashtag?: string | null
           encuesta_pregunta?: string | null
+          festivo?: boolean
           h1_canciones?: string | null
           h1_lanzamiento_musical?: string | null
           h1_notas_adicionales?: string | null
@@ -347,6 +499,7 @@ export type Database = {
           email?: string | null
           encuesta_hashtag?: string | null
           encuesta_pregunta?: string | null
+          festivo?: boolean
           h1_canciones?: string | null
           h1_lanzamiento_musical?: string | null
           h1_notas_adicionales?: string | null
@@ -401,11 +554,69 @@ export type Database = {
         }
         Relationships: []
       }
+      invitados_historicos: {
+        Row: {
+          created_at: string
+          day_of_week: string | null
+          fecha: string | null
+          guest_id: string | null
+          guest_name: string
+          guest_name_normalized: string | null
+          hour_number: number | null
+          id: string
+          source_file: string | null
+          tema: string | null
+          year: number | null
+        }
+        Insert: {
+          created_at?: string
+          day_of_week?: string | null
+          fecha?: string | null
+          guest_id?: string | null
+          guest_name: string
+          guest_name_normalized?: string | null
+          hour_number?: number | null
+          id?: string
+          source_file?: string | null
+          tema?: string | null
+          year?: number | null
+        }
+        Update: {
+          created_at?: string
+          day_of_week?: string | null
+          fecha?: string | null
+          guest_id?: string | null
+          guest_name?: string
+          guest_name_normalized?: string | null
+          hour_number?: number | null
+          id?: string
+          source_file?: string | null
+          tema?: string | null
+          year?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invitados_historicos_guest_id_fkey"
+            columns: ["guest_id"]
+            isOneToOne: false
+            referencedRelation: "guests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invitados_historicos_guest_id_fkey"
+            columns: ["guest_id"]
+            isOneToOne: false
+            referencedRelation: "guests_anon"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       libretos_chunks: {
         Row: {
           content: string
           created_at: string
           day_of_week: string | null
+          fecha: string | null
           fts: unknown
           guest_name: string
           guest_role: string | null
@@ -418,6 +629,7 @@ export type Database = {
           content: string
           created_at?: string
           day_of_week?: string | null
+          fecha?: string | null
           fts?: unknown
           guest_name: string
           guest_role?: string | null
@@ -430,6 +642,7 @@ export type Database = {
           content?: string
           created_at?: string
           day_of_week?: string | null
+          fecha?: string | null
           fts?: unknown
           guest_name?: string
           guest_role?: string | null
@@ -669,6 +882,8 @@ export type Database = {
           rank: number
           recording_status: string
           scheduled_date: string
+          snippet: string
+          source: string
           tier: number
           time_slot: number
           topic: string
@@ -697,6 +912,26 @@ export type Database = {
       show_trgm: { Args: { "": string }; Returns: string[] }
       unaccent: { Args: { "": string }; Returns: string }
       unaccent_immutable: { Args: { "": string }; Returns: string }
+      upsert_cancion: {
+        Args: {
+          p_anio?: number
+          p_artista?: string
+          p_catalogo?: string
+          p_es_cortinilla?: boolean
+          p_titulo: string
+        }
+        Returns: string
+      }
+      upsert_cancion_segmento: {
+        Args: {
+          p_cancion_id: string
+          p_day_of_week?: string
+          p_es_firma?: boolean
+          p_hour_number?: number
+          p_segmento: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       app_role: "admin" | "producer" | "viewer"
