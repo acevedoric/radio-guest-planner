@@ -71,6 +71,13 @@
       "when": 1791559297593,
       "tag": "0009_historico_fase_c_conflicto_prensa_raw",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791559352910,
+      "tag": "0010_security_hardening_historico_guests_anon",
+      "breakpoints": true
     }
   ]
 }
