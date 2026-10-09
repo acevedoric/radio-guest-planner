@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Ban, Loader2, Plus, Trash2 } from "lucide-react";
+import { Ban, ChevronDown, Loader2, Plus, Search, Trash2 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -49,6 +49,18 @@ export function BlacklistManager() {
   const [newRule, setNewRule] = useState("");
   const [savingRule, setSavingRule] = useState(false);
   const [pendingDeleteRule, setPendingDeleteRule] = useState<BlacklistRule | null>(null);
+  const [rulesOpen, setRulesOpen] = useState(false);
+  const [search, setSearch] = useState("");
+
+  const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const q = norm(search.trim());
+  const filteredRows = q
+    ? rows.filter((r) =>
+        norm(
+          `${r.name} ${r.reason ?? ""} ${r.category ? BLACKLIST_CATEGORY_LABEL[r.category] : ""}`,
+        ).includes(q),
+      )
+    : rows;
 
   const load = async () => {
     setLoading(true);
@@ -134,7 +146,7 @@ export function BlacklistManager() {
           <Ban className="h-4 w-4" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-lg max-h-[85vh] flex flex-col overflow-hidden">
+      <DialogContent className="max-w-2xl h-[85vh] flex flex-col overflow-hidden">
         <DialogHeader className="shrink-0">
           <DialogTitle>Lista negra</DialogTitle>
           <DialogDescription>
@@ -143,38 +155,49 @@ export function BlacklistManager() {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="shrink-0 space-y-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3">
-          <p className="text-xs font-semibold text-amber-700">Reglas editoriales</p>
-          {rules.map((rule) => (
-            <div key={rule.id} className="flex items-start gap-2 text-sm">
-              <p className="flex-1">{rule.text}</p>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-6 w-6 p-0 text-destructive hover:text-destructive shrink-0"
-                onClick={() => setPendingDeleteRule(rule)}
-                title="Quitar regla"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
+        <div className="shrink-0 rounded-md border border-amber-500/40 bg-amber-500/10">
+          <button
+            type="button"
+            onClick={() => setRulesOpen((v) => !v)}
+            className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-amber-700"
+          >
+            <span>Reglas editoriales ({rules.length})</span>
+            <ChevronDown className={`h-4 w-4 transition-transform ${rulesOpen ? "rotate-180" : ""}`} />
+          </button>
+          {rulesOpen && (
+            <div className="space-y-2 px-3 pb-3 max-h-48 overflow-y-auto">
+              {rules.map((rule) => (
+                <div key={rule.id} className="flex items-start gap-2 text-sm">
+                  <p className="flex-1">{rule.text}</p>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0 text-destructive hover:text-destructive shrink-0"
+                    onClick={() => setPendingDeleteRule(rule)}
+                    title="Quitar regla"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+              <div className="flex gap-2">
+                <Input
+                  value={newRule}
+                  onChange={(e) => setNewRule(e.target.value)}
+                  placeholder="Nueva regla editorial..."
+                  disabled={savingRule}
+                  className="h-8"
+                />
+                <Button type="button" size="sm" onClick={handleAddRule} disabled={savingRule} className="h-8">
+                  {savingRule ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                </Button>
+              </div>
             </div>
-          ))}
-          <div className="flex gap-2">
-            <Input
-              value={newRule}
-              onChange={(e) => setNewRule(e.target.value)}
-              placeholder="Nueva regla editorial..."
-              disabled={savingRule}
-              className="h-8"
-            />
-            <Button type="button" size="sm" onClick={handleAddRule} disabled={savingRule} className="h-8">
-              {savingRule ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-            </Button>
-          </div>
+          )}
         </div>
 
-        <div className="shrink-0 space-y-2 border rounded-md p-3">
+        <div className="shrink-0 grid grid-cols-1 sm:grid-cols-2 gap-2 border rounded-md p-3">
           <div className="space-y-1">
             <Label htmlFor="bl-name">Nombre</Label>
             <Input
@@ -182,16 +205,6 @@ export function BlacklistManager() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Nombre completo"
-              disabled={saving}
-            />
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="bl-reason">Motivo (opcional)</Label>
-            <Input
-              id="bl-reason"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="Ej: no conversa rico, nos ha dejado plantados..."
               disabled={saving}
             />
           </div>
@@ -210,20 +223,44 @@ export function BlacklistManager() {
               </SelectContent>
             </Select>
           </div>
-          <Button type="button" size="sm" onClick={handleAdd} disabled={saving} className="w-full">
-            {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
-            Agregar
-          </Button>
+          <div className="space-y-1">
+            <Label htmlFor="bl-reason">Motivo (opcional)</Label>
+            <Input
+              id="bl-reason"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Ej: no conversa rico, nos ha dejado plantados..."
+              disabled={saving}
+            />
+          </div>
+          <div className="flex items-end">
+            <Button type="button" onClick={handleAdd} disabled={saving} className="w-full">
+              {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
+              Agregar
+            </Button>
+          </div>
+        </div>
+
+        <div className="shrink-0 relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={`Buscar entre ${rows.length} por nombre, categoría o motivo...`}
+            className="pl-8 h-9"
+          />
         </div>
 
         <ScrollArea className="flex-1 min-h-0 border rounded-md">
           {loading ? (
             <p className="p-3 text-xs text-muted-foreground">Cargando...</p>
-          ) : rows.length === 0 ? (
-            <p className="p-3 text-xs text-muted-foreground italic">La lista negra está vacía.</p>
+          ) : filteredRows.length === 0 ? (
+            <p className="p-3 text-xs text-muted-foreground italic">
+              {rows.length === 0 ? "La lista negra está vacía." : "Sin resultados."}
+            </p>
           ) : (
             <div className="divide-y">
-              {rows.map((row) => (
+              {filteredRows.map((row) => (
                 <div key={row.id} className="flex items-start gap-2 p-2 text-sm">
                   <div className="flex-1 min-w-0">
                     <p className="font-medium truncate">{row.name}</p>
