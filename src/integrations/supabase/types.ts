@@ -556,9 +556,11 @@ export type Database = {
       }
       invitados_historicos: {
         Row: {
+          cargo: string | null
           created_at: string
           day_of_week: string | null
           fecha: string | null
+          grabado_con_anticipacion: boolean
           guest_id: string | null
           guest_name: string
           guest_name_normalized: string | null
@@ -570,9 +572,11 @@ export type Database = {
           year: number | null
         }
         Insert: {
+          cargo?: string | null
           created_at?: string
           day_of_week?: string | null
           fecha?: string | null
+          grabado_con_anticipacion?: boolean
           guest_id?: string | null
           guest_name: string
           guest_name_normalized?: string | null
@@ -584,9 +588,11 @@ export type Database = {
           year?: number | null
         }
         Update: {
+          cargo?: string | null
           created_at?: string
           day_of_week?: string | null
           fecha?: string | null
+          grabado_con_anticipacion?: boolean
           guest_id?: string | null
           guest_name?: string
           guest_name_normalized?: string | null
