@@ -50,6 +50,13 @@
       "when": 1791517520649,
       "tag": "0006_historico_invitados_estructura",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791517554420,
+      "tag": "0007_canciones_catalogo_uso_segmento_ajustes",
+      "breakpoints": true
     }
   ]
 }
