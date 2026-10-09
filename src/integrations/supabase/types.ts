@@ -921,6 +921,13 @@ export type Database = {
           similarity: number
         }[]
       }
+      contar_invitados: {
+        Args: { p_desde?: string; p_hasta?: string; p_texto: string }
+        Returns: {
+          apariciones: Json
+          total: number
+        }[]
+      }
       has_any_role: { Args: { _user_id: string }; Returns: boolean }
       has_role: {
         Args: {
