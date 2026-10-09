@@ -79,6 +79,10 @@ const InvitadoHistoricoRow = z.object({
   guest_name: z.string().min(1),
   tema: z.string().nullable().optional(),
   year: z.number().int().nullable().optional(),
+  // Texto de prensa/contacto cortado del nombre por el parser local
+  // (lib/normalize.js: cutPrensaFromName) — se conserva para auditoría, no
+  // se usa para nada dentro de la app.
+  prensa_raw: z.string().nullable().optional(),
   // guest_id NO se recibe del cliente: se calcula aquí abajo (findGuestId),
   // porque solo esta función tiene SUPABASE_SERVICE_ROLE_KEY. El script
   // local no debe tener esa key.
@@ -92,6 +96,12 @@ const LibretoChunkRow = z.object({
   hour_number: z.number().int().min(1).max(3).nullable().optional(),
   fecha: z.string().nullable().optional(),
   content: z.string().min(1),
+  // true cuando el documento fuente tiene revisiones sin limpiar para el
+  // mismo (fecha, hora) con invitados distintos y ninguna fuente externa
+  // (CALENDARIO/PROMOS) permitió decidir cuál es la vigente: se cargan
+  // todas las versiones en disputa en vez de adivinar.
+  conflicto: z.boolean().optional().default(false),
+  conflicto_nota: z.string().nullable().optional(),
 });
 
 const CancionRow = z.object({
@@ -120,11 +130,14 @@ const CancionSegmentoRow = z.object({
   es_firma: z.boolean().default(false),
 });
 
+const DELETABLE_KINDS = ["invitados_historicos", "libretos_chunks", "canciones_uso"] as const;
+
 const PayloadSchema = z.object({
   kind: z.enum(["invitados_historicos", "libretos_chunks", "canciones", "canciones_uso", "cancion_segmento"]),
   source_file: z.string().min(1).max(300).optional(),
-  mode: z.enum(["replace", "append"]).default("replace"),
-  rows: z.array(z.record(z.unknown())).min(1).max(2000),
+  mode: z.enum(["replace", "append", "delete"]).default("replace"),
+  // rows no es obligatorio en mode="delete" (solo borra, no inserta nada).
+  rows: z.array(z.record(z.unknown())).max(2000).default([]),
 });
 
 Deno.serve(async (req) => {
@@ -157,6 +170,28 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Borrado explícito (p.ej. "borra 2025 antes de recargar"): solo
+    // elimina, no inserta. Se identifica por source_file (nombre del
+    // documento de ese año: "GUÍA DE CONTENIDOS 2025.docx", etc.) — las
+    // tablas del histórico no tienen otra columna de año confiable para
+    // invitados_historicos/libretos_chunks/canciones_uso a la vez.
+    if (mode === "delete") {
+      if (!source_file) return json({ error: "mode=delete requiere source_file" }, 400);
+      if (!(DELETABLE_KINDS as readonly string[]).includes(kind)) {
+        return json({ error: `mode=delete no soportado para kind=${kind}` }, 400);
+      }
+      const { error: delError, count } = await supabase
+        .from(kind)
+        .delete({ count: "exact" })
+        .eq("source_file", source_file);
+      if (delError) return json({ error: `delete failed: ${delError.message}` }, 500);
+      return json({ ok: true, kind, mode: "delete", source_file, deleted: count ?? 0 });
+    }
+
+    if (rows.length === 0) {
+      return json({ error: "rows requerido (min 1) salvo en mode=delete" }, 400);
+    }
 
     let inserted = 0;
     const errors: string[] = [];
