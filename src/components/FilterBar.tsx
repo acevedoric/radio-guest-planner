@@ -194,7 +194,27 @@ export const FilterBar = ({
     thursday: "Jue",
   };
 
+  // buscar_invitados_rank devuelve day_of_week ya en español ("lunes",
+  // "martes"...) para las 3 fuentes (app/historico/libreto); se capitaliza
+  // para mostrar, sin depender del mapa de días en inglés de arriba.
+  const formatDayOfWeek = (day: string | null | undefined) => {
+    if (!day) return "";
+    if (dayLabels[day]) return dayLabels[day];
+    return day.charAt(0).toUpperCase() + day.slice(1);
+  };
+
   const hasResults = (globalSearchResults?.guests?.length || 0) > 0 || (globalSearchResults?.press?.length || 0) > 0;
+
+  const SOURCE_GROUPS: { key: "app" | "historico" | "libreto"; label: string }[] = [
+    { key: "app", label: "Agenda" },
+    { key: "historico", label: "Histórico" },
+    { key: "libreto", label: "Libreto" },
+  ];
+  const guestsBySource = SOURCE_GROUPS.map(({ key, label }) => ({
+    key,
+    label,
+    items: globalSearchResults.guests.filter((g) => ((g as any).source || "app") === key),
+  })).filter((group) => group.items.length > 0);
 
   return (
     <div className="space-y-4">
@@ -314,20 +334,24 @@ export const FilterBar = ({
                 </div>
               )}
 
-              {/* Sección INVITADOS */}
-              {globalSearchResults.guests.length > 0 && (
-                <>
+              {/* Secciones de INVITADOS agrupadas por fuente: Agenda / Histórico / Libreto */}
+              {guestsBySource.map(({ key: source, label, items }) => (
+                <div key={source}>
                   <div className="px-4 py-2 bg-muted/50 border-b border-border flex items-center gap-2">
                     <User className="w-3.5 h-3.5 text-primary" />
-                    <span className="text-xs font-semibold uppercase tracking-wide text-primary">Invitados</span>
-                    <span className="text-xs text-muted-foreground">({globalSearchResults.guests.length})</span>
+                    <span className="text-xs font-semibold uppercase tracking-wide text-primary">{label}</span>
+                    <span className="text-xs text-muted-foreground">({items.length})</span>
                   </div>
-                  {globalSearchResults.guests.slice(0, 5).map((guest) => {
+                  {items.slice(0, 5).map((guest) => {
                     const weekDate = guest.week_date ? new Date(guest.week_date + 'T12:00:00') : null;
-                    const dateLabel = weekDate ? format(weekDate, "d 'de' MMMM yyyy", { locale: es }) : "Sin fecha";
-                    const source = (guest as any).source as "app" | "historico" | "libreto" | undefined;
+                    const scheduledDate = (guest as any).scheduled_date ? new Date((guest as any).scheduled_date + 'T12:00:00') : null;
+                    const dateLabel = weekDate
+                      ? format(weekDate, "d 'de' MMMM yyyy", { locale: es })
+                      : scheduledDate
+                      ? format(scheduledDate, "d 'de' MMMM yyyy", { locale: es })
+                      : "Sin fecha";
                     const snippet = (guest as any).snippet as string | null | undefined;
-                    const clickable = !source || source === "app";
+                    const clickable = source === "app";
                     const body = (
                       <>
                         <CalendarDays className="w-4 h-4 mt-0.5 text-primary shrink-0" />
@@ -335,15 +359,10 @@ export const FilterBar = ({
                           <div className="font-medium text-sm truncate flex items-center gap-1.5">
                             {guest.name}
                             {guest.position && <span className="text-muted-foreground font-normal"> · {guest.position}</span>}
-                            {source && source !== "app" && (
-                              <span className="text-[10px] px-1 py-0.5 rounded bg-muted text-muted-foreground shrink-0">
-                                {source === "historico" ? "Histórico" : "Libreto"}
-                              </span>
-                            )}
                           </div>
                           <div className="text-xs text-muted-foreground truncate">{snippet || guest.topic}</div>
                           <div className="text-xs text-primary mt-0.5">
-                            {dayLabels[guest.day_of_week] || guest.day_of_week} · {dateLabel}
+                            {formatDayOfWeek(guest.day_of_week)} · {dateLabel}
                             {guest.time_slot ? ` · Bloque ${guest.time_slot}` : ""}
                           </div>
                         </div>
@@ -367,8 +386,8 @@ export const FilterBar = ({
                       </div>
                     );
                   })}
-                </>
-              )}
+                </div>
+              ))}
 
               {/* Sección PRENSA */}
               {globalSearchResults.press.length > 0 && (

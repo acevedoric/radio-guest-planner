@@ -48,15 +48,17 @@ const SOURCE_BADGE_CLASS: Record<ResultSource, string> = {
   libreto: "bg-blue-500/10 text-blue-700",
 };
 
+// buscar_invitados_rank devuelve day_of_week en español (lunes/martes/
+// miércoles/jueves) para las 3 fuentes (app/historico/libreto).
 const DAY_LABEL: Record<string, string> = {
-  monday: "Lunes",
-  tuesday: "Martes",
-  wednesday: "Miércoles",
-  thursday: "Jueves",
+  lunes: "Lunes",
+  martes: "Martes",
+  "miércoles": "Miércoles",
+  jueves: "Jueves",
 };
-const DAY_OFFSETS: Record<string, number> = { monday: 0, tuesday: 1, wednesday: 2, thursday: 3 };
+const DAY_OFFSETS: Record<string, number> = { lunes: 0, martes: 1, "miércoles": 2, jueves: 3 };
 
-/** Fecha de emisión (YYYY-MM-DD) a partir de week_date + day_of_week. */
+/** Fecha de emisión (YYYY-MM-DD) a partir de week_date + day_of_week (español). */
 const emissionDate = (weekDate: string | null, dayOfWeek: string | null): string | null => {
   if (!weekDate || !dayOfWeek || DAY_OFFSETS[dayOfWeek] === undefined) return null;
   const base = new Date(weekDate + "T00:00:00");
