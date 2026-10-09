@@ -824,6 +824,7 @@ const Index = () => {
 
         {viewMode === "day" && (
           <DayView 
+            isAuthenticated={!isPublic}
             guests={filteredGuests}
             allGuests={allRecordingGuests}
             onGuestClick={handleGuestClick} 

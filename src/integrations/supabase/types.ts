@@ -754,8 +754,8 @@ export type Database = {
           week_date: string | null
         }
         Insert: {
-          avance_h2?: string | null
-          avance_h3?: string | null
+          avance_h2?: never
+          avance_h3?: never
           carrera_profesional?: never
           confirmed_blu?: boolean | null
           confirmed_pr?: boolean | null
@@ -763,13 +763,13 @@ export type Database = {
           datos_curiosos?: never
           day_of_week?: string | null
           email?: never
-          encuesta_hashtag?: string | null
-          encuesta_pregunta?: string | null
+          encuesta_hashtag?: never
+          encuesta_pregunta?: never
           festivo?: boolean | null
           h1_canciones?: string | null
           h1_lanzamiento_musical?: string | null
-          h1_notas_adicionales?: string | null
-          h1_periodista_voces_sonidos?: string | null
+          h1_notas_adicionales?: never
+          h1_periodista_voces_sonidos?: never
           h2_canciones?: string | null
           h2_contexto?: never
           h2_documento_nombre?: never
@@ -778,8 +778,8 @@ export type Database = {
           h2_lanzamiento_musical?: string | null
           h2_link_info?: never
           h2_n8n_updated_at?: string | null
-          h2_notas_adicionales?: string | null
-          h2_periodista_voces_sonidos?: string | null
+          h2_notas_adicionales?: never
+          h2_periodista_voces_sonidos?: never
           h2_preguntas_sugeridas?: never
           h3_canciones?: string | null
           h3_comunicado_prensa?: never
@@ -788,7 +788,7 @@ export type Database = {
           h3_documento_url?: never
           h3_link_info?: never
           h3_n8n_updated_at?: string | null
-          h3_notas_adicionales?: string | null
+          h3_notas_adicionales?: never
           id?: string | null
           infancia_vida_privada?: never
           n8n_updated_at?: string | null
@@ -800,7 +800,7 @@ export type Database = {
           press_email?: never
           press_phone?: never
           program_type?: string | null
-          proposed_by?: string | null
+          proposed_by?: never
           recording_status?: string | null
           scheduled_date?: string | null
           scheduled_time?: string | null
@@ -815,8 +815,8 @@ export type Database = {
           week_date?: string | null
         }
         Update: {
-          avance_h2?: string | null
-          avance_h3?: string | null
+          avance_h2?: never
+          avance_h3?: never
           carrera_profesional?: never
           confirmed_blu?: boolean | null
           confirmed_pr?: boolean | null
@@ -824,13 +824,13 @@ export type Database = {
           datos_curiosos?: never
           day_of_week?: string | null
           email?: never
-          encuesta_hashtag?: string | null
-          encuesta_pregunta?: string | null
+          encuesta_hashtag?: never
+          encuesta_pregunta?: never
           festivo?: boolean | null
           h1_canciones?: string | null
           h1_lanzamiento_musical?: string | null
-          h1_notas_adicionales?: string | null
-          h1_periodista_voces_sonidos?: string | null
+          h1_notas_adicionales?: never
+          h1_periodista_voces_sonidos?: never
           h2_canciones?: string | null
           h2_contexto?: never
           h2_documento_nombre?: never
@@ -839,8 +839,8 @@ export type Database = {
           h2_lanzamiento_musical?: string | null
           h2_link_info?: never
           h2_n8n_updated_at?: string | null
-          h2_notas_adicionales?: string | null
-          h2_periodista_voces_sonidos?: string | null
+          h2_notas_adicionales?: never
+          h2_periodista_voces_sonidos?: never
           h2_preguntas_sugeridas?: never
           h3_canciones?: string | null
           h3_comunicado_prensa?: never
@@ -849,7 +849,7 @@ export type Database = {
           h3_documento_url?: never
           h3_link_info?: never
           h3_n8n_updated_at?: string | null
-          h3_notas_adicionales?: string | null
+          h3_notas_adicionales?: never
           id?: string | null
           infancia_vida_privada?: never
           n8n_updated_at?: string | null
@@ -861,7 +861,7 @@ export type Database = {
           press_email?: never
           press_phone?: never
           program_type?: string | null
-          proposed_by?: string | null
+          proposed_by?: never
           recording_status?: string | null
           scheduled_date?: string | null
           scheduled_time?: string | null

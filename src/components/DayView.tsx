@@ -17,6 +17,7 @@ import { parse, addDays, format } from "date-fns";
 import { maybeSendConfirmationEmail } from "@/hooks/useConfirmationWebhook";
 
 interface DayViewProps {
+  isAuthenticated?: boolean;
   guests: Guest[];
   allGuests: Guest[];
   onGuestClick: (guest: Guest) => void;
@@ -124,7 +125,7 @@ const buildPRMailto = (guest: Guest, selectedDayDate?: string) => {
   return `mailto:${guest.press_email}?subject=${subject}&body=${encodeURIComponent(lines.join('\n'))}`;
 };
 
-export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedDay, onDayChange, editMode, onGuestUpdate, selectedDayDate, onRecordingGuestClick }: DayViewProps) => {
+export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedDay, onDayChange, editMode, onGuestUpdate, selectedDayDate, onRecordingGuestClick, isAuthenticated = false }: DayViewProps) => {
   const [showLibreto, setShowLibreto] = useState(false);
 
   const getGuestForSlot = (slot: number) => {
@@ -214,7 +215,7 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
             );
           })}
         </div>
-        {["monday", "tuesday", "wednesday", "thursday"].includes(selectedDay) && (
+        {isAuthenticated && ["monday", "tuesday", "wednesday", "thursday"].includes(selectedDay) && (
           <div className="flex gap-2">
             <Button
               variant={showLibreto ? "default" : "outline"}
