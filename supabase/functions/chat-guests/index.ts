@@ -190,18 +190,13 @@ serve(async (req) => {
         }
       }
     }
+    // buscar_invitados_rank ya resuelve la unión "+ histórico" (columna
+    // tiene_historico en la fila de agenda) y la distinción propio/mención
+    // (columna tipo) -- no hace falta deduplicar de nuevo aquí.
     let results = Array.from(resultMap.values());
 
-    // Dedup: histórico ya enlazado a un guest que también aparece en la
-    // agenda no se cuenta/muestra aparte (misma persona).
-    const appIds = new Set(results.filter((r) => r.source === "app").map((r) => r.id));
-    results = results.filter((r) => !(r.source === "historico" && r.guest_id && appIds.has(r.guest_id)));
-
     if (dateRange) {
-      results = results.filter((r) => {
-        const d = r.scheduled_date || r.week_date;
-        return d && d >= dateRange!.from && d <= dateRange!.to;
-      });
+      results = results.filter((r) => r.scheduled_date && r.scheduled_date >= dateRange!.from && r.scheduled_date <= dateRange!.to);
     }
     if (dayFilter) {
       results = results.filter((r) => r.day_of_week === dayFilter);
@@ -273,8 +268,11 @@ serve(async (req) => {
 
     const sourceLabels: Record<string, string> = { app: "Agenda", historico: "Histórico", libreto: "Guion (fragmento)" };
 
-    const formatRow = (r: any) =>
-      `[${sourceLabels[r.source] || r.source}] ${r.name}${r.guest_position ? ` (${r.guest_position})` : ""} | Tema: ${r.topic || "-"} | ${r.day_of_week || "-"} ${r.scheduled_date || r.week_date || ""} | Hora ${r.time_slot ?? "-"}${r.snippet ? ` | Fragmento: ${r.snippet}` : ""}`;
+    const formatRow = (r: any) => {
+      const label = r.tipo === "mencion" ? `Mención en el libreto de ${r.name}` : r.name;
+      const histTag = r.tiene_historico ? " [+histórico]" : "";
+      return `[${sourceLabels[r.source] || r.source}] ${label}${histTag}${r.guest_position ? ` (${r.guest_position})` : ""} | Tema: ${r.topic || "-"} | ${r.day_of_week || "-"} ${r.scheduled_date || ""} | Hora ${r.time_slot ?? "-"}${r.snippet ? ` | Fragmento: ${r.snippet}` : ""}`;
+    };
 
     const contextLines = results.slice(0, 50).map(formatRow);
     const guestContext = contextLines.join("\n") || "(sin coincidencias)";
@@ -335,7 +333,8 @@ REGLAS DE CONSISTENCIA (MUY IMPORTANTE):
 - Si hay un bloque "HISTORIAL OFICIAL" (cuántas veces/cuándo vino alguien), responde SOLO con esas apariciones — no agregues ni quites fechas, no mezcles con otras filas de "Invitados disponibles".
 - Si hay un bloque "QUIÉN OFICIAL" (quién vino tal fecha/hora), responde SOLO con esos nombres — nunca agregues a nadie más del contexto, aunque aparezca en "Invitados disponibles".
 - REGLA GENERAL ANTI-RUIDO: responde SOLO lo que se pregunta, con los datos de la herramienta oficial correspondiente (CONTEO/RANKING/HISTORIAL/QUIÉN) cuando exista. Está PROHIBIDO mencionar un invitado de la Agenda que no sea necesario para responder la pregunta solo porque aparece en la lista "Invitados disponibles" — esa lista es contexto de búsqueda, no una lista para recitar completa.
-- Las filas [Guion (fragmento)] son fragmentos de texto para contexto cualitativo (qué se dijo, de qué se habló) — NUNCA las uses para contar personas, pueden repetir al mismo invitado varias veces (un chunk por fragmento del guion).
+- Las filas [Guion (fragmento)] son fragmentos de texto para contexto cualitativo (qué se dijo, de qué se habló) — NUNCA las uses para contar personas, pueden repetir al mismo invitado varias veces (un chunk por fragmento del guion). Una fila marcada "Mención en el libreto de X" NO es una aparición propia de la persona buscada — es el libreto de X mencionándola; no la cuentes como si X fuera quien se buscó, y no mezcles sus datos con los de la persona buscada.
+- Una fila con "[+histórico]" ya representa a la misma persona en agenda e histórico combinados — no la cuentes ni la menciones dos veces.
 - Las filas [Agenda] y [Histórico] son registros de invitados individuales.
 - No hagas distinción de género en profesiones para decidir relevancia ("actor"/"actriz", "escritor"/"escritora", etc. son la misma categoría).
 - Si no hay filas relevantes ni conteo/ranking/historial/quién oficial, dilo claramente en lugar de inventar.

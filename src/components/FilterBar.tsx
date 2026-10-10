@@ -222,57 +222,35 @@ export const FilterBar = ({
     return day.charAt(0).toUpperCase() + day.slice(1);
   };
 
-  const SPANISH_DAY_OFFSET: Record<string, number> = { lunes: 0, martes: 1, "miércoles": 2, jueves: 3 };
-
-  /** Fecha real de emisión: week_date es el LUNES de la semana, no el día
-   * que emitió — hay que sumarle el desplazamiento del día (antes se
-   * mostraba week_date tal cual con la etiqueta del día real, lo que daba
-   * fechas que no correspondían, p.ej. "Jueves · 19 de febrero" cuando en
-   * realidad fue el 22). Para historico/libreto no hay week_date (ya viene
-   * la fecha real en scheduled_date), así que no se desplaza. */
+  /** buscar_invitados_rank ya devuelve la fecha REAL de emisión en
+   * scheduled_date para las 4 fuentes (app/historico/libreto, y ahora
+   * también agenda vía el enlace desde histórico) — no hace falta
+   * recalcularla sumando el desplazamiento del día acá. */
   const resolveResultDate = (guest: any): Date | null => {
-    if (guest.week_date) {
-      const monday = new Date(guest.week_date + "T12:00:00");
-      const offset = SPANISH_DAY_OFFSET[guest.day_of_week as string];
-      if (offset !== undefined) {
-        monday.setDate(monday.getDate() + offset);
-        return monday;
-      }
-      return monday;
-    }
     if (guest.scheduled_date) return new Date(guest.scheduled_date + "T12:00:00");
     return null;
   };
 
   const hasResults = (globalSearchResults?.guests?.length || 0) > 0 || (globalSearchResults?.press?.length || 0) > 0;
 
-  const SOURCE_GROUPS: { key: "app" | "historico" | "libreto"; label: string }[] = [
+  const SOURCE_GROUPS: { key: "app" | "historico" | "libreto" | "mencion"; label: string }[] = [
     { key: "app", label: "Agenda" },
     { key: "historico", label: "Histórico" },
     { key: "libreto", label: "Libreto" },
+    { key: "mencion", label: "Menciones" },
   ];
-  // Deduplicación: una fila "historico" que ya está enlazada a un guest
-  // (guest_id) no se muestra aparte si ese mismo guest ya aparece en la
-  // Agenda — se le agrega una etiqueta "+ histórico" a la fila de Agenda
-  // en su lugar (requiere que buscar_invitados_rank devuelva guest_id en
-  // las filas de histórico; si no lo trae, simplemente no hay nada que
-  // deduplicar y se muestran ambas).
-  const appIds = new Set(globalSearchResults.guests.filter((g) => ((g as any).source || "app") === "app").map((g) => g.id));
-  const linkedHistoricoIds = new Set(
-    globalSearchResults.guests
-      .filter((g) => (g as any).source === "historico" && (g as any).guest_id && appIds.has((g as any).guest_id))
-      .map((g) => (g as any).guest_id)
-  );
-
+  // La deduplicación "+ histórico" y la distinción propio/mención ya las
+  // resuelve la RPC (tiene_historico, tipo) — el frontend solo agrupa y
+  // pinta lo que llega, sin lógica propia de dedup.
+  const groupKeyFor = (g: any): "app" | "historico" | "libreto" | "mencion" => {
+    const source = (g.source || "app") as "app" | "historico" | "libreto";
+    if (source === "libreto" && g.tipo === "mencion") return "mencion";
+    return source;
+  };
   const guestsBySource = SOURCE_GROUPS.map(({ key, label }) => ({
     key,
     label,
-    items: globalSearchResults.guests.filter((g) => {
-      const source = (g as any).source || "app";
-      if (source !== key) return false;
-      if (source === "historico" && (g as any).guest_id && appIds.has((g as any).guest_id)) return false;
-      return true;
-    }),
+    items: globalSearchResults.guests.filter((g) => groupKeyFor(g) === key),
   })).filter((group) => group.items.length > 0);
 
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
@@ -413,14 +391,15 @@ export const FilterBar = ({
                     const dateLabel = resultDate ? format(resultDate, "d 'de' MMMM yyyy", { locale: es }) : "Sin fecha";
                     const snippet = (guest as any).snippet as string | null | undefined;
                     const clickable = source === "app";
-                    const hasHistorico = source === "app" && linkedHistoricoIds.has(guest.id);
+                    const hasHistorico = (guest as any).tiene_historico === true;
+                    const isMencion = source === "mencion";
                     const body = (
                       <>
                         <CalendarDays className="w-4 h-4 mt-0.5 text-primary shrink-0" />
                         <div className="min-w-0">
                           <div className="font-medium text-sm truncate flex items-center gap-1.5">
-                            {guest.name}
-                            {guest.position && <span className="text-muted-foreground font-normal"> · {guest.position}</span>}
+                            {isMencion ? `Mencionado en el libreto de ${guest.name}` : guest.name}
+                            {!isMencion && guest.position && <span className="text-muted-foreground font-normal"> · {guest.position}</span>}
                             {hasHistorico && (
                               <span className="text-[10px] px-1 py-0.5 rounded bg-amber-500/10 text-amber-700 shrink-0">+ histórico</span>
                             )}

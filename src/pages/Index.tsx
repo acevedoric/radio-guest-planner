@@ -617,6 +617,8 @@ const Index = () => {
       source: r.source as "app" | "historico" | "libreto",
       snippet: r.snippet as string | null,
       guest_id: r.guest_id as string | null,
+      tiene_historico: r.tiene_historico as boolean | null,
+      tipo: r.tipo as string | null,
     })) as Guest[];
 
     setGlobalSearchResults({
