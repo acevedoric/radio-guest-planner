@@ -101,25 +101,49 @@ serve(async (req) => {
       if (dayFilter === null && SPANISH_DAYS.has(w)) dayFilter = w === "miercoles" ? "miércoles" : w;
     }
 
+    // Año explícito ("2025") o relativo ("este año"/"año pasado"/"próximo
+    // año") -- SIEMPRE se detecta aquí, en el servidor, antes de llamar a
+    // las RPC. No se le pide al modelo que calcule fechas: si una pregunta
+    // de cantidad/ranking no fija p_desde/p_hasta, las funciones cuentan
+    // TODOS los años (bug real: "más frecuente de 2025" devolvía el total
+    // histórico completo, no solo 2025).
+    const now = new Date();
+    let yearFilter: number | null = null;
+    const explicitYearMatch = question.match(/\b(20\d{2})\b/);
+    if (explicitYearMatch) {
+      yearFilter = parseInt(explicitYearMatch[1], 10);
+    } else if (/\b(este\s+a[ñn]o|presente\s+a[ñn]o)\b/i.test(question)) {
+      yearFilter = now.getFullYear();
+    } else if (/\b(a[ñn]o\s+pasado|el\s+a[ñn]o\s+anterior)\b/i.test(question)) {
+      yearFilter = now.getFullYear() - 1;
+    } else if (/\b(a[ñn]o\s+que\s+viene|pr[óo]ximo\s+a[ñn]o|a[ñn]o\s+siguiente)\b/i.test(question)) {
+      yearFilter = now.getFullYear() + 1;
+    }
+
     const keywords = Array.from(new Set(
       rawWords.filter(
         (w: string) =>
           w.length >= 3 &&
           !STOPWORDS.has(w) &&
           MONTHS[w] === undefined &&
-          !SPANISH_DAYS.has(w),
+          !SPANISH_DAYS.has(w) &&
+          !/^20\d{2}$/.test(w),
       ),
     )).slice(0, 6) as string[];
 
     let dateRange: { from: string; to: string } | null = null;
     if (monthFilter !== null) {
-      const now = new Date();
-      let year = now.getFullYear();
-      if (monthFilter < now.getMonth() + 1) year += 1;
+      let year = yearFilter;
+      if (year === null) {
+        year = now.getFullYear();
+        if (monthFilter < now.getMonth() + 1) year += 1;
+      }
       const from = `${year}-${String(monthFilter).padStart(2, "0")}-01`;
       const lastDay = new Date(year, monthFilter, 0).getDate();
       const to = `${year}-${String(monthFilter).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
       dateRange = { from, to };
+    } else if (yearFilter !== null) {
+      dateRange = { from: `${yearFilter}-01-01`, to: `${yearFilter}-12-31` };
     }
 
     const isQuantityQuestion = CUANTO_RE.test(question);
@@ -138,13 +162,32 @@ serve(async (req) => {
     // Cubre agenda + histórico + fragmentos de guion en una sola llamada por
     // palabra clave (ya incluye accent-insensitive + full-text + trigram).
     const resultMap = new Map<string, any>();
-    const terms = keywords.length ? keywords.flatMap(getGenderVariants) : [question];
+    // Con 2+ palabras clave, se busca PRIMERO la frase completa (así
+    // buscar_invitados_rank exige las DOS como AND real) — buscar cada
+    // palabra suelta por separado (p.ej. "miguel" y "gonzalez" cada una
+    // sola) deja pasar cualquier fragmento que mencione una sin la otra,
+    // que es como "Miguel González" traía ruido de otros invitados que
+    // solo comparten una de las dos palabras. Solo si la frase completa no
+    // encuentra nada se recurre a las palabras sueltas (gender variants
+    // incluidas) para no perder preguntas temáticas de una sola palabra.
+    const joinedTerm = keywords.length > 1 ? keywords.join(" ") : null;
+    const terms = joinedTerm ? [joinedTerm] : keywords.length ? keywords.flatMap(getGenderVariants) : [question];
     for (const term of terms) {
       const { data, error } = await userClient.rpc("buscar_invitados_rank", { query_text: term, max_results: 20 });
       if (error) continue;
       for (const row of data || []) {
         const key = `${row.source}-${row.id}`;
         if (!resultMap.has(key)) resultMap.set(key, row);
+      }
+    }
+    if (joinedTerm && resultMap.size === 0) {
+      for (const term of keywords.flatMap(getGenderVariants)) {
+        const { data, error } = await userClient.rpc("buscar_invitados_rank", { query_text: term, max_results: 20 });
+        if (error) continue;
+        for (const row of data || []) {
+          const key = `${row.source}-${row.id}`;
+          if (!resultMap.has(key)) resultMap.set(key, row);
+        }
       }
     }
     let results = Array.from(resultMap.values());
@@ -242,6 +285,7 @@ serve(async (req) => {
     const today = new Date().toISOString().split("T")[0];
 
     const filterSummary = [
+      yearFilter ? `año=${yearFilter}` : null,
       monthFilter ? `mes=${monthFilter}` : null,
       dayFilter ? `día=${dayFilter}` : null,
       keywords.length ? `palabras_clave=[${keywords.join(", ")}]` : null,
