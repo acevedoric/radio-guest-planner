@@ -897,6 +897,7 @@ export type Database = {
         Args: { max_results?: number; query_text: string }
         Returns: {
           day_of_week: string
+          guest_id: string
           guest_position: string
           id: string
           name: string
@@ -937,6 +938,15 @@ export type Database = {
         Returns: boolean
       }
       is_email_allowed: { Args: { _email: string }; Returns: boolean }
+      ranking_invitados: {
+        Args: { p_desde?: string; p_hasta?: string; p_limite?: number }
+        Returns: {
+          apariciones: number
+          dia_mas_frecuente: string
+          hora_mas_frecuente: number
+          nombre: string
+        }[]
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       unaccent: { Args: { "": string }; Returns: string }
