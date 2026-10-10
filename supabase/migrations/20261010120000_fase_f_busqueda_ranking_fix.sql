@@ -456,7 +456,7 @@ BEGIN
     d.nombre, d.hora, d.cargo, d.tema, d.fuente,
     (SELECT substring(lc.content FROM 1 FOR 300) FROM public.libretos_chunks lc
       WHERE is_privileged AND lc.fecha = p_fecha AND lc.hour_number = d.hora
-      ORDER BY lc.chunk_index LIMIT 1) AS snippet
+      ORDER BY lc.created_at, lc.id LIMIT 1) AS snippet
   FROM dedup d
   ORDER BY d.hora, d.nombre;
 END;
