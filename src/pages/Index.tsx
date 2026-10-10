@@ -619,6 +619,8 @@ const Index = () => {
       guest_id: r.guest_id as string | null,
       tiene_historico: r.tiene_historico as boolean | null,
       tipo: r.tipo as string | null,
+      tiene_libreto: r.tiene_libreto as boolean | null,
+      libreto_chunk_ids: r.libreto_chunk_ids as string[] | null,
     })) as Guest[];
 
     setGlobalSearchResults({

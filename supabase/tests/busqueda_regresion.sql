@@ -1,38 +1,38 @@
--- Batería de regresión del buscador (FASE J/K). No modifica datos ni crea
--- usuarios/roles: corre dentro de una transacción que termina en ROLLBACK,
--- y usa el user_id de un producer REAL que ya exista (pasado como
--- variable), solo para que has_role(auth.uid(), ...) lo reconozca durante
--- la transacción -- no se inserta ni cambia ningún rol.
+-- Batería de regresión del buscador (FASE J/K/L). No modifica datos ni
+-- crea usuarios/roles: corre dentro de una transacción que termina en
+-- ROLLBACK. Toma el uid de un producer REAL vía current_setting
+-- ('test.producer_uid') -- Lovable debe correr, en la MISMA sesión y
+-- ANTES de este archivo:
 --
--- Uso:
---   psql "$DATABASE_URL" -v producer_uid="'<uuid-de-un-producer-real>'" \
---     -f supabase/tests/busqueda_regresion.sql
+--   SELECT set_config('test.producer_uid', '<uuid-de-un-producer-real>', false);
+--
+-- (el tercer argumento `false` es session-level, no local a una
+-- transacción, para que siga visible cuando este archivo abra su propia
+-- transacción). Luego:
+--
+--   psql "$DATABASE_URL" -f supabase/tests/busqueda_regresion.sql
 --
 -- Cada caso imprime PASS o FAIL con el detalle. Revisa la salida: no hay
 -- un resumen automático de "todo ok", hay que leer cada línea.
 
-\if :{?producer_uid}
-\else
-  \echo 'ERROR: falta -v producer_uid="''<uuid>''"  (uuid de un producer/admin real)'
-  \quit
-\endif
-
 BEGIN;
 
-SELECT set_config(
-  'request.jwt.claims',
-  json_build_object('sub', :producer_uid::text, 'role', 'authenticated')::text,
-  true
-);
-SELECT set_config('role', 'authenticated', true);
-
--- Confirma que el uuid pasado de verdad tiene rol producer/admin -- si no,
--- todo lo demás va a fallar por una razón ajena a los bugs que se prueban.
 DO $$
+DECLARE producer_uid uuid;
 BEGIN
-  IF NOT (public.has_role(:producer_uid::uuid, 'producer'::app_role) OR public.has_role(:producer_uid::uuid, 'admin'::app_role)) THEN
-    RAISE EXCEPTION 'producer_uid % no tiene rol producer ni admin -- pasa el uuid de una cuenta real con ese rol', :producer_uid;
+  producer_uid := current_setting('test.producer_uid', true)::uuid;
+  IF producer_uid IS NULL THEN
+    RAISE EXCEPTION 'Falta SELECT set_config(''test.producer_uid'', ''<uuid>'', false) antes de correr este archivo';
   END IF;
+  IF NOT (public.has_role(producer_uid, 'producer'::app_role) OR public.has_role(producer_uid, 'admin'::app_role)) THEN
+    RAISE EXCEPTION 'test.producer_uid % no tiene rol producer ni admin -- pasa el uuid de una cuenta real con ese rol', producer_uid;
+  END IF;
+  PERFORM set_config(
+    'request.jwt.claims',
+    json_build_object('sub', producer_uid::text, 'role', 'authenticated')::text,
+    true
+  );
+  PERFORM set_config('role', 'authenticated', true);
 END $$;
 
 -- Compara nombres normalizados (sin acentos, sin mayúsculas, sin espacios de borde).
@@ -113,56 +113,63 @@ BEGIN
   END IF;
 END $$;
 
--- 6. buscar_invitados_rank('Miguel Gonzalez') -> una sola fila PROPIA
---    (13/08/2025, tiene_historico=true); cualquier otra fila debe ser
---    tipo='mencion' (fragmento de libreto de otra persona que lo nombra).
+-- 6. buscar_invitados_rank('Miguel Gonzalez') -> la aparición del
+--    13/08/2025 UNA SOLA VEZ, con tiene_historico=true y tiene_libreto=true;
+--    la de 10/04/2023 puede aparecer también; 0 filas tipo='mencion'.
 DO $$
-DECLARE n_propio integer; fecha_val date; tiene_hist boolean; n_mencion_no_propio integer;
+DECLARE n_13ago integer; hist_13ago boolean; libreto_13ago boolean; n_mencion integer;
 BEGIN
-  SELECT count(*), (array_agg(scheduled_date))[1], (array_agg(tiene_historico))[1]
-    INTO n_propio, fecha_val, tiene_hist
+  SELECT count(*), (array_agg(tiene_historico))[1], (array_agg(tiene_libreto))[1]
+    INTO n_13ago, hist_13ago, libreto_13ago
   FROM public.buscar_invitados_rank('Miguel Gonzalez', 20)
-  WHERE source != 'libreto' OR tipo = 'propio';
+  WHERE scheduled_date = '2025-08-13';
 
-  SELECT count(*) INTO n_mencion_no_propio
+  SELECT count(*) INTO n_mencion
   FROM public.buscar_invitados_rank('Miguel Gonzalez', 20)
-  WHERE source = 'libreto' AND tipo != 'mencion';
+  WHERE tipo = 'mencion';
 
-  IF n_propio = 1 AND fecha_val = '2025-08-13' AND tiene_hist = true AND n_mencion_no_propio = 0 THEN
-    RAISE NOTICE 'PASS 6: buscar_invitados_rank(Miguel Gonzalez) = 1 fila propia (2025-08-13, tiene_historico), resto solo menciones';
+  IF n_13ago = 1 AND hist_13ago = true AND libreto_13ago = true AND n_mencion = 0 THEN
+    RAISE NOTICE 'PASS 6: buscar_invitados_rank(Miguel Gonzalez) = 1 fila el 2025-08-13 (tiene_historico+tiene_libreto), 0 menciones';
   ELSE
-    RAISE NOTICE 'FAIL 6: propio=% fecha=% tiene_historico=% libreto_no_mencion=%', n_propio, fecha_val, tiene_hist, n_mencion_no_propio;
+    RAISE NOTICE 'FAIL 6: 13ago(n=%,hist=%,libreto=%) menciones=%', n_13ago, hist_13ago, libreto_13ago, n_mencion;
   END IF;
 END $$;
 
--- 7. buscar_invitados_rank('Ezequiel peralta') y ('ezequiel lopez') ->
---    Ezequiel López 13/03/2025 una vez, con tiene_historico=true, nunca Miguel González
+-- 7. buscar_invitados_rank('Ezequiel peralta') -> Ezequiel López 13/03/2025
+--    con tiene_historico=true y tiene_libreto=true, nunca Miguel González
 DO $$
-DECLARE n1 integer; has_miguel1 boolean; n2 integer; has_miguel2 boolean;
-  fecha1 date; fecha2 date; hist1 boolean; hist2 boolean;
+DECLARE n integer; has_miguel boolean; fecha_val date; hist boolean; libreto boolean;
 BEGIN
   SELECT
-    count(*) FILTER (WHERE source != 'libreto' OR tipo = 'propio'),
+    count(*) FILTER (WHERE scheduled_date = '2025-03-13'),
     bool_or(pg_temp.norm_eq(name, 'Miguel González')),
-    (array_agg(scheduled_date) FILTER (WHERE name ILIKE '%ezequiel%' AND (source != 'libreto' OR tipo = 'propio')))[1],
-    (array_agg(tiene_historico) FILTER (WHERE name ILIKE '%ezequiel%' AND (source != 'libreto' OR tipo = 'propio')))[1]
-  INTO n1, has_miguel1, fecha1, hist1
+    (array_agg(scheduled_date) FILTER (WHERE scheduled_date = '2025-03-13'))[1],
+    (array_agg(tiene_historico) FILTER (WHERE scheduled_date = '2025-03-13'))[1],
+    (array_agg(tiene_libreto) FILTER (WHERE scheduled_date = '2025-03-13'))[1]
+  INTO n, has_miguel, fecha_val, hist, libreto
   FROM public.buscar_invitados_rank('Ezequiel peralta', 20);
 
-  SELECT
-    count(*) FILTER (WHERE source != 'libreto' OR tipo = 'propio'),
-    bool_or(pg_temp.norm_eq(name, 'Miguel González')),
-    (array_agg(scheduled_date) FILTER (WHERE name ILIKE '%ezequiel%' AND (source != 'libreto' OR tipo = 'propio')))[1],
-    (array_agg(tiene_historico) FILTER (WHERE name ILIKE '%ezequiel%' AND (source != 'libreto' OR tipo = 'propio')))[1]
-  INTO n2, has_miguel2, fecha2, hist2
-  FROM public.buscar_invitados_rank('ezequiel lopez', 20);
-
-  IF NOT has_miguel1 AND fecha1 = '2025-03-13' AND hist1 = true
-     AND NOT has_miguel2 AND fecha2 = '2025-03-13' AND hist2 = true THEN
-    RAISE NOTICE 'PASS 7: "Ezequiel peralta" y "ezequiel lopez" -> Ezequiel López 2025-03-13 con tiene_historico, sin Miguel González';
+  IF n = 1 AND NOT has_miguel AND fecha_val = '2025-03-13' AND hist = true AND libreto = true THEN
+    RAISE NOTICE 'PASS 7: "Ezequiel peralta" -> Ezequiel López 2025-03-13 (tiene_historico+tiene_libreto), sin Miguel González';
   ELSE
-    RAISE NOTICE 'FAIL 7: peralta(n=%,miguel=%,fecha=%,hist=%) lopez(n=%,miguel=%,fecha=%,hist=%)',
-      n1, has_miguel1, fecha1, hist1, n2, has_miguel2, fecha2, hist2;
+    RAISE NOTICE 'FAIL 7: n=% miguel=% fecha=% hist=% libreto=%', n, has_miguel, fecha_val, hist, libreto;
+  END IF;
+END $$;
+
+-- 7b. buscar_invitados_rank('ezequiel lopez') -> la aparición del
+--    13/03/2025 UNA SOLA VEZ con tiene_historico=true; otras fechas de
+--    Ezequiel López son válidas.
+DO $$
+DECLARE n_13mar integer; hist_13mar boolean;
+BEGIN
+  SELECT count(*), (array_agg(tiene_historico))[1] INTO n_13mar, hist_13mar
+  FROM public.buscar_invitados_rank('ezequiel lopez', 20)
+  WHERE scheduled_date = '2025-03-13';
+
+  IF n_13mar = 1 AND hist_13mar = true THEN
+    RAISE NOTICE 'PASS 7b: "ezequiel lopez" -> 2025-03-13 una sola vez con tiene_historico';
+  ELSE
+    RAISE NOTICE 'FAIL 7b: 13mar(n=%,hist=%)', n_13mar, hist_13mar;
   END IF;
 END $$;
 

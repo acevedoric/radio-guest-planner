@@ -4,11 +4,12 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Search, ChevronLeft, ChevronRight, Lock, Unlock, Loader2, CalendarDays, User, Phone, Sparkles, X } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, Lock, Unlock, Loader2, CalendarDays, User, Phone, Sparkles, X, FileText, Copy } from "lucide-react";
 import { addWeeks, subWeeks, addMonths, subMonths, addDays, subDays, format, startOfWeek } from "date-fns";
 import { es } from "date-fns/locale";
 import { Guest } from "@/types/guest";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface FilterBarProps {
   searchQuery: string;
@@ -256,6 +257,36 @@ export const FilterBar = ({
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
   const PAGE_SIZE = 5;
 
+  // Botón "Ver libreto": una aparición (guest/histórico) con tiene_libreto
+  // trae los ids de sus chunks de guion -- se cargan al abrir, no antes.
+  const [libretoContent, setLibretoContent] = useState<Record<string, string>>({});
+  const [libretoLoadingId, setLibretoLoadingId] = useState<string | null>(null);
+  const toggleLibreto = async (rowKey: string, chunkIds: string[]) => {
+    if (libretoContent[rowKey] !== undefined) {
+      setLibretoContent((prev) => {
+        const next = { ...prev };
+        delete next[rowKey];
+        return next;
+      });
+      return;
+    }
+    setLibretoLoadingId(rowKey);
+    try {
+      const { data, error } = await supabase
+        .from("libretos_chunks")
+        .select("content, chunk_index")
+        .in("id", chunkIds)
+        .order("chunk_index");
+      if (error) throw error;
+      setLibretoContent((prev) => ({ ...prev, [rowKey]: (data || []).map((c: any) => c.content).join("\n") }));
+    } catch (e) {
+      console.error("Error cargando libreto:", e);
+      toast.error("No se pudo cargar el libreto");
+    } finally {
+      setLibretoLoadingId(null);
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Navigation and View Selector */}
@@ -412,21 +443,66 @@ export const FilterBar = ({
                         </div>
                       </>
                     );
-                    return clickable ? (
-                      <button
-                        key={guest.id}
-                        type="button"
-                        className="w-full text-left px-4 py-3 hover:bg-accent transition-colors border-b border-border last:border-0 flex items-start gap-3"
-                        onClick={() => onGlobalResultClick(guest)}
-                      >
-                        {body}
-                      </button>
-                    ) : (
-                      <div
-                        key={guest.id}
-                        className="w-full text-left px-4 py-3 border-b border-border last:border-0 flex items-start gap-3 opacity-80"
-                      >
-                        {body}
+                    const rowKey = `${source}-${guest.id}`;
+                    const hasLibreto = (guest as any).tiene_libreto === true;
+                    const chunkIds = (guest as any).libreto_chunk_ids as string[] | null;
+                    const libretoText = libretoContent[rowKey];
+                    return (
+                      <div key={guest.id} className="border-b border-border last:border-0">
+                        {clickable ? (
+                          <button
+                            type="button"
+                            className="w-full text-left px-4 py-3 hover:bg-accent transition-colors flex items-start gap-3"
+                            onClick={() => onGlobalResultClick(guest)}
+                          >
+                            {body}
+                          </button>
+                        ) : (
+                          <div className="w-full text-left px-4 py-3 flex items-start gap-3 opacity-80">
+                            {body}
+                          </div>
+                        )}
+                        {hasLibreto && chunkIds && chunkIds.length > 0 && (
+                          <div className="px-4 pb-3 -mt-1">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="w-full"
+                              disabled={libretoLoadingId === rowKey}
+                              onClick={() => toggleLibreto(rowKey, chunkIds)}
+                            >
+                              {libretoLoadingId === rowKey ? (
+                                <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />
+                              ) : (
+                                <FileText className="h-3.5 w-3.5 mr-2" />
+                              )}
+                              {libretoText !== undefined ? "Ocultar libreto" : "Ver libreto"}
+                            </Button>
+                            {libretoText !== undefined && (
+                              <div className="mt-2 rounded-md border bg-muted/30 p-2 space-y-2">
+                                <p className="text-xs text-muted-foreground whitespace-pre-wrap max-h-48 overflow-y-auto">{libretoText}</p>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="w-full"
+                                  onClick={async () => {
+                                    try {
+                                      await navigator.clipboard.writeText(libretoText);
+                                      toast.success("Contenido copiado al portapapeles");
+                                    } catch {
+                                      toast.error("No se pudo copiar el contenido");
+                                    }
+                                  }}
+                                >
+                                  <Copy className="h-3.5 w-3.5 mr-2" />
+                                  Usar como referencia
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     );
                   })}

@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Copy, Loader2, Search, Sparkles } from "lucide-react";
+import { Copy, FileText, Loader2, Search, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,8 @@ interface AppGuestResult {
   guest_id?: string | null;
   tiene_historico?: boolean | null;
   tipo?: string | null;
+  tiene_libreto?: boolean | null;
+  libreto_chunk_ids?: string[] | null;
 }
 
 const SOURCE_LABEL: Record<ResultGroup, string> = {
@@ -141,6 +143,36 @@ export const HistoricalSearchDialog = ({ onGuestClick }: HistoricalSearchDialogP
 
   const maxRank = Math.max(1e-6, ...(results || []).map((r) => r.rank || 0));
 
+  // Botón "Ver libreto": una aparición (guest/histórico) con tiene_libreto
+  // trae los ids de sus chunks de guion -- se cargan al abrir, no antes.
+  const [libretoContent, setLibretoContent] = useState<Record<string, string>>({});
+  const [libretoLoadingId, setLibretoLoadingId] = useState<string | null>(null);
+  const toggleLibreto = async (rowKey: string, chunkIds: string[]) => {
+    if (libretoContent[rowKey] !== undefined) {
+      setLibretoContent((prev) => {
+        const next = { ...prev };
+        delete next[rowKey];
+        return next;
+      });
+      return;
+    }
+    setLibretoLoadingId(rowKey);
+    try {
+      const { data, error } = await supabase
+        .from("libretos_chunks")
+        .select("content, chunk_index")
+        .in("id", chunkIds)
+        .order("chunk_index");
+      if (error) throw error;
+      setLibretoContent((prev) => ({ ...prev, [rowKey]: (data || []).map((c: any) => c.content).join("\n") }));
+    } catch (e) {
+      console.error("Error cargando libreto:", e);
+      toast.error("No se pudo cargar el libreto");
+    } finally {
+      setLibretoLoadingId(null);
+    }
+  };
+
   // La dedup "+ histórico" y la distinción propio/mención ya las resuelve
   // la RPC (tiene_historico, tipo) -- solo se agrupa por fuente, igual que
   // el buscador superior (FilterBar), para que ambos den el mismo resultado.
@@ -245,8 +277,11 @@ export const HistoricalSearchDialog = ({ onGuestClick }: HistoricalSearchDialogP
                     {opening === r.id && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                   </>
                 );
+                const rowKey = `${r.source}-${r.id}`;
+                const hasLibreto = r.tiene_libreto === true && r.libreto_chunk_ids && r.libreto_chunk_ids.length > 0;
+                const libretoText = libretoContent[rowKey];
                 return (
-                  <div key={`${r.source}-${r.id}`} className="rounded-md border bg-card p-3 space-y-1">
+                  <div key={rowKey} className="rounded-md border bg-card p-3 space-y-1">
                     {clickable ? (
                       <button
                         type="button"
@@ -258,6 +293,47 @@ export const HistoricalSearchDialog = ({ onGuestClick }: HistoricalSearchDialogP
                       </button>
                     ) : (
                       content
+                    )}
+                    {hasLibreto && (
+                      <>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="w-full"
+                          disabled={libretoLoadingId === rowKey}
+                          onClick={() => toggleLibreto(rowKey, r.libreto_chunk_ids as string[])}
+                        >
+                          {libretoLoadingId === rowKey ? (
+                            <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />
+                          ) : (
+                            <FileText className="h-3.5 w-3.5 mr-2" />
+                          )}
+                          {libretoText !== undefined ? "Ocultar libreto" : "Ver libreto"}
+                        </Button>
+                        {libretoText !== undefined && (
+                          <div className="rounded-md border bg-muted/30 p-2 space-y-2">
+                            <p className="text-xs text-muted-foreground whitespace-pre-wrap max-h-48 overflow-y-auto">{libretoText}</p>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="w-full"
+                              onClick={async () => {
+                                try {
+                                  await navigator.clipboard.writeText(libretoText);
+                                  toast.success("Contenido copiado al portapapeles");
+                                } catch {
+                                  toast.error("No se pudo copiar el contenido");
+                                }
+                              }}
+                            >
+                              <Copy className="h-3.5 w-3.5 mr-2" />
+                              Usar como referencia
+                            </Button>
+                          </div>
+                        )}
+                      </>
                     )}
                     {(r.source === "libreto") && pct !== null && (
                       <>
