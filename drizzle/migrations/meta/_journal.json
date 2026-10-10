@@ -155,6 +155,13 @@
       "when": 1791665051658,
       "tag": "0021_fase_i_dedup_sinonimos_cruces",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1791667004665,
+      "tag": "0022_fase_j_fecha_real_tiene_historico_menciones",
+      "breakpoints": true
     }
   ]
 }
