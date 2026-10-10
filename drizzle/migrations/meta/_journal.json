@@ -141,6 +141,13 @@
       "when": 1791659200965,
       "tag": "0019_fase_g_linked_historico_name",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1791659226463,
+      "tag": "0020_fase_h_sinonimos_categorias",
+      "breakpoints": true
     }
   ]
 }
