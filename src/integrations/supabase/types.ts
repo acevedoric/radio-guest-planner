@@ -879,6 +879,17 @@ export type Database = {
       }
     }
     Functions: {
+      apariciones_invitado: {
+        Args: { p_desde?: string; p_hasta?: string; p_nombre: string }
+        Returns: {
+          dia: string
+          fecha: string
+          fuente: string
+          hora: number
+          nombre: string
+          tema: string
+        }[]
+      }
       buscar_invitado: {
         Args: { max_results?: number; query_text: string }
         Returns: {
@@ -936,6 +947,17 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      invitados_por_fecha: {
+        Args: { p_fecha: string; p_hora?: number }
+        Returns: {
+          cargo: string
+          fuente: string
+          hora: number
+          nombre: string
+          snippet: string
+          tema: string
+        }[]
       }
       is_email_allowed: { Args: { _email: string }; Returns: boolean }
       ranking_invitados: {

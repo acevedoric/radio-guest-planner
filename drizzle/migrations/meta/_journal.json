@@ -127,6 +127,13 @@
       "when": 1791638807375,
       "tag": "0017_fase_e_ronda2_rank_contar_ranking",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1791657166344,
+      "tag": "0018_fase_f_busqueda_ranking_fix",
+      "breakpoints": true
     }
   ]
 }

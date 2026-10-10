@@ -1,15 +1,3 @@
--- FASE F: corrige dedup/agrupación de ranking_invitados y contar_invitados
--- (agrupaban por canonical_id = guest_id o, si no hay enlace, el propio id
--- de la fila de invitados_historicos — fragmentando a una misma persona en
--- N grupos de 1 aparición cada uno), exige que coincidan TODOS los
--- términos de la búsqueda (AND, sin acentos) en guests/historico antes de
--- rankear por similitud (ya se exigía en libretos_chunks, ahora también en
--- agenda+histórico y en el fallback por similitud), y normaliza la consulta
--- (quita comillas/signos) al entrar a cada función. Agrega dos RPCs nuevas:
--- apariciones_invitado (historial de una persona) e invitados_por_fecha
--- (quién estuvo un día/hora dado). #variable_conflict use_column se
--- preserva en TODAS las funciones plpgsql (regla fija del usuario).
-
 DROP FUNCTION IF EXISTS public.buscar_invitados_rank(text, integer);
 
 CREATE OR REPLACE FUNCTION public.buscar_invitados_rank(query_text text, max_results integer DEFAULT 20)
@@ -79,8 +67,6 @@ BEGIN
           )) @@ q_tsq THEN 5 END)
     ) AS t(tier_val)
     WHERE t.tier_val IS NOT NULL
-      -- AND de todos los términos (sin acentos) en el texto buscable, para
-      -- no rankear por coincidencia parcial de una sola palabra suelta.
       AND (
         q_words IS NULL OR array_length(q_words, 1) IS NULL OR
         (SELECT bool_and(position(w IN lower(public.unaccent_immutable(
@@ -173,9 +159,6 @@ BEGIN
     'app'::text AS source, NULL::text AS snippet, NULL::uuid AS guest_id
   FROM public.guests g
   WHERE similarity(lower(public.unaccent_immutable(g.name)), q_norm) >= 0.6
-    -- Antes de rankear por similitud, exige los mismos términos (AND) en
-    -- el nombre -- sin esto, "German Puerta" podía traer a "Nino Segarra"
-    -- por puro parecido de trigramas sin relación real con la búsqueda.
     AND (
       q_words IS NULL OR array_length(q_words, 1) IS NULL OR
       (SELECT bool_and(position(w IN lower(public.unaccent_immutable(g.name))) > 0) FROM unnest(q_words) AS w)
@@ -238,10 +221,6 @@ BEGIN
     WHERE (p_desde IS NULL OR fecha >= p_desde)
       AND (p_hasta IS NULL OR fecha <= p_hasta)
   ),
-  -- Agrupa por NOMBRE NORMALIZADO (unaccent+lower+trim: "á"/"à"/"a" iguales)
-  -- en vez de guest_id/id de fila -- antes, cualquier aparición de
-  -- invitados_historicos sin guest_id enlazado se contaba como una persona
-  -- distinta por cada fila, fragmentando a la misma persona en N "personas".
   per_person AS (
     SELECT
       canonical_key,
@@ -310,8 +289,6 @@ BEGIN
       AND (p_hasta IS NULL OR fecha <= p_hasta)
       AND fecha IS NOT NULL
   )
-  -- Agrupa por nombre normalizado (ver contar_invitados) en vez de
-  -- guest_id/id de fila, para no fragmentar a la misma persona.
   SELECT
     (array_agg(name ORDER BY fecha DESC))[1] AS nombre,
     COUNT(*)::integer AS apariciones,
@@ -327,8 +304,6 @@ $function$;
 REVOKE ALL ON FUNCTION public.ranking_invitados(date, date, integer) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.ranking_invitados(date, date, integer) TO anon, authenticated;
 
--- Nueva RPC: historial de UNA persona (guests + histórico, deduplicado por
--- nombre normalizado), para "cuántas veces vino X" / "cuándo vino X".
 CREATE OR REPLACE FUNCTION public.apariciones_invitado(p_nombre text, p_desde date DEFAULT NULL, p_hasta date DEFAULT NULL)
 RETURNS TABLE (nombre text, fecha date, dia text, hora integer, tema text, fuente text)
 LANGUAGE plpgsql
@@ -382,9 +357,6 @@ BEGIN
     WHERE (p_desde IS NULL OR fecha >= p_desde)
       AND (p_hasta IS NULL OR fecha <= p_hasta)
   ),
-  -- Deduplica por (fecha, hora): si la misma aparición quedó en ambas
-  -- fuentes (enlazada), se queda una sola fila, con preferencia por la de
-  -- agenda (más estructurada).
   dedup AS (
     SELECT DISTINCT ON (fecha, hora)
       name, fecha, hora, tema, fuente
@@ -409,9 +381,6 @@ $function$;
 REVOKE ALL ON FUNCTION public.apariciones_invitado(text, date, date) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.apariciones_invitado(text, date, date) TO anon, authenticated;
 
--- Nueva RPC: quién estuvo un día/hora dado (guests + histórico), más el
--- fragmento de guion correspondiente -- para "¿quién vino el 13 de febrero
--- de 2025 en la primera hora?".
 CREATE OR REPLACE FUNCTION public.invitados_por_fecha(p_fecha date, p_hora integer DEFAULT NULL)
 RETURNS TABLE (nombre text, hora integer, cargo text, tema text, fuente text, snippet text)
 LANGUAGE plpgsql
