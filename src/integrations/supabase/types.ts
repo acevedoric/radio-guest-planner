@@ -917,8 +917,10 @@ export type Database = {
           scheduled_date: string
           snippet: string
           source: string
+          tiene_historico: boolean
           tier: number
           time_slot: number
+          tipo: string
           topic: string
           week_date: string
         }[]
