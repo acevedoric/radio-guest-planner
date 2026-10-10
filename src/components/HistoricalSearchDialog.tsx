@@ -160,9 +160,10 @@ export const HistoricalSearchDialog = ({ onGuestClick }: HistoricalSearchDialogP
     try {
       const { data, error } = await supabase
         .from("libretos_chunks")
-        .select("content, chunk_index")
+        .select("content, created_at, id")
         .in("id", chunkIds)
-        .order("chunk_index");
+        .order("created_at")
+        .order("id");
       if (error) throw error;
       setLibretoContent((prev) => ({ ...prev, [rowKey]: (data || []).map((c: any) => c.content).join("\n") }));
     } catch (e) {
