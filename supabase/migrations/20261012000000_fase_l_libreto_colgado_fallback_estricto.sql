@@ -132,7 +132,7 @@ BEGIN
       ) AS tiene_historico,
       NULL::text AS tipo,
       EXISTS (SELECT 1 FROM public.libretos_chunks lc3 WHERE lc3.fecha = rdg.fecha_real AND lc3.hour_number = rdg.time_slot) AS tiene_libreto,
-      (SELECT array_agg(lc3.id ORDER BY lc3.chunk_index) FROM public.libretos_chunks lc3 WHERE lc3.fecha = rdg.fecha_real AND lc3.hour_number = rdg.time_slot) AS libreto_chunk_ids
+      (SELECT array_agg(lc3.id ORDER BY lc3.created_at, lc3.id) FROM public.libretos_chunks lc3 WHERE lc3.fecha = rdg.fecha_real AND lc3.hour_number = rdg.time_slot) AS libreto_chunk_ids
     FROM real_date_guests rdg
     CROSS JOIN LATERAL (
       VALUES
@@ -203,7 +203,7 @@ BEGIN
       false AS tiene_historico,
       NULL::text AS tipo,
       EXISTS (SELECT 1 FROM public.libretos_chunks lc3 WHERE lc3.fecha = hu.fecha AND lc3.hour_number = hu.hour_number) AS tiene_libreto,
-      (SELECT array_agg(lc3.id ORDER BY lc3.chunk_index) FROM public.libretos_chunks lc3 WHERE lc3.fecha = hu.fecha AND lc3.hour_number = hu.hour_number) AS libreto_chunk_ids
+      (SELECT array_agg(lc3.id ORDER BY lc3.created_at, lc3.id) FROM public.libretos_chunks lc3 WHERE lc3.fecha = hu.fecha AND lc3.hour_number = hu.hour_number) AS libreto_chunk_ids
     FROM historico_unresolved hu
   ),
   linked_app AS (
@@ -219,7 +219,7 @@ BEGIN
       true AS tiene_historico,
       NULL::text AS tipo,
       EXISTS (SELECT 1 FROM public.libretos_chunks lc3 WHERE lc3.fecha = rdg.fecha_real AND lc3.hour_number = rdg.time_slot) AS tiene_libreto,
-      (SELECT array_agg(lc3.id ORDER BY lc3.chunk_index) FROM public.libretos_chunks lc3 WHERE lc3.fecha = rdg.fecha_real AND lc3.hour_number = rdg.time_slot) AS libreto_chunk_ids
+      (SELECT array_agg(lc3.id ORDER BY lc3.created_at, lc3.id) FROM public.libretos_chunks lc3 WHERE lc3.fecha = rdg.fecha_real AND lc3.hour_number = rdg.time_slot) AS libreto_chunk_ids
     FROM historico_resolved hr
     JOIN real_date_guests rdg ON rdg.id = hr.resolved_guest_id
   ),
