@@ -9,7 +9,7 @@ import { es } from "date-fns/locale";
 import React from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Guest } from "@/types/guest";
-import { isQuestion, AiAnswerWithLinks } from "@/components/FilterBar";
+import { isQuestion, AiAnswerWithLinks, stripQuotes } from "@/components/FilterBar";
 
 type ResultSource = "app" | "historico" | "libreto";
 
@@ -93,7 +93,7 @@ export const HistoricalSearchDialog = ({ onGuestClick }: HistoricalSearchDialogP
   const aiTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const runSearch = async () => {
-    const q = query.trim();
+    const q = stripQuotes(query.trim());
     if (q.length < 2) return;
 
     if (isQuestion(q)) {

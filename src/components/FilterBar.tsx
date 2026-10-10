@@ -31,8 +31,17 @@ interface FilterBarProps {
   onGlobalResultClick: (guest: Guest) => void;
 }
 
+/** Quita comillas/guillemets (rectas y curvas) de los bordes y de en medio
+ * del texto -- con una consulta como "¿quién vino...?" (comillas incluidas,
+ * frecuente al copiar/pegar), el signo de apertura ¿ queda escondido tras
+ * la comilla y tanto isQuestion() como el histórico/libretos (que buscan
+ * el término tal cual) fallan. No toca ¿ ? ¡ ! : esos SÍ importan para
+ * detectar preguntas. */
+export const stripQuotes = (text: string): string =>
+  text.replace(/[«»“”‘’"']/g, " ").replace(/\s+/g, " ").trim();
+
 export const isQuestion = (text: string): boolean => {
-  const t = text.trim().toLowerCase();
+  const t = stripQuotes(text).toLowerCase();
   return /^[¿?]/.test(t) ||
     /\?$/.test(t) ||
     /^(cuándo|cuando|hace cuánto|hace cuanto|quién|quien|cuántos|cuantos|último|ultima|alguna vez|primera vez|por qué|porque|dime|cuál|cual|cómo|como|qué|que tan)/i.test(t);
@@ -120,7 +129,7 @@ export const FilterBar = ({
     aiTimerRef.current = setTimeout(async () => {
       try {
         const { data, error } = await supabase.functions.invoke("chat-guests", {
-          body: { question: searchQuery },
+          body: { question: stripQuotes(searchQuery) },
         });
         if (error) throw error;
         setAiAnswer(data?.answer || "Sin respuesta");
@@ -387,8 +396,9 @@ export const FilterBar = ({
                 </div>
               )}
 
-              {/* Secciones de INVITADOS agrupadas por fuente: Agenda / Histórico / Libreto */}
-              {guestsBySource.map(({ key: source, label, items }) => {
+              {/* Secciones de INVITADOS agrupadas por fuente: Agenda / Histórico / Libreto.
+                  En modo pregunta no se muestran -- solo la respuesta IA de arriba. */}
+              {!isQuestionMode && guestsBySource.map(({ key: source, label, items }) => {
                 const expanded = !!expandedGroups[source];
                 const visibleItems = expanded ? items : items.slice(0, PAGE_SIZE);
                 return (
@@ -455,7 +465,7 @@ export const FilterBar = ({
               })}
 
               {/* Sección PRENSA */}
-              {globalSearchResults.press.length > 0 && (
+              {!isQuestionMode && globalSearchResults.press.length > 0 && (
                 <>
                   <div className="px-4 py-2 bg-muted/50 border-b border-border flex items-center gap-2">
                     <Phone className="w-3.5 h-3.5 text-primary" />

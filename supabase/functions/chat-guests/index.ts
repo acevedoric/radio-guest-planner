@@ -47,6 +47,12 @@ const MONTHS: Record<string, number> = {
 const SPANISH_DAYS = new Set(["lunes", "martes", "miércoles", "miercoles", "jueves"]);
 const CUANTO_RE = /\bcu[áa]nt[oa]s?\b/i;
 const RANKING_RE = /\b(m[áa]s veces|m[áa]s frecuente|qui[ée]n(?:\s+ha)?\s+(?:venido|estado|aparecido)\s+m[áa]s|con m[áa]s apariciones|ranking)\b/i;
+// Herramienta apariciones_invitado: "cuántas veces vino X", "cuándo vino X", "historial de X".
+const APARICIONES_RE = /\b(cu[áa]nt[ao]s?\s+veces\s+(?:ha\s+)?vin[oi]|cu[áa]ndo\s+(?:vino|estuvo|ha\s+venido)|historial\s+de)\b/i;
+// Herramienta invitados_por_fecha: "¿quién vino el 13 de febrero de 2025 en la primera hora?".
+const FULL_DATE_RE = /(\d{1,2})\s+de\s+([a-záéíóúñ]+)(?:\s+de\s+(\d{4}))?/i;
+const HORA_RE = /\b(primera|segunda|tercera)\s+hora\b/i;
+const HORA_NUM: Record<string, number> = { primera: 1, segunda: 2, tercera: 3 };
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -193,6 +199,35 @@ serve(async (req) => {
       if (!error && data) ranking = data;
     }
 
+    // --- Herramienta 5: apariciones_invitado ("cuántas veces vino X / cuándo vino X / historial de X") ---
+    let apariciones: { nombre: string; fecha: string; dia: string | null; hora: number | null; tema: string | null; fuente: string }[] | null = null;
+    if (APARICIONES_RE.test(question) && keywords.length) {
+      const { data, error } = await userClient.rpc("apariciones_invitado", {
+        p_nombre: keywords.join(" "),
+        p_desde: dateRange?.from ?? null,
+        p_hasta: dateRange?.to ?? null,
+      });
+      if (!error && data) apariciones = data;
+    }
+
+    // --- Herramienta 6: invitados_por_fecha ("¿quién vino el 13 de febrero de 2025 en la primera hora?") ---
+    let porFecha: { nombre: string; hora: number | null; cargo: string | null; tema: string | null; fuente: string; snippet: string | null }[] | null = null;
+    const fullDateMatch = question.match(FULL_DATE_RE);
+    if (fullDateMatch) {
+      const day = parseInt(fullDateMatch[1], 10);
+      const monthWord = fullDateMatch[2].toLowerCase();
+      const month = MONTHS[monthWord];
+      const now = new Date();
+      let year = fullDateMatch[3] ? parseInt(fullDateMatch[3], 10) : now.getFullYear();
+      if (month !== undefined) {
+        const p_fecha = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+        const horaMatch = question.match(HORA_RE);
+        const p_hora = horaMatch ? HORA_NUM[horaMatch[1].toLowerCase()] : null;
+        const { data, error } = await userClient.rpc("invitados_por_fecha", { p_fecha, p_hora });
+        if (!error && data) porFecha = data;
+      }
+    }
+
     const sourceLabels: Record<string, string> = { app: "Agenda", historico: "Histórico", libreto: "Guion (fragmento)" };
 
     const formatRow = (r: any) =>
@@ -224,6 +259,18 @@ serve(async (req) => {
         ? "RANKING OFICIAL: no se pudo calcular (sin resultados de ranking_invitados)."
         : null;
 
+    const aparicionesBlock = apariciones
+      ? `HISTORIAL OFICIAL (de apariciones_invitado, única fuente válida para "cuántas veces/cuándo vino X"): ${apariciones.length} aparición(es): ${JSON.stringify(apariciones)}`
+      : APARICIONES_RE.test(question)
+        ? "HISTORIAL OFICIAL: no se encontraron apariciones de esa persona."
+        : null;
+
+    const porFechaBlock = porFecha
+      ? `QUIÉN OFICIAL (de invitados_por_fecha, única fuente válida para "quién vino el <fecha>"): ${JSON.stringify(porFecha)}`
+      : fullDateMatch
+        ? "QUIÉN OFICIAL: no se encontró nadie para esa fecha/hora."
+        : null;
+
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -241,10 +288,13 @@ REGLAS DE CONSISTENCIA (MUY IMPORTANTE):
 - NUNCA cuentes filas de "Invitados disponibles" para responder una pregunta de cantidad. Si hay un bloque "CONTEO OFICIAL", ESE es el único número válido, y su lista de nombres es la ÚNICA lista válida — repite el total tal cual y lista EXACTAMENTE esos nombres (ni uno más, ni uno menos; si alguien aparece varias fechas, es la MISMA persona, menciónala una sola vez con sus fechas).
 - Si la pregunta es de cantidad y no hay bloque "CONTEO OFICIAL" con total, dilo explícitamente en vez de contar filas del contexto.
 - Si la pregunta es sobre quién ha venido más veces/con más frecuencia y hay un bloque "RANKING OFICIAL", ESA es la única fuente válida — no la recalcules contando filas.
+- Si hay un bloque "HISTORIAL OFICIAL" (cuántas veces/cuándo vino alguien), responde SOLO con esas apariciones — no agregues ni quites fechas, no mezcles con otras filas de "Invitados disponibles".
+- Si hay un bloque "QUIÉN OFICIAL" (quién vino tal fecha/hora), responde SOLO con esos nombres — nunca agregues a nadie más del contexto, aunque aparezca en "Invitados disponibles".
+- REGLA GENERAL ANTI-RUIDO: responde SOLO lo que se pregunta, con los datos de la herramienta oficial correspondiente (CONTEO/RANKING/HISTORIAL/QUIÉN) cuando exista. Está PROHIBIDO mencionar un invitado de la Agenda que no sea necesario para responder la pregunta solo porque aparece en la lista "Invitados disponibles" — esa lista es contexto de búsqueda, no una lista para recitar completa.
 - Las filas [Guion (fragmento)] son fragmentos de texto para contexto cualitativo (qué se dijo, de qué se habló) — NUNCA las uses para contar personas, pueden repetir al mismo invitado varias veces (un chunk por fragmento del guion).
 - Las filas [Agenda] y [Histórico] son registros de invitados individuales.
 - No hagas distinción de género en profesiones para decidir relevancia ("actor"/"actriz", "escritor"/"escritora", etc. son la misma categoría).
-- Si no hay filas relevantes ni conteo/ranking oficial, dilo claramente en lugar de inventar.
+- Si no hay filas relevantes ni conteo/ranking/historial/quién oficial, dilo claramente en lugar de inventar.
 - Incluye fecha, día y cargo/profesión cuando estén disponibles.
 - Puedes usar **negrita** en Markdown para resaltar nombres o números; el formato se renderiza correctamente.
 
@@ -253,7 +303,7 @@ FORMATO DE ENLACES: cuando menciones un invitado de la Agenda con su fecha, usa:
           {
             role: "user",
             content: `Filtros detectados: ${filterSummary}
-${countBlock ? `\n${countBlock}\n` : ""}${rankingBlock ? `\n${rankingBlock}\n` : ""}
+${countBlock ? `\n${countBlock}\n` : ""}${rankingBlock ? `\n${rankingBlock}\n` : ""}${aparicionesBlock ? `\n${aparicionesBlock}\n` : ""}${porFechaBlock ? `\n${porFechaBlock}\n` : ""}
 Invitados disponibles:
 ${guestContext}
 

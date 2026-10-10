@@ -9,7 +9,7 @@ import { WeeklyCalendar } from "@/components/WeeklyCalendar";
 import { DayView } from "@/components/DayView";
 import { MonthView } from "@/components/MonthView";
 import { GuestDetailModal } from "@/components/GuestDetailModal";
-import { FilterBar } from "@/components/FilterBar";
+import { FilterBar, stripQuotes } from "@/components/FilterBar";
 import { ProposedView } from "@/components/ProposedView";
 import { Guest } from "@/types/guest";
 import logo from "@/assets/bla-bla-blu-logo.png";
@@ -588,14 +588,15 @@ const Index = () => {
       return;
     }
     setIsSearching(true);
+    const cleanQuery = stripQuotes(query);
 
     const [rankRes, pressRes] = await Promise.all([
-      (supabase.rpc as any)("buscar_invitados_rank", { query_text: query, max_results: 60 }),
+      (supabase.rpc as any)("buscar_invitados_rank", { query_text: cleanQuery, max_results: 60 }),
       session
         ? supabase
             .from('guests')
             .select('*')
-            .or(`press_contact.ilike.%${query}%,press_phone.ilike.%${query}%,press_email.ilike.%${query}%`)
+            .or(`press_contact.ilike.%${cleanQuery}%,press_phone.ilike.%${cleanQuery}%,press_email.ilike.%${cleanQuery}%`)
             .limit(20)
         : Promise.resolve({ data: [] as Guest[] }),
     ]);
@@ -615,6 +616,7 @@ const Index = () => {
       scheduled_date: r.scheduled_date,
       source: r.source as "app" | "historico" | "libreto",
       snippet: r.snippet as string | null,
+      guest_id: r.guest_id as string | null,
     })) as Guest[];
 
     setGlobalSearchResults({
