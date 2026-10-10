@@ -1,46 +1,10 @@
--- FASE L:
--- 1) El respaldo AND suelto de libretos_chunks ahora solo corre si la
---    búsqueda por nombre/frase no dio NINGÚN resultado en ninguna fuente
---    (guests, histórico, libreto por frase) -- antes corría siempre que
---    la frase no matcheaba ESE chunk en particular, lo que generaba
---    "menciones" falsas (Daniela Sarria, etc. para "Miguel Gonzalez",
---    cuando la frase solo vive en su propio bloque). Un resultado del
---    respaldo nunca se etiqueta tipo='mencion' (esa etiqueta exige la
---    frase literal en el libreto de otro invitado).
--- 2) guests.name e invitados_historicos.guest_name: alcanza con que estén
---    TODAS las palabras de la búsqueda (sin acentos, en cualquier orden)
---    -- ya no se exige que sean una subcadena contigua. La frase adyacente
---    solo se exige en el contenido de libretos_chunks.
--- 3) Los chunks de libreto de la MISMA fecha real + hora que una aparición
---    ya devuelta (guest o histórico) ya no salen como filas sueltas: esa
---    aparición trae tiene_libreto=true y libreto_chunk_ids (array) en su
---    lugar. Una fila de libreto suelta solo aparece si no hay guest ni
---    histórico para esa fecha+hora.
---
--- #variable_conflict use_column se conserva.
-
 DROP FUNCTION IF EXISTS public.buscar_invitados_rank(text, integer);
 
 CREATE OR REPLACE FUNCTION public.buscar_invitados_rank(query_text text, max_results integer DEFAULT 20)
 RETURNS TABLE (
-  id uuid,
-  name text,
-  guest_position text,
-  topic text,
-  recording_status text,
-  day_of_week text,
-  time_slot integer,
-  week_date date,
-  scheduled_date date,
-  tier integer,
-  rank real,
-  source text,
-  snippet text,
-  guest_id uuid,
-  tiene_historico boolean,
-  tipo text,
-  tiene_libreto boolean,
-  libreto_chunk_ids uuid[]
+  id uuid, name text, guest_position text, topic text, recording_status text, day_of_week text,
+  time_slot integer, week_date date, scheduled_date date, tier integer, rank real, source text,
+  snippet text, guest_id uuid, tiene_historico boolean, tipo text, tiene_libreto boolean, libreto_chunk_ids uuid[]
 )
 LANGUAGE plpgsql
 STABLE
@@ -66,10 +30,6 @@ BEGIN
   q_words := (SELECT array_agg(w) FROM unnest(regexp_split_to_array(trim(q_norm), '\s+')) AS w WHERE w <> '');
   q_phrase := array_to_string(q_words, ' ');
 
-  -- ¿La búsqueda por nombre/contenido (sin el respaldo AND suelto de
-  -- libretos_chunks) encuentra algo en CUALQUIER fuente? Si no, se habilita
-  -- el respaldo más abajo. Duplica (en forma de EXISTS, sin construir
-  -- filas) las mismas condiciones de tiered/historico_match/libreto-frase.
   SELECT (
     EXISTS (
       SELECT 1 FROM public.guests g
@@ -223,9 +183,6 @@ BEGIN
     FROM historico_resolved hr
     JOIN real_date_guests rdg ON rdg.id = hr.resolved_guest_id
   ),
-  -- (fecha, hora) de toda aparición de guest/histórico ya cubierta arriba
-  -- -- un chunk de libreto en ese mismo slot ya no sale como fila suelta
-  -- (sale como tiene_libreto=true en esa aparición).
   resolved_slots AS (
     SELECT scheduled_date AS fecha, time_slot AS hora FROM tiered
     UNION
@@ -246,11 +203,11 @@ BEGIN
       CASE
         WHEN (q_words IS NULL OR array_length(q_words, 1) IS NULL OR
               (SELECT bool_and(position(w IN lower(public.unaccent_immutable(lc.guest_name))) > 0) FROM unnest(q_words) AS w))
-          THEN 8   -- propio
+          THEN 8
         WHEN (q_words IS NULL OR array_length(q_words, 1) IS NULL OR array_length(q_words, 1) < 2
               OR regexp_replace(lower(public.unaccent_immutable(lc.content)), '\s+', ' ', 'g') LIKE '%' || q_phrase || '%')
-          THEN 11  -- mención real (frase literal en el libreto de otro)
-        ELSE 13    -- respaldo AND suelto (solo si primary_has_rows = false), sin etiqueta de mención
+          THEN 11
+        ELSE 13
       END AS tier,
       substring(lc.content FROM 1 FOR 200) AS snippet,
       NULL::uuid AS guest_id,
@@ -271,10 +228,8 @@ BEGIN
       AND lc.fts @@ q_tsq_plain
       AND NOT EXISTS (SELECT 1 FROM resolved_slots rs WHERE rs.fecha = lc.fecha AND rs.hora = lc.hour_number)
       AND (
-        -- frase adyacente (o consulta de 1 palabra, donde "frase" = la palabra)
         q_words IS NULL OR array_length(q_words, 1) IS NULL OR array_length(q_words, 1) < 2
         OR regexp_replace(lower(public.unaccent_immutable(lc.content)), '\s+', ' ', 'g') LIKE '%' || q_phrase || '%'
-        -- respaldo AND suelto: SOLO si ninguna fuente dio resultado por nombre/frase
         OR (NOT primary_has_rows AND (SELECT bool_and(position(w IN lower(public.unaccent_immutable(lc.content))) > 0) FROM unnest(q_words) AS w))
       )
   ),

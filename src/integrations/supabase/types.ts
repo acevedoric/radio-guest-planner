@@ -911,6 +911,7 @@ export type Database = {
           guest_id: string
           guest_position: string
           id: string
+          libreto_chunk_ids: string[]
           name: string
           rank: number
           recording_status: string
@@ -918,6 +919,7 @@ export type Database = {
           snippet: string
           source: string
           tiene_historico: boolean
+          tiene_libreto: boolean
           tier: number
           time_slot: number
           tipo: string

@@ -162,6 +162,13 @@
       "when": 1791667004665,
       "tag": "0022_fase_j_fecha_real_tiene_historico_menciones",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1791668884937,
+      "tag": "0023_fase_l_libreto_colgado_fallback_estricto",
+      "breakpoints": true
     }
   ]
 }
