@@ -142,14 +142,22 @@ function programDate(guest: { week_date: string | null; day_of_week: string | nu
 
 // FASE P: "cargo basura" importado de Excel (excel_import) -- no se usa
 // como position; se trata como vacío y cae al fallback del histórico.
-const GARBAGE_CARGO_RE = /\b(quiero|invitar|invitarlos|invitarles|despu[eé]s|esta noche|buenas noches|acomp[aá]ñ|escuchen|los espero|les espero|amigos de|esta tarde|hoy a las|a las \d)\b/i;
+const GARBAGE_CARGO_PHRASE_RE = /\b(quiero|invitar|invitarlos|invitarles|saluda|amigos de|despu[eé]s de|esta noche|buenas noches|a las|llamar|confirmar|pendiente)\b/i;
+const GARBAGE_CARGO_TIME_RE = /\b\d{1,2}(:\d{2})?\s*(a\.?\s*m\.?|p\.?\s*m\.?)\b|\b\d{1,2}\s*de\s*la\s*(noche|tarde|ma[ñn]ana)\b|\b\d{1,2}:\d{2}\b/i;
+const CARGO_PROFESSION_RE = /\b(periodista|presentador|presentadora|actor|actriz|cantante|m[uú]sic[oa]|chef|m[eé]dic[oa]|abogad[oa]|comediante|escritor|escritora|astr[oó]nom[oa]|psic[oó]log[oa]|deportista|futbolista|ciclista|empresari[oa]|influencer|productor|productora|director|directora|docente|investigador|investigadora)\b/i;
+const KNOWN_TEAM_FIRST_NAMES = new Set(["mauricio", "simon"]);
+function normalizeName(s: string): string {
+  return s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+}
 function looksLikeGarbageCargo(cargo: string | null | undefined): boolean {
   if (!cargo) return false;
   const c = cargo.trim();
   if (!c) return false;
-  if (c.length > 40) return true;
-  if (/^[a-záéíóúñ]/.test(c) && c.split(/\s+/).filter(Boolean).length > 3) return true;
-  if (GARBAGE_CARGO_RE.test(c)) return true;
+  if (KNOWN_TEAM_FIRST_NAMES.has(normalizeName(c))) return true;
+  if (CARGO_PROFESSION_RE.test(c)) return false;
+  if (GARBAGE_CARGO_PHRASE_RE.test(c)) return true;
+  if (GARBAGE_CARGO_TIME_RE.test(c)) return true;
+  if (c.length > 80) return true;
   return false;
 }
 
