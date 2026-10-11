@@ -329,8 +329,8 @@ const GuestSlotCard = ({ day, slot, guest, coGuest, onGuestClick, onAddGuest, ed
                 <span className="text-[10px] text-muted-foreground truncate">({displayPosition})</span>
               )}
               {fromHistorico && (
-                <span className="text-[9px] px-1 py-0.5 rounded shrink-0 bg-amber-500/10 text-amber-700" title="Completado desde el histórico">
-                  📜
+                <span className="text-[9px] px-1 py-0.5 rounded shrink-0 bg-amber-500/10 text-amber-700">
+                  📜 (desde histórico)
                 </span>
               )}
             </div>

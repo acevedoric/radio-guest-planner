@@ -16,7 +16,11 @@ const DocumentSchema = z.object({
 const TriggerPayloadSchema = z.object({
   guest_id: z.string().uuid("guest_id must be a valid UUID"),
   name: z.string().min(1).max(300),
-  position: z.string().min(1).max(300),
+  // FASE O: ya no se exige -- los invitados de mayo 2025 (importados del
+  // Excel) llegan solo con nombre. Si falta, se completa desde el
+  // histórico (o se deja vacío) antes de llamar a n8n -- nunca se
+  // rechaza la solicitud por esto.
+  position: z.string().max(300).optional().default(''),
   topic: z.string().max(2000).optional(),
   document_url: z.string().url().max(3000).nullable().optional(),
   document_name: z.string().max(500).nullable().optional(),
@@ -338,13 +342,41 @@ serve(async (req) => {
       historialPropio.push(item);
     }
 
+    // FASE O: nunca se rechaza por falta de tema/cargo (los invitados de
+    // mayo 2025, importados del Excel, llegan solo con nombre). Si topic
+    // o position vienen vacíos, se completan desde la fila del histórico
+    // enlazada a ESTA aparición (misma fecha real + hora), en orden:
+    // tema/cargo del histórico -> promo_copy -> resumen_web. Si no hay
+    // nada, topic cae en un texto genérico para que el agente investigue
+    // igual; position se deja vacío (sin texto por defecto equivalente).
+    const fechaReal = programDate(guestRow);
+    const historicoDeEstaAparicion = (historicoRows ?? []).find(
+      (h) => h.fecha === fechaReal && h.hour_number === slot
+    );
+    let effectiveTopic = payload.topic || '';
+    let effectivePosition = payload.position || '';
+    if (!effectiveTopic) {
+      effectiveTopic =
+        historicoDeEstaAparicion?.tema ||
+        historicoDeEstaAparicion?.promo_copy ||
+        historicoDeEstaAparicion?.resumen_web ||
+        'Perfil general del invitado';
+    }
+    if (!effectivePosition) {
+      effectivePosition =
+        historicoDeEstaAparicion?.cargo ||
+        historicoDeEstaAparicion?.promo_copy ||
+        historicoDeEstaAparicion?.resumen_web ||
+        '';
+    }
+
     const n8nPayload: Record<string, unknown> = {
       historial_propio: historialPropio,
       guest_id: payload.guest_id,
       name: payload.name,
-      position: payload.position,
-      topic: payload.topic || '',
-      program_date: programDate(guestRow),
+      position: effectivePosition,
+      topic: effectiveTopic,
+      program_date: fechaReal,
       hour,
       hour_number: slot,
       documents,

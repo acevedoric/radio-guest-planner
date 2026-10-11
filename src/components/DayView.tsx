@@ -371,7 +371,7 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
                       </span>
                     )}
                     {!guest.position && historicoRow?.cargo && (
-                      <span className="text-[10px] px-1 py-0.5 rounded bg-amber-500/10 text-amber-700" title="Cargo completado desde el histórico">📜</span>
+                      <span className="text-[10px] px-1 py-0.5 rounded bg-amber-500/10 text-amber-700">📜 (desde histórico)</span>
                     )}
                   </h4>
 
@@ -380,7 +380,12 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
                 {/* Topic */}
                 <div>
                   <span className="text-xs text-muted-foreground">Tema</span>
-                  <p className="text-base text-foreground mt-1">{displayTopic}</p>
+                  <p className="text-base text-foreground mt-1">
+                    {displayTopic}
+                    {!guest.topic && historicoRow?.tema && (
+                      <span className="text-[10px] px-1 py-0.5 rounded ml-1 bg-amber-500/10 text-amber-700">📜 (desde histórico)</span>
+                    )}
+                  </p>
                 </div>
 
                 {/* Contact Information */}
