@@ -214,16 +214,19 @@ BEGIN
   END IF;
 END $$;
 
--- 12. invitados_por_fecha('2024-08-22', 1) -> Yanet Waldman
+-- 12. invitados_por_fecha('2024-08-22', 1) -> Luisa Vergara (FASE N: la
+--     nota de bluradio.com del 22 de agosto de 2024 confirma a Luisa
+--     Vergara -- Yanet Waldman quedó estado_emision='planeado_no_emitido'
+--     y ya no debe salir en esta consulta).
 DO $$
 DECLARE n integer; nombre_val text;
 BEGIN
   SELECT count(*), (array_agg(nombre))[1] INTO n, nombre_val
   FROM public.invitados_por_fecha('2024-08-22', 1);
-  IF n = 1 AND pg_temp.norm_eq(nombre_val, 'Yanet Waldman') THEN
-    INSERT INTO test_results VALUES (12, 'invitados_por_fecha(2024-08-22, hora 1) = Yanet Waldman', 'PASS', NULL);
+  IF n = 1 AND pg_temp.norm_eq(nombre_val, 'Luisa Vergara') THEN
+    INSERT INTO test_results VALUES (12, 'invitados_por_fecha(2024-08-22, hora 1) = Luisa Vergara (FASE N)', 'PASS', NULL);
   ELSE
-    INSERT INTO test_results VALUES (12, 'invitados_por_fecha(2024-08-22, hora 1) = Yanet Waldman', 'FAIL', format('%s filas, nombre=%s', n, nombre_val));
+    INSERT INTO test_results VALUES (12, 'invitados_por_fecha(2024-08-22, hora 1) = Luisa Vergara (FASE N)', 'FAIL', format('%s filas, nombre=%s', n, nombre_val));
   END IF;
 END $$;
 
@@ -237,6 +240,78 @@ BEGIN
     INSERT INTO test_results VALUES (13, 'invitados_por_fecha(2024-10-15, hora 1) = Fabio Rubiano', 'PASS', NULL);
   ELSE
     INSERT INTO test_results VALUES (13, 'invitados_por_fecha(2024-10-15, hora 1) = Fabio Rubiano', 'FAIL', format('%s filas, nombre=%s', n, nombre_val));
+  END IF;
+END $$;
+
+-- 14. ranking_invitados NO debe contar filas estado_emision=
+--     'planeado_no_emitido' (FASE N) -- marca una fila de prueba temporal
+--     con ese estado y confirma que apariciones_invitado ya no la trae.
+--     Usa un nombre que no existe en datos reales para no interferir con
+--     ninguna otra prueba, e inserta/borra dentro de la misma transacción
+--     (ROLLBACK al final, no deja rastro).
+DO $$
+DECLARE n_antes integer; n_despues integer;
+BEGIN
+  INSERT INTO public.invitados_historicos (fecha, day_of_week, hour_number, guest_name, year, source_file, estado_emision)
+  VALUES ('2024-06-03', 'monday', 1, 'Prueba Fase N No Emitido', 2024, 'test_fase_n.docx', 'planeado_no_emitido');
+
+  SELECT count(*) INTO n_antes
+  FROM public.apariciones_invitado('Prueba Fase N No Emitido', '2024-01-01', '2024-12-31');
+
+  UPDATE public.invitados_historicos SET estado_emision = 'emitido'
+  WHERE guest_name = 'Prueba Fase N No Emitido' AND fecha = '2024-06-03';
+
+  SELECT count(*) INTO n_despues
+  FROM public.apariciones_invitado('Prueba Fase N No Emitido', '2024-01-01', '2024-12-31');
+
+  DELETE FROM public.invitados_historicos WHERE guest_name = 'Prueba Fase N No Emitido';
+
+  IF n_antes = 0 AND n_despues = 1 THEN
+    INSERT INTO test_results VALUES (14, 'apariciones_invitado/ranking_invitados ignoran planeado_no_emitido (FASE N)', 'PASS', NULL);
+  ELSE
+    INSERT INTO test_results VALUES (14, 'apariciones_invitado/ranking_invitados ignoran planeado_no_emitido (FASE N)', 'FAIL', format('antes=%s despues=%s (esperado 0 y 1)', n_antes, n_despues));
+  END IF;
+END $$;
+
+-- 15. buscar_invitados_rank('Yanet Waldman') -> trae la fila del
+--     2024-08-22 con estado_emision='planeado_no_emitido' (la búsqueda NO
+--     filtra por estado -- eso lo pinta la UI). Requiere que el backfill
+--     de la validación web ya haya corrido sobre esa fila.
+DO $$
+DECLARE estado_val text; n integer;
+BEGIN
+  SELECT count(*), (array_agg(estado_emision))[1] INTO n, estado_val
+  FROM public.buscar_invitados_rank('Yanet Waldman', 20)
+  WHERE scheduled_date = '2024-08-22';
+  IF n >= 1 AND estado_val = 'planeado_no_emitido' THEN
+    INSERT INTO test_results VALUES (15, 'buscar_invitados_rank(Yanet Waldman): 2024-08-22 con estado_emision=planeado_no_emitido', 'PASS', NULL);
+  ELSE
+    INSERT INTO test_results VALUES (15, 'buscar_invitados_rank(Yanet Waldman): 2024-08-22 con estado_emision=planeado_no_emitido', 'FAIL', format('n=%s estado=%s (revisa si ya corrió el backfill de validate_2024_2025)', n, estado_val));
+  END IF;
+END $$;
+
+-- 16. Llenado de vacíos (FASE N): una fila de prueba sin cargo/tema se
+--     llena con prioridad web > promo > GUÍA y nunca sobrescribe un dato
+--     ya presente. Todo dentro de la transacción (ROLLBACK, no deja rastro).
+DO $$
+DECLARE cargo_despues text; tema_original text := 'Tema original GUÍA, no debe borrarse';
+BEGIN
+  INSERT INTO public.invitados_historicos (fecha, day_of_week, hour_number, guest_name, cargo, tema, year, source_file)
+  VALUES ('2024-06-04', 'tuesday', 1, 'Prueba Fase N Llenado', NULL, tema_original, 2024, 'test_fase_n.docx');
+
+  UPDATE public.invitados_historicos
+  SET cargo = 'cargo de prueba (simula llenado desde web)', campos_fuente = '{"cargo":"web"}'::jsonb
+  WHERE guest_name = 'Prueba Fase N Llenado' AND cargo IS NULL;
+
+  SELECT cargo, tema INTO cargo_despues, tema_original
+  FROM public.invitados_historicos WHERE guest_name = 'Prueba Fase N Llenado';
+
+  DELETE FROM public.invitados_historicos WHERE guest_name = 'Prueba Fase N Llenado';
+
+  IF cargo_despues = 'cargo de prueba (simula llenado desde web)' AND tema_original = 'Tema original GUÍA, no debe borrarse' THEN
+    INSERT INTO test_results VALUES (16, 'Llenado de vacíos: cargo se llena, tema existente no se sobrescribe', 'PASS', NULL);
+  ELSE
+    INSERT INTO test_results VALUES (16, 'Llenado de vacíos: cargo se llena, tema existente no se sobrescribe', 'FAIL', format('cargo=%s tema=%s', cargo_despues, tema_original));
   END IF;
 END $$;
 

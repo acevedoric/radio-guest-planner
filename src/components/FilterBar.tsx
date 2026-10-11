@@ -424,6 +424,7 @@ export const FilterBar = ({
                     const snippet = (guest as any).snippet as string | null | undefined;
                     const clickable = source === "app";
                     const hasHistorico = (guest as any).tiene_historico === true;
+                    const estadoEmision = (guest as any).estado_emision as string | null | undefined;
                     const isMencion = source === "mencion";
                     const body = (
                       <>
@@ -434,6 +435,12 @@ export const FilterBar = ({
                             {!isMencion && guest.position && <span className="text-muted-foreground font-normal"> · {guest.position}</span>}
                             {hasHistorico && (
                               <span className="text-[10px] px-1 py-0.5 rounded bg-amber-500/10 text-amber-700 shrink-0">+ histórico</span>
+                            )}
+                            {estadoEmision === "planeado_no_emitido" && (
+                              <span className="text-[10px] px-1 py-0.5 rounded bg-gray-400/20 text-gray-600 shrink-0">No emitido</span>
+                            )}
+                            {estadoEmision === "emitido" && (
+                              <span className="text-[10px] px-1 py-0.5 rounded bg-green-500/10 text-green-700 shrink-0">Al aire ✓</span>
                             )}
                           </div>
                           <div className="text-xs text-muted-foreground truncate">{snippet || guest.topic}</div>

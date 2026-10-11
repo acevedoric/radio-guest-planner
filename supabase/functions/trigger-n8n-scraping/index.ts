@@ -240,7 +240,45 @@ serve(async (req) => {
 
     const referenceUrls = payload.reference_urls ?? [];
 
+    // FASE N: historial_propio -- apariciones anteriores de este invitado
+    // (incluidas planeado_no_emitido, marcadas como tal) con su libreto,
+    // para que el agente de n8n actualice desde la última visita en vez
+    // de repetir enfoque/preguntas. No rompe los campos existentes.
+    const { data: historicoRows, error: historicoError } = await adminClient
+      .from('invitados_historicos')
+      .select('fecha, hour_number, estado_emision, cargo, tema, promo_copy, resumen_web')
+      .ilike('guest_name', `%${payload.name}%`)
+      .order('fecha', { ascending: false })
+      .limit(20);
+    if (historicoError) console.error('Error loading historial_propio:', historicoError);
+
+    const historialPropio = [];
+    for (const h of historicoRows ?? []) {
+      let libretoExcerpt = '';
+      if (h.fecha && h.hour_number) {
+        const { data: chunkRows } = await adminClient
+          .from('libretos_chunks')
+          .select('content')
+          .eq('fecha', h.fecha)
+          .eq('hour_number', h.hour_number)
+          .order('created_at', { ascending: true })
+          .order('id', { ascending: true });
+        libretoExcerpt = (chunkRows ?? []).map((c) => c.content as string).join(' ').slice(0, 3000);
+      }
+      historialPropio.push({
+        fecha: h.fecha,
+        hora: h.hour_number,
+        estado: h.estado_emision,
+        cargo: h.cargo,
+        tema: h.tema,
+        promo_copy: h.promo_copy,
+        resumen_web: h.resumen_web,
+        libreto_excerpt: libretoExcerpt,
+      });
+    }
+
     const n8nPayload: Record<string, unknown> = {
+      historial_propio: historialPropio,
       guest_id: payload.guest_id,
       name: payload.name,
       position: payload.position,

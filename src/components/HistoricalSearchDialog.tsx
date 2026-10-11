@@ -32,6 +32,7 @@ interface AppGuestResult {
   tipo?: string | null;
   tiene_libreto?: boolean | null;
   libreto_chunk_ids?: string[] | null;
+  estado_emision?: string | null;
 }
 
 const SOURCE_LABEL: Record<ResultGroup, string> = {
@@ -261,6 +262,12 @@ export const HistoricalSearchDialog = ({ onGuestClick }: HistoricalSearchDialogP
                         </p>
                         {hasHistorico && (
                           <span className="text-[10px] px-1.5 py-0.5 rounded shrink-0 bg-amber-500/10 text-amber-700">+ histórico</span>
+                        )}
+                        {r.estado_emision === "planeado_no_emitido" && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded shrink-0 bg-gray-400/20 text-gray-600">No emitido</span>
+                        )}
+                        {r.estado_emision === "emitido" && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded shrink-0 bg-green-500/10 text-green-700">Al aire ✓</span>
                         )}
                       </div>
                       <div className="text-right text-xs text-muted-foreground shrink-0">

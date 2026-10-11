@@ -126,6 +126,19 @@ const InvitadoHistoricoRow = z.object({
   // "[CONFLICTO sin resolver — ...]" dentro de `tema`, ya no).
   conflicto: z.boolean().optional().default(false),
   conflicto_nota: z.string().nullable().optional(),
+  // FASE N: estado de la fila frente a lo que realmente salió al aire,
+  // validado contra la nota "programa completo" de bluradio.com (ver
+  // bbb-ingest/lib/bluradio_validator.js) -- 'planeado_no_emitido' se
+  // excluye de ranking/conteos/apariciones/invitados_por_fecha, pero NO se
+  // borra (su libreto queda asociado por si la persona vuelve).
+  estado_emision: z.enum(["emitido", "planeado_no_emitido", "sin_confirmar"]).optional().default("sin_confirmar"),
+  fuente_validacion: z.string().nullable().optional(),
+  // FASE N (llenado de vacíos): copy del promo, fragmento de la nota web
+  // que corresponde a esta persona, y de qué fuente salió cada campo
+  // llenado ({"cargo":"web","tema":"promo"}) -- ver bbb-ingest/lib/fill_gaps.js.
+  promo_copy: z.string().nullable().optional(),
+  resumen_web: z.string().nullable().optional(),
+  campos_fuente: z.record(z.string()).nullable().optional(),
   // guest_id NO se recibe del cliente: se calcula aquí abajo (findGuestId),
   // porque solo esta función tiene SUPABASE_SERVICE_ROLE_KEY. El script
   // local no debe tener esa key.
