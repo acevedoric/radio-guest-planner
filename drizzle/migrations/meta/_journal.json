@@ -183,6 +183,13 @@
       "when": 1791737768920,
       "tag": "0025_fase_n_validador_web_estado_emision",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1791750224502,
+      "tag": "0026_fase_o_historico_por_rango_vista_semanal",
+      "breakpoints": true
     }
   ]
 }
