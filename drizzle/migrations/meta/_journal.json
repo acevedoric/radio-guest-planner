@@ -169,6 +169,13 @@
       "when": 1791668884937,
       "tag": "0023_fase_l_libreto_colgado_fallback_estricto",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1791729628979,
+      "tag": "0024_fase_m_conflicto_invitados_historicos",
+      "breakpoints": true
     }
   ]
 }
