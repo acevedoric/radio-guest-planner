@@ -315,6 +315,35 @@ BEGIN
   END IF;
 END $$;
 
+-- 17. Casos 2026 confirmados por el productor (calibración del validador
+--     estricto -- ver bbb-ingest/test_validator_calibracion.js para el
+--     equivalente a nivel de heurística JS): inserta las 4 filas como
+--     las dejaría la carga real (Miguel Tapia / Bonny Cepeda
+--     planeado_no_emitido; Ezequiel López Peralta / Don Fulano emitido,
+--     mismas fecha+hora) y confirma que invitados_por_fecha devuelve
+--     SOLO al que salió. Todo dentro de la transacción (ROLLBACK).
+DO $$
+DECLARE n1 integer; nombre1 text; n2 integer; nombre2 text;
+BEGIN
+  INSERT INTO public.invitados_historicos (fecha, day_of_week, hour_number, guest_name, year, source_file, estado_emision, fuente_validacion)
+  VALUES
+    ('2026-04-20', 'monday', 1, 'Miguel Tapia', 2026, 'test_fase_n_2026.docx', 'planeado_no_emitido', 'https://www.bluradio.com/bla-bla-blu/bla-bla-blu-programa-completo-del-20-de-abril-de-2026-pr30'),
+    ('2026-04-20', 'monday', 1, 'Ezequiel López Peralta', 2026, 'test_fase_n_2026.docx', 'emitido', 'https://www.bluradio.com/bla-bla-blu/bla-bla-blu-programa-completo-del-20-de-abril-de-2026-pr30'),
+    ('2026-09-29', 'tuesday', 1, 'Bonny Cepeda', 2026, 'test_fase_n_2026.docx', 'planeado_no_emitido', 'https://www.bluradio.com/bla-bla-blu/bla-bla-blu-programa-completo-del-29-de-septiembre-de-2026-pr30'),
+    ('2026-09-29', 'tuesday', 1, 'Don Fulano', 2026, 'test_fase_n_2026.docx', 'emitido', 'https://www.bluradio.com/bla-bla-blu/bla-bla-blu-programa-completo-del-29-de-septiembre-de-2026-pr30');
+
+  SELECT count(*), (array_agg(nombre))[1] INTO n1, nombre1 FROM public.invitados_por_fecha('2026-04-20', 1);
+  SELECT count(*), (array_agg(nombre))[1] INTO n2, nombre2 FROM public.invitados_por_fecha('2026-09-29', 1);
+
+  DELETE FROM public.invitados_historicos WHERE source_file = 'test_fase_n_2026.docx';
+
+  IF n1 = 1 AND pg_temp.norm_eq(nombre1, 'Ezequiel López Peralta') AND n2 = 1 AND pg_temp.norm_eq(nombre2, 'Don Fulano') THEN
+    INSERT INTO test_results VALUES (17, 'Casos 2026 (Tapia/Ezequiel, Cepeda/Don Fulano): invitados_por_fecha solo trae a quien salió', 'PASS', NULL);
+  ELSE
+    INSERT INTO test_results VALUES (17, 'Casos 2026 (Tapia/Ezequiel, Cepeda/Don Fulano): invitados_por_fecha solo trae a quien salió', 'FAIL', format('abril: n=%s nombre=%s | sept: n=%s nombre=%s', n1, nombre1, n2, nombre2));
+  END IF;
+END $$;
+
 SELECT n, status, descripcion, detalle FROM test_results ORDER BY n;
 
 ROLLBACK;

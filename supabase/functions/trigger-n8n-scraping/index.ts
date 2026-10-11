@@ -240,41 +240,102 @@ serve(async (req) => {
 
     const referenceUrls = payload.reference_urls ?? [];
 
-    // FASE N: historial_propio -- apariciones anteriores de este invitado
-    // (incluidas planeado_no_emitido, marcadas como tal) con su libreto,
-    // para que el agente de n8n actualice desde la última visita en vez
-    // de repetir enfoque/preguntas. No rompe los campos existentes.
+    // FASE N: historial_propio -- apariciones anteriores de este invitado,
+    // tanto en invitados_historicos (incluidas planeado_no_emitido,
+    // marcadas como tal, con su libreto) como en guests (fechas pasadas,
+    // sin contar la que se está investigando, con sus campos de
+    // investigación ya hechos) -- para que el agente de n8n actualice
+    // desde la última visita en vez de repetir enfoque/preguntas. No
+    // rompe los campos existentes del payload.
+    type HistItem = {
+      fecha: string | null;
+      hora: number | null;
+      estado: string | null;
+      cargo: string | null;
+      tema: string | null;
+      promo_copy: string | null;
+      resumen_web: string | null;
+      investigacion_previa: string | null;
+      libreto_excerpt: string;
+    };
+
     const { data: historicoRows, error: historicoError } = await adminClient
       .from('invitados_historicos')
       .select('fecha, hour_number, estado_emision, cargo, tema, promo_copy, resumen_web')
       .ilike('guest_name', `%${payload.name}%`)
       .order('fecha', { ascending: false })
       .limit(20);
-    if (historicoError) console.error('Error loading historial_propio:', historicoError);
+    if (historicoError) console.error('Error loading historial_propio (historico):', historicoError);
 
-    const historialPropio = [];
+    const { data: guestsRows, error: guestsHistError } = await adminClient
+      .from('guests')
+      .select('id, week_date, day_of_week, scheduled_date, time_slot, position, topic, tema_principal, infancia_vida_privada, carrera_profesional, datos_curiosos, h2_info_personal, h2_preguntas_sugeridas, h3_datos_personales, h3_comunicado_prensa')
+      .ilike('name', `%${payload.name}%`)
+      .neq('id', payload.guest_id)
+      .limit(20);
+    if (guestsHistError) console.error('Error loading historial_propio (guests):', guestsHistError);
+
+    // fecha|hora -> item (dedup: si guests y el histórico coinciden en la
+    // misma fecha+hora, se fusionan en una sola entrada en vez de
+    // duplicarse).
+    const byKey = new Map<string, HistItem>();
     for (const h of historicoRows ?? []) {
-      let libretoExcerpt = '';
-      if (h.fecha && h.hour_number) {
+      const key = `${h.fecha}|${h.hour_number}`;
+      byKey.set(key, {
+        fecha: h.fecha, hora: h.hour_number, estado: h.estado_emision,
+        cargo: h.cargo, tema: h.tema, promo_copy: h.promo_copy, resumen_web: h.resumen_web,
+        investigacion_previa: null, libreto_excerpt: '',
+      });
+    }
+    const today = programDate(guestRow); // fecha de la aparición que se está investigando AHORA
+    for (const g of guestsRows ?? []) {
+      const fecha = programDate(g);
+      if (!fecha || (today && fecha >= today)) continue; // solo pasadas, nunca la actual
+      const key = `${fecha}|${g.time_slot}`;
+      const investigacion = [g.tema_principal, g.infancia_vida_privada, g.carrera_profesional, g.datos_curiosos, g.h2_info_personal, g.h2_preguntas_sugeridas, g.h3_datos_personales, g.h3_comunicado_prensa]
+        .filter(Boolean).join(' ') || null;
+      const existing = byKey.get(key);
+      if (existing) {
+        existing.cargo = existing.cargo ?? g.position;
+        existing.tema = existing.tema ?? g.topic;
+        existing.investigacion_previa = investigacion;
+      } else {
+        byKey.set(key, {
+          fecha, hora: g.time_slot, estado: 'agendado_app',
+          cargo: g.position, tema: g.topic, promo_copy: null, resumen_web: null,
+          investigacion_previa: investigacion, libreto_excerpt: '',
+        });
+      }
+    }
+
+    const historialPropioFull = [...byKey.values()].sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
+
+    // Límite total: ~3.000 caracteres de libreto + ~4.000 de investigación
+    // previa combinados entre TODAS las apariciones, priorizando las más
+    // recientes (ya vienen ordenadas desc por fecha).
+    let libretoBudget = 3000;
+    let investigacionBudget = 4000;
+    const historialPropio = [];
+    for (const item of historialPropioFull) {
+      if (item.fecha && item.hora && libretoBudget > 0) {
         const { data: chunkRows } = await adminClient
           .from('libretos_chunks')
           .select('content')
-          .eq('fecha', h.fecha)
-          .eq('hour_number', h.hour_number)
+          .eq('fecha', item.fecha)
+          .eq('hour_number', item.hora)
           .order('created_at', { ascending: true })
           .order('id', { ascending: true });
-        libretoExcerpt = (chunkRows ?? []).map((c) => c.content as string).join(' ').slice(0, 3000);
+        const full = (chunkRows ?? []).map((c) => c.content as string).join(' ');
+        item.libreto_excerpt = full.slice(0, libretoBudget);
+        libretoBudget -= item.libreto_excerpt.length;
       }
-      historialPropio.push({
-        fecha: h.fecha,
-        hora: h.hour_number,
-        estado: h.estado_emision,
-        cargo: h.cargo,
-        tema: h.tema,
-        promo_copy: h.promo_copy,
-        resumen_web: h.resumen_web,
-        libreto_excerpt: libretoExcerpt,
-      });
+      if (item.investigacion_previa && investigacionBudget > 0) {
+        item.investigacion_previa = item.investigacion_previa.slice(0, investigacionBudget);
+        investigacionBudget -= item.investigacion_previa.length;
+      } else if (item.investigacion_previa) {
+        item.investigacion_previa = null; // sin presupuesto restante
+      }
+      historialPropio.push(item);
     }
 
     const n8nPayload: Record<string, unknown> = {
