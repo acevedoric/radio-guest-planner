@@ -119,6 +119,13 @@ const InvitadoHistoricoRow = z.object({
   // Colombia (festivos_co.js) — el programa de un festivo siempre se graba
   // la semana anterior, aunque no haya fila "GRABA" explícita.
   grabado_con_anticipacion: z.boolean().optional().default(false),
+  // true cuando el documento fuente tiene revisiones sin limpiar para el
+  // mismo (fecha, hora) con invitados distintos y ninguna fuente externa
+  // (CALENDARIO/PROMOS) permitió decidir cuál es la vigente -- mismo
+  // convenio que libretos_chunks (FASE M: antes se incrustaba como texto
+  // "[CONFLICTO sin resolver — ...]" dentro de `tema`, ya no).
+  conflicto: z.boolean().optional().default(false),
+  conflicto_nota: z.string().nullable().optional(),
   // guest_id NO se recibe del cliente: se calcula aquí abajo (findGuestId),
   // porque solo esta función tiene SUPABASE_SERVICE_ROLE_KEY. El script
   // local no debe tener esa key.
