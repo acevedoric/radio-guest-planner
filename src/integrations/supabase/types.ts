@@ -974,6 +974,21 @@ export type Database = {
         }
         Returns: boolean
       }
+      historico_por_rango: {
+        Args: { p_desde: string; p_hasta: string }
+        Returns: {
+          cargo: string
+          conflicto: boolean
+          day_of_week: string
+          estado_emision: string
+          fecha: string
+          guest_name: string
+          hour_number: number
+          libreto_chunk_ids: string[]
+          tema: string
+          tiene_libreto: boolean
+        }[]
+      }
       invitados_por_fecha: {
         Args: { p_fecha: string; p_hora?: number }
         Returns: {
