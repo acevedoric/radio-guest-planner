@@ -557,6 +557,8 @@ export type Database = {
       invitados_historicos: {
         Row: {
           cargo: string | null
+          conflicto: boolean
+          conflicto_nota: string | null
           created_at: string
           day_of_week: string | null
           fecha: string | null
@@ -573,6 +575,8 @@ export type Database = {
         }
         Insert: {
           cargo?: string | null
+          conflicto?: boolean
+          conflicto_nota?: string | null
           created_at?: string
           day_of_week?: string | null
           fecha?: string | null
@@ -589,6 +593,8 @@ export type Database = {
         }
         Update: {
           cargo?: string | null
+          conflicto?: boolean
+          conflicto_nota?: string | null
           created_at?: string
           day_of_week?: string | null
           fecha?: string | null
