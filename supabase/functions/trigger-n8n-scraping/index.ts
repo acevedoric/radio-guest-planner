@@ -140,6 +140,28 @@ function programDate(guest: { week_date: string | null; day_of_week: string | nu
   return guest.scheduled_date ?? null;
 }
 
+// FASE P: "cargo basura" importado de Excel (excel_import) -- no se usa
+// como position; se trata como vacío y cae al fallback del histórico.
+const GARBAGE_CARGO_RE = /\b(quiero|invitar|invitarlos|invitarles|despu[eé]s|esta noche|buenas noches|acomp[aá]ñ|escuchen|los espero|les espero|amigos de|esta tarde|hoy a las|a las \d)\b/i;
+function looksLikeGarbageCargo(cargo: string | null | undefined): boolean {
+  if (!cargo) return false;
+  const c = cargo.trim();
+  if (!c) return false;
+  if (c.length > 40) return true;
+  if (/^[a-záéíóúñ]/.test(c) && c.split(/\s+/).filter(Boolean).length > 3) return true;
+  if (GARBAGE_CARGO_RE.test(c)) return true;
+  return false;
+}
+
+// Preámbulo genérico de bluradio.com -- por si el histórico aún no se
+// recargó con la limpieza nueva (ver bbb-ingest/lib/normalize.js).
+const WEB_PREAMBLE_RE = /^.{0,220}?Bla\s*Bla\s*BLU?[^:]*:\s*/i;
+function cleanWebTextFallback(text: string | null | undefined): string | null {
+  if (!text) return null;
+  const cleaned = text.replace(WEB_PREAMBLE_RE, "").trim();
+  return cleaned || text.trim();
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -200,7 +222,7 @@ serve(async (req) => {
 
     const { data: guestRow, error: guestError } = await adminClient
       .from('guests')
-      .select('week_date, day_of_week, scheduled_date')
+      .select('week_date, day_of_week, scheduled_date, proposed_by')
       .eq('id', payload.guest_id)
       .maybeSingle();
 
@@ -353,14 +375,16 @@ serve(async (req) => {
     const historicoDeEstaAparicion = (historicoRows ?? []).find(
       (h) => h.fecha === fechaReal && h.hour_number === slot
     );
+    // Cargo basura importado de Excel: se trata como si no existiera.
+    const positionEsBasura = (guestRow as any).proposed_by === 'excel_import' && looksLikeGarbageCargo(payload.position);
     let effectiveTopic = payload.topic || '';
-    let effectivePosition = payload.position || '';
+    let effectivePosition = positionEsBasura ? '' : (payload.position || '');
     if (!effectiveTopic) {
-      effectiveTopic =
+      effectiveTopic = cleanWebTextFallback(
         historicoDeEstaAparicion?.tema ||
         historicoDeEstaAparicion?.promo_copy ||
-        historicoDeEstaAparicion?.resumen_web ||
-        'Perfil general del invitado';
+        historicoDeEstaAparicion?.resumen_web
+      ) || 'Perfil general del invitado';
     }
     if (!effectivePosition) {
       effectivePosition =

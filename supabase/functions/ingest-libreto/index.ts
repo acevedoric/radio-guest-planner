@@ -33,6 +33,20 @@ function normalizeName(s: string): string {
   return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 }
 
+// FASE P: "cargo basura" importado de Excel (excel_import) -- frases de
+// promo/invitaci\u00f3n pegadas por error en la celda de cargo, no un cargo
+// real. Nunca se usa para "la app manda" -- se trata como vac\u00edo.
+const GARBAGE_CARGO_RE = /\b(quiero|invitar|invitarlos|invitarles|despu[e\u00e9]s|esta noche|buenas noches|acomp[a\u00e1]\u00f1|escuchen|los espero|les espero|amigos de|esta tarde|hoy a las|a las \d)\b/i;
+function looksLikeGarbageCargo(cargo: string | null | undefined): boolean {
+  if (!cargo) return false;
+  const c = cargo.trim();
+  if (!c) return false;
+  if (c.length > 40) return true;
+  if (/^[a-z\u00e1\u00e9\u00ed\u00f3\u00fa\u00f1]/.test(c) && c.split(/\s+/).filter(Boolean).length > 3) return true;
+  if (GARBAGE_CARGO_RE.test(c)) return true;
+  return false;
+}
+
 const DAY_OFFSETS: Record<string, number> = { monday: 0, tuesday: 1, wednesday: 2, thursday: 3 };
 
 /** Fecha de emisión (YYYY-MM-DD) a partir de week_date + day_of_week, igual que src/lib/webhooks.ts. */
@@ -63,13 +77,13 @@ async function findGuest(
   name: string | null | undefined,
   fecha: string | null | undefined,
   hourNumber: number | null | undefined
-): Promise<{ id: string; name: string; method: "exact" | "contains"; position: string | null; topic: string | null } | null> {
+): Promise<{ id: string; name: string; method: "exact" | "contains"; position: string | null; topic: string | null; proposed_by: string | null } | null> {
   if (!name || !fecha) return null;
   const firstWord = name.trim().split(/\s+/)[0];
   if (!firstWord) return null;
   const { data } = await supabase
     .from("guests")
-    .select("id, name, week_date, day_of_week, scheduled_date, time_slot, position, topic")
+    .select("id, name, week_date, day_of_week, scheduled_date, time_slot, position, topic, proposed_by")
     .ilike("name", `%${firstWord}%`)
     .limit(50);
   if (!data) return null;
@@ -82,7 +96,7 @@ async function findGuest(
 
   for (const g of data) {
     if (normalizeName(g.name) === target && dateMatches(g)) {
-      return { id: g.id, name: g.name, method: "exact", position: g.position ?? null, topic: g.topic ?? null };
+      return { id: g.id, name: g.name, method: "exact", position: g.position ?? null, topic: g.topic ?? null, proposed_by: g.proposed_by ?? null };
     }
   }
 
@@ -93,7 +107,7 @@ async function findGuest(
       if (shorter.trim().split(/\s+/).length < 2) continue;
       const contains = target.includes(gNorm) || gNorm.includes(target);
       if (contains && dateMatches(g) && g.time_slot === hourNumber) {
-        return { id: g.id, name: g.name, method: "contains", position: g.position ?? null, topic: g.topic ?? null };
+        return { id: g.id, name: g.name, method: "contains", position: g.position ?? null, topic: g.topic ?? null, proposed_by: g.proposed_by ?? null };
       }
     }
   }
@@ -320,7 +334,10 @@ Deno.serve(async (req) => {
             const camposFuente = (built.campos_fuente as Record<string, string> | null) ?? {};
             const cargoEsDeGuia = !!data.cargo && !camposFuente.cargo;
             const temaEsDeGuia = !!data.tema && !camposFuente.tema;
-            if (match.position && !cargoEsDeGuia) {
+            // Cargo basura importado de Excel: no manda, se ignora como si
+            // el guest no tuviera cargo (cae a web/promo/GUÍA igual).
+            const cargoAppEsBasura = match.proposed_by === "excel_import" && looksLikeGarbageCargo(match.position);
+            if (match.position && !cargoEsDeGuia && !cargoAppEsBasura) {
               built.cargo = match.position;
               camposFuente.cargo = "app";
             }

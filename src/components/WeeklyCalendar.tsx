@@ -14,6 +14,7 @@ import { format, startOfWeek, addDays } from "date-fns";
 import { maybeSendConfirmationEmail } from "@/hooks/useConfirmationWebhook";
 import type { HistoricoRow } from "@/types/historico";
 import { HistoricoSlotCard, HistoricoBadge } from "./HistoricoSlotCard";
+import { effectiveGuestPosition } from "@/lib/garbageCargo";
 
 interface WeeklyCalendarProps {
   guests: Guest[];
@@ -304,9 +305,10 @@ const GuestSlotCard = ({ day, slot, guest, coGuest, onGuestClick, onAddGuest, ed
   if (guest) {
     // Si el guest no tiene cargo/tema propio, se completa con el histórico
     // enlazado de esa fecha+hora (solo en pantalla, no se escribe en guests).
-    const displayPosition = guest.position || historicoRow?.cargo || null;
+    const realGuestPosition = effectiveGuestPosition(guest);
+    const displayPosition = realGuestPosition || historicoRow?.cargo || null;
     const displayTopic = guest.topic || historicoRow?.tema || "";
-    const fromHistorico = (!guest.position && !!historicoRow?.cargo) || (!guest.topic && !!historicoRow?.tema);
+    const fromHistorico = (!realGuestPosition && !!historicoRow?.cargo) || (!guest.topic && !!historicoRow?.tema);
     return (
       <div ref={setDropRef}>
         <Card

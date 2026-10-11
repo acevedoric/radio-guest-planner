@@ -17,6 +17,7 @@ import { parse, addDays, format } from "date-fns";
 import { maybeSendConfirmationEmail } from "@/hooks/useConfirmationWebhook";
 import type { HistoricoRow } from "@/types/historico";
 import { HistoricoSlotCard, HistoricoBadge } from "./HistoricoSlotCard";
+import { effectiveGuestPosition } from "@/lib/garbageCargo";
 
 interface DayViewProps {
   isAuthenticated?: boolean;
@@ -244,7 +245,7 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
           {TIME_SLOTS.map(({ slot, label }) => {
             const guest = getGuestForSlot(slot);
             const historicoRow = !guest && selectedDayDate ? getHistoricoFor?.(selectedDayDate, slot) : undefined;
-            const displayPosition = guest ? guest.position || historicoRow?.cargo : historicoRow?.cargo;
+            const displayPosition = guest ? effectiveGuestPosition(guest) || historicoRow?.cargo : historicoRow?.cargo;
             const displayTopic = guest ? guest.topic || historicoRow?.tema : historicoRow?.tema;
             return (
               <div key={slot} className="flex items-baseline gap-2 text-sm">
@@ -323,7 +324,8 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
 
           const renderGuestCard = (guest: Guest, cardLabel: string, isCoGuest: boolean) => {
             const historicoRow = selectedDayDate ? getHistoricoFor?.(selectedDayDate, slot) : undefined;
-            const displayPosition = guest.position || historicoRow?.cargo || null;
+            const realGuestPosition = effectiveGuestPosition(guest);
+            const displayPosition = realGuestPosition || historicoRow?.cargo || null;
             const displayTopic = guest.topic || historicoRow?.tema || "";
             return (
             <Card
@@ -370,7 +372,7 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
                         ({displayPosition})
                       </span>
                     )}
-                    {!guest.position && historicoRow?.cargo && (
+                    {!realGuestPosition && historicoRow?.cargo && (
                       <span className="text-[10px] px-1 py-0.5 rounded bg-amber-500/10 text-amber-700">📜 (desde histórico)</span>
                     )}
                   </h4>
@@ -606,8 +608,7 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
                 renderGuestCard(primary, label, false)
               ) : selectedDayDate && getHistoricoFor?.(selectedDayDate, slot) ? (
                 <div className="relative">
-                  <p className="text-xs text-muted-foreground mb-1">{label}</p>
-                  <HistoricoSlotCard row={getHistoricoFor(selectedDayDate, slot)!} />
+                  <HistoricoSlotCard row={getHistoricoFor(selectedDayDate, slot)!} variant="day" label={label} />
                   {editMode && (
                     <button
                       type="button"
