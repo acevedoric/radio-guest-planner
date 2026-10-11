@@ -1,4 +1,4 @@
--- Batería de regresión del buscador (FASE J/K/L). No modifica datos ni
+-- Batería de regresión del buscador (FASE J/K/L + carga 2024, casos 10-13). No modifica datos ni
 -- crea usuarios/roles: corre dentro de una transacción que termina en
 -- ROLLBACK. Toma el uid de un producer REAL vía current_setting
 -- ('test.producer_uid') -- ver supabase/tests/README.md para las 2 líneas
@@ -184,6 +184,59 @@ BEGIN
     INSERT INTO test_results VALUES (9, 'buscar_invitados_rank con comillas « » = mismo resultado que sin comillas', 'PASS', NULL);
   ELSE
     INSERT INTO test_results VALUES (9, 'buscar_invitados_rank con comillas « » = mismo resultado que sin comillas', 'FAIL', format('con=%s sin=%s', con_comillas, sin_comillas));
+  END IF;
+END $$;
+
+-- 10. ranking_invitados 2024 -> Germán Puerta = 41 en primer lugar
+DO $$
+DECLARE r record;
+BEGIN
+  SELECT nombre, apariciones INTO r FROM public.ranking_invitados('2024-01-01', '2024-12-31', 1) LIMIT 1;
+  IF pg_temp.norm_eq(r.nombre, 'Germán Puerta') AND r.apariciones = 41 THEN
+    INSERT INTO test_results VALUES (10, 'ranking_invitados 2024 top1 = Germán Puerta (41)', 'PASS', NULL);
+  ELSE
+    INSERT INTO test_results VALUES (10, 'ranking_invitados 2024 top1 = Germán Puerta (41)', 'FAIL', format('obtuvo %s (%s)', r.nombre, r.apariciones));
+  END IF;
+END $$;
+
+-- 11. apariciones_invitado('Carlos Guillermo Fajardo', 2024) -> 10 filas,
+--     todas la misma persona (unificación "...Fajardo" -> "...Fajardo Segura")
+DO $$
+DECLARE n integer; distintos integer;
+BEGIN
+  SELECT count(*), count(DISTINCT lower(trim(public.unaccent_immutable(nombre))))
+    INTO n, distintos
+  FROM public.apariciones_invitado('Carlos Guillermo Fajardo', '2024-01-01', '2024-12-31');
+  IF n = 10 AND distintos = 1 THEN
+    INSERT INTO test_results VALUES (11, 'apariciones_invitado(Carlos Guillermo Fajardo, 2024) = 10, una sola persona', 'PASS', NULL);
+  ELSE
+    INSERT INTO test_results VALUES (11, 'apariciones_invitado(Carlos Guillermo Fajardo, 2024) = 10, una sola persona', 'FAIL', format('n=%s distintos=%s', n, distintos));
+  END IF;
+END $$;
+
+-- 12. invitados_por_fecha('2024-08-22', 1) -> Yanet Waldman
+DO $$
+DECLARE n integer; nombre_val text;
+BEGIN
+  SELECT count(*), (array_agg(nombre))[1] INTO n, nombre_val
+  FROM public.invitados_por_fecha('2024-08-22', 1);
+  IF n = 1 AND pg_temp.norm_eq(nombre_val, 'Yanet Waldman') THEN
+    INSERT INTO test_results VALUES (12, 'invitados_por_fecha(2024-08-22, hora 1) = Yanet Waldman', 'PASS', NULL);
+  ELSE
+    INSERT INTO test_results VALUES (12, 'invitados_por_fecha(2024-08-22, hora 1) = Yanet Waldman', 'FAIL', format('%s filas, nombre=%s', n, nombre_val));
+  END IF;
+END $$;
+
+-- 13. invitados_por_fecha('2024-10-15', 1) -> Fabio Rubiano
+DO $$
+DECLARE n integer; nombre_val text;
+BEGIN
+  SELECT count(*), (array_agg(nombre))[1] INTO n, nombre_val
+  FROM public.invitados_por_fecha('2024-10-15', 1);
+  IF n = 1 AND pg_temp.norm_eq(nombre_val, 'Fabio Rubiano') THEN
+    INSERT INTO test_results VALUES (13, 'invitados_por_fecha(2024-10-15, hora 1) = Fabio Rubiano', 'PASS', NULL);
+  ELSE
+    INSERT INTO test_results VALUES (13, 'invitados_por_fecha(2024-10-15, hora 1) = Fabio Rubiano', 'FAIL', format('%s filas, nombre=%s', n, nombre_val));
   END IF;
 END $$;
 
