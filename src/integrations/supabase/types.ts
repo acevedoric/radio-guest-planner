@@ -556,12 +556,15 @@ export type Database = {
       }
       invitados_historicos: {
         Row: {
+          campos_fuente: Json | null
           cargo: string | null
           conflicto: boolean
           conflicto_nota: string | null
           created_at: string
           day_of_week: string | null
+          estado_emision: string
           fecha: string | null
+          fuente_validacion: string | null
           grabado_con_anticipacion: boolean
           guest_id: string | null
           guest_name: string
@@ -569,17 +572,22 @@ export type Database = {
           hour_number: number | null
           id: string
           prensa_raw: string | null
+          promo_copy: string | null
+          resumen_web: string | null
           source_file: string | null
           tema: string | null
           year: number | null
         }
         Insert: {
+          campos_fuente?: Json | null
           cargo?: string | null
           conflicto?: boolean
           conflicto_nota?: string | null
           created_at?: string
           day_of_week?: string | null
+          estado_emision?: string
           fecha?: string | null
+          fuente_validacion?: string | null
           grabado_con_anticipacion?: boolean
           guest_id?: string | null
           guest_name: string
@@ -587,17 +595,22 @@ export type Database = {
           hour_number?: number | null
           id?: string
           prensa_raw?: string | null
+          promo_copy?: string | null
+          resumen_web?: string | null
           source_file?: string | null
           tema?: string | null
           year?: number | null
         }
         Update: {
+          campos_fuente?: Json | null
           cargo?: string | null
           conflicto?: boolean
           conflicto_nota?: string | null
           created_at?: string
           day_of_week?: string | null
+          estado_emision?: string
           fecha?: string | null
+          fuente_validacion?: string | null
           grabado_con_anticipacion?: boolean
           guest_id?: string | null
           guest_name?: string
@@ -605,6 +618,8 @@ export type Database = {
           hour_number?: number | null
           id?: string
           prensa_raw?: string | null
+          promo_copy?: string | null
+          resumen_web?: string | null
           source_file?: string | null
           tema?: string | null
           year?: number | null
@@ -914,6 +929,7 @@ export type Database = {
         Args: { max_results?: number; query_text: string }
         Returns: {
           day_of_week: string
+          estado_emision: string
           guest_id: string
           guest_position: string
           id: string

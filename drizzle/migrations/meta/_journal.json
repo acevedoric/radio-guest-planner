@@ -176,6 +176,13 @@
       "when": 1791729628979,
       "tag": "0024_fase_m_conflicto_invitados_historicos",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1791737768920,
+      "tag": "0025_fase_n_validador_web_estado_emision",
+      "breakpoints": true
     }
   ]
 }
