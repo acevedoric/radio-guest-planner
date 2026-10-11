@@ -63,13 +63,13 @@ async function findGuest(
   name: string | null | undefined,
   fecha: string | null | undefined,
   hourNumber: number | null | undefined
-): Promise<{ id: string; name: string; method: "exact" | "contains" } | null> {
+): Promise<{ id: string; name: string; method: "exact" | "contains"; position: string | null; topic: string | null } | null> {
   if (!name || !fecha) return null;
   const firstWord = name.trim().split(/\s+/)[0];
   if (!firstWord) return null;
   const { data } = await supabase
     .from("guests")
-    .select("id, name, week_date, day_of_week, scheduled_date, time_slot")
+    .select("id, name, week_date, day_of_week, scheduled_date, time_slot, position, topic")
     .ilike("name", `%${firstWord}%`)
     .limit(50);
   if (!data) return null;
@@ -82,7 +82,7 @@ async function findGuest(
 
   for (const g of data) {
     if (normalizeName(g.name) === target && dateMatches(g)) {
-      return { id: g.id, name: g.name, method: "exact" };
+      return { id: g.id, name: g.name, method: "exact", position: g.position ?? null, topic: g.topic ?? null };
     }
   }
 
@@ -93,7 +93,7 @@ async function findGuest(
       if (shorter.trim().split(/\s+/).length < 2) continue;
       const contains = target.includes(gNorm) || gNorm.includes(target);
       if (contains && dateMatches(g) && g.time_slot === hourNumber) {
-        return { id: g.id, name: g.name, method: "contains" };
+        return { id: g.id, name: g.name, method: "contains", position: g.position ?? null, topic: g.topic ?? null };
       }
     }
   }
@@ -310,6 +310,25 @@ Deno.serve(async (req) => {
           if (match) {
             linked++;
             linkedDetails.push({ historico_name: data.guest_name, guest_name: match.name, guest_id: match.id, fecha: data.fecha, method: match.method });
+
+            // FASE O: prioridad de cargo/tema cuando la fila está enlazada a
+            // un guest -- manda el de la app (datos cargados a mano por el
+            // productor, p.ej. 2026) por encima de web/promo. Solo
+            // reemplaza si el campo NO vino de GUÍA directamente (lo marca
+            // campos_fuente del cliente): un dato de GUÍA nunca se
+            // sobrescribe. Si el campo seguía vacío, también se llena aquí.
+            const camposFuente = (built.campos_fuente as Record<string, string> | null) ?? {};
+            const cargoEsDeGuia = !!data.cargo && !camposFuente.cargo;
+            const temaEsDeGuia = !!data.tema && !camposFuente.tema;
+            if (match.position && !cargoEsDeGuia) {
+              built.cargo = match.position;
+              camposFuente.cargo = "app";
+            }
+            if (match.topic && !temaEsDeGuia) {
+              built.tema = match.topic;
+              camposFuente.tema = "app";
+            }
+            if (Object.keys(camposFuente).length > 0) built.campos_fuente = camposFuente;
           }
         } else if (kind === "libretos_chunks") {
           // guest_name es NOT NULL en la tabla; algunos bloques (sin línea

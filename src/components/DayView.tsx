@@ -15,6 +15,8 @@ import { LibretoExport } from "./LibretoExport";
 import { LibretoView } from "./LibretoView";
 import { parse, addDays, format } from "date-fns";
 import { maybeSendConfirmationEmail } from "@/hooks/useConfirmationWebhook";
+import type { HistoricoRow } from "@/types/historico";
+import { HistoricoSlotCard, HistoricoBadge } from "./HistoricoSlotCard";
 
 interface DayViewProps {
   isAuthenticated?: boolean;
@@ -28,6 +30,7 @@ interface DayViewProps {
   onGuestUpdate?: (updatedGuest: Partial<Guest> & { id?: string }) => void;
   selectedDayDate?: string;
   onRecordingGuestClick?: (guest: Guest) => void;
+  getHistoricoFor?: (fecha: string, hour: number) => HistoricoRow | undefined;
 }
 
 const DAYS = [
@@ -125,7 +128,7 @@ const buildPRMailto = (guest: Guest, selectedDayDate?: string) => {
   return `mailto:${guest.press_email}?subject=${subject}&body=${encodeURIComponent(lines.join('\n'))}`;
 };
 
-export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedDay, onDayChange, editMode, onGuestUpdate, selectedDayDate, onRecordingGuestClick, isAuthenticated = false }: DayViewProps) => {
+export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedDay, onDayChange, editMode, onGuestUpdate, selectedDayDate, onRecordingGuestClick, isAuthenticated = false, getHistoricoFor }: DayViewProps) => {
   const [showLibreto, setShowLibreto] = useState(false);
 
   const getGuestForSlot = (slot: number) => {
@@ -240,14 +243,24 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
         <div className="space-y-2">
           {TIME_SLOTS.map(({ slot, label }) => {
             const guest = getGuestForSlot(slot);
+            const historicoRow = !guest && selectedDayDate ? getHistoricoFor?.(selectedDayDate, slot) : undefined;
+            const displayPosition = guest ? guest.position || historicoRow?.cargo : historicoRow?.cargo;
+            const displayTopic = guest ? guest.topic || historicoRow?.tema : historicoRow?.tema;
             return (
               <div key={slot} className="flex items-baseline gap-2 text-sm">
                 <span className="font-semibold text-muted-foreground min-w-[70px]">{label}:</span>
                 {guest ? (
                   <span className="text-foreground">
                     <span className="font-medium">{guest.name}</span>
-                    {guest.position && <span className="text-muted-foreground"> ({guest.position})</span>}
-                    {guest.topic && <span className="text-muted-foreground"> — {guest.topic}</span>}
+                    {displayPosition && <span className="text-muted-foreground"> ({displayPosition})</span>}
+                    {displayTopic && <span className="text-muted-foreground"> — {displayTopic}</span>}
+                  </span>
+                ) : historicoRow ? (
+                  <span className="text-foreground">
+                    <span className="font-medium">{historicoRow.guest_name}</span>
+                    <span className="text-[10px] px-1 py-0.5 rounded mx-1 bg-amber-500/10 text-amber-700">Histórico</span>
+                    <HistoricoBadge estado={historicoRow.estado_emision} />
+                    {historicoRow.tema && <span className="text-muted-foreground"> — {historicoRow.tema}</span>}
                   </span>
                 ) : (
                   <span className="text-muted-foreground italic">Sin invitado</span>
@@ -308,7 +321,11 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
           const primary = slotGuests[0];
           const coGuest = slot === 3 ? slotGuests[1] : undefined;
 
-          const renderGuestCard = (guest: Guest, cardLabel: string, isCoGuest: boolean) => (
+          const renderGuestCard = (guest: Guest, cardLabel: string, isCoGuest: boolean) => {
+            const historicoRow = selectedDayDate ? getHistoricoFor?.(selectedDayDate, slot) : undefined;
+            const displayPosition = guest.position || historicoRow?.cargo || null;
+            const displayTopic = guest.topic || historicoRow?.tema || "";
+            return (
             <Card
               key={guest.id || `${slot}-${isCoGuest ? 'co' : 'main'}`}
               className={`p-6 transition-all ${
@@ -348,10 +365,13 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
                   </div>
                   <h4 className="text-xl font-bold text-foreground flex items-baseline gap-2 min-w-0">
                     <span className="truncate">{guest.name}</span>
-                    {guest.position && (
+                    {displayPosition && (
                       <span className="text-sm font-normal text-muted-foreground truncate">
-                        ({guest.position})
+                        ({displayPosition})
                       </span>
+                    )}
+                    {!guest.position && historicoRow?.cargo && (
+                      <span className="text-[10px] px-1 py-0.5 rounded bg-amber-500/10 text-amber-700" title="Cargo completado desde el histórico">📜</span>
                     )}
                   </h4>
 
@@ -360,7 +380,7 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
                 {/* Topic */}
                 <div>
                   <span className="text-xs text-muted-foreground">Tema</span>
-                  <p className="text-base text-foreground mt-1">{guest.topic}</p>
+                  <p className="text-base text-foreground mt-1">{displayTopic}</p>
                 </div>
 
                 {/* Contact Information */}
@@ -569,6 +589,7 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
               </div>
             </Card>
           );
+          };
 
           return (
             <React.Fragment key={slot}>
@@ -578,6 +599,21 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
               )}
               {primary ? (
                 renderGuestCard(primary, label, false)
+              ) : selectedDayDate && getHistoricoFor?.(selectedDayDate, slot) ? (
+                <div className="relative">
+                  <p className="text-xs text-muted-foreground mb-1">{label}</p>
+                  <HistoricoSlotCard row={getHistoricoFor(selectedDayDate, slot)!} />
+                  {editMode && (
+                    <button
+                      type="button"
+                      onClick={() => onAddGuest(selectedDay, slot)}
+                      className="absolute top-6 right-1 text-[10px] text-primary bg-background/80 rounded px-1"
+                      title="Agregar invitado real a la agenda"
+                    >
+                      + Agregar
+                    </button>
+                  )}
+                </div>
               ) : (
                 <Card
                   className={`p-6 transition-all ${

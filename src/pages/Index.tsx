@@ -20,6 +20,7 @@ import { guestsReadFrom } from "@/lib/guestsSource";
 import { ImportExcelModal } from "@/components/ImportExcelModal";
 import { HistoricalSearchDialog } from "@/components/HistoricalSearchDialog";
 import { BlacklistManager } from "@/components/BlacklistManager";
+import { useHistoricoPorRango } from "@/hooks/useHistoricoPorRango";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -85,8 +86,23 @@ const Index = () => {
   const [allRecordingGuests, setAllRecordingGuests] = useState<Guest[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isProducer, setIsProducer] = useState(false);
-  
-  
+
+  // Histórico para la vista semanal/día/titulares (slots sin guest, o para
+  // completar cargo/tema de un guest enlazado) -- solo lectura.
+  const dayOffsets: Record<string, number> = { monday: 0, tuesday: 1, wednesday: 2, thursday: 3 };
+  const historicoDesde = viewMode === "day"
+    ? format(addDays(selectedWeek, dayOffsets[selectedDay] ?? 0), "yyyy-MM-dd")
+    : viewMode === "week"
+    ? format(selectedWeek, "yyyy-MM-dd")
+    : null;
+  const historicoHasta = viewMode === "day"
+    ? historicoDesde
+    : viewMode === "week"
+    ? format(addDays(selectedWeek, 3), "yyyy-MM-dd")
+    : null;
+  const { getFor: getHistoricoFor } = useHistoricoPorRango(historicoDesde, historicoHasta);
+
+
   const refreshRef = useRef<() => void>(() => {});
   const refreshData = useCallback(() => {
     refreshRef.current();
@@ -829,20 +845,20 @@ const Index = () => {
         />
 
         {viewMode === "day" && (
-          <DayView 
+          <DayView
             isAuthenticated={!isPublic}
             guests={filteredGuests}
             allGuests={allRecordingGuests}
-            onGuestClick={handleGuestClick} 
+            onGuestClick={handleGuestClick}
             onAddGuest={handleAddGuest}
             selectedDay={selectedDay}
             onDayChange={setSelectedDay}
             editMode={editMode}
             selectedDayDate={(() => {
-              const dayOffsets: Record<string, number> = { monday: 0, tuesday: 1, wednesday: 2, thursday: 3 };
               const offset = dayOffsets[selectedDay] ?? 0;
               return format(addDays(selectedWeek, offset), "yyyy-MM-dd");
             })()}
+            getHistoricoFor={getHistoricoFor}
             onRecordingGuestClick={handleGlobalResultClick}
             onGuestUpdate={(updatedGuest) => {
               if (updatedGuest.id) {
@@ -863,6 +879,7 @@ const Index = () => {
             selectedWeek={selectedWeek}
             onMoveGuest={handleMoveGuest}
             editMode={editMode}
+            getHistoricoFor={getHistoricoFor}
             onRecordingGuestClick={handleGlobalResultClick}
           />
         )}

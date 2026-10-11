@@ -12,6 +12,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format, startOfWeek, addDays } from "date-fns";
 import { maybeSendConfirmationEmail } from "@/hooks/useConfirmationWebhook";
+import type { HistoricoRow } from "@/types/historico";
+import { HistoricoSlotCard, HistoricoBadge } from "./HistoricoSlotCard";
 
 interface WeeklyCalendarProps {
   guests: Guest[];
@@ -22,6 +24,7 @@ interface WeeklyCalendarProps {
   onMoveGuest?: (guestId: string, newDay: string, newSlot: number, newWeekDate: string, targetGuestId?: string) => Promise<void>;
   editMode: boolean;
   onRecordingGuestClick?: (guest: Guest) => void;
+  getHistoricoFor?: (fecha: string, hour: number) => HistoricoRow | undefined;
 }
 
 const DAYS = [
@@ -45,7 +48,7 @@ const statusCardStyles: Record<string, string> = {
   proposed: "bg-blue-500/20 border-l-4 border-blue-500",
 };
 
-export const WeeklyCalendar = ({ guests, allGuests, onGuestClick, onAddGuest, selectedWeek, onMoveGuest, editMode, onRecordingGuestClick }: WeeklyCalendarProps) => {
+export const WeeklyCalendar = ({ guests, allGuests, onGuestClick, onAddGuest, selectedWeek, onMoveGuest, editMode, onRecordingGuestClick, getHistoricoFor }: WeeklyCalendarProps) => {
   const [activeGuest, setActiveGuest] = useState<Guest | null>(null);
   
   const sensors = useSensors(
@@ -159,6 +162,8 @@ export const WeeklyCalendar = ({ guests, allGuests, onGuestClick, onAddGuest, se
             {DAYS.map(day => {
               const guest = getGuestForSlot(day.key, timeSlot.slot);
               const coGuest = getCoGuestForSlot(day.key, timeSlot.slot);
+              const fecha = format(addDays(selectedWeek, day.offset), "yyyy-MM-dd");
+              const historicoRow = getHistoricoFor?.(fecha, timeSlot.slot);
 
               return (
                 <GuestSlotCard
@@ -170,6 +175,7 @@ export const WeeklyCalendar = ({ guests, allGuests, onGuestClick, onAddGuest, se
                   onGuestClick={onGuestClick}
                   onAddGuest={onAddGuest}
                   editMode={editMode}
+                  historicoRow={historicoRow}
                 />
               );
             })}
@@ -205,9 +211,10 @@ interface GuestSlotCardProps {
   onGuestClick: (guest: Guest) => void;
   onAddGuest: (day: string, slot: number, weekDate?: string, slotOrder?: number) => void;
   editMode: boolean;
+  historicoRow?: HistoricoRow;
 }
 
-const GuestSlotCard = ({ day, slot, guest, coGuest, onGuestClick, onAddGuest, editMode }: GuestSlotCardProps) => {
+const GuestSlotCard = ({ day, slot, guest, coGuest, onGuestClick, onAddGuest, editMode, historicoRow }: GuestSlotCardProps) => {
   const slotId = `slot-${day}-${slot}`;
 
   const { setNodeRef: setDropRef, isOver } = useDroppable({
@@ -295,6 +302,11 @@ const GuestSlotCard = ({ day, slot, guest, coGuest, onGuestClick, onAddGuest, ed
   );
 
   if (guest) {
+    // Si el guest no tiene cargo/tema propio, se completa con el histórico
+    // enlazado de esa fecha+hora (solo en pantalla, no se escribe en guests).
+    const displayPosition = guest.position || historicoRow?.cargo || null;
+    const displayTopic = guest.topic || historicoRow?.tema || "";
+    const fromHistorico = (!guest.position && !!historicoRow?.cargo) || (!guest.topic && !!historicoRow?.tema);
     return (
       <div ref={setDropRef}>
         <Card
@@ -313,12 +325,17 @@ const GuestSlotCard = ({ day, slot, guest, coGuest, onGuestClick, onAddGuest, ed
           <div className="space-y-2">
             <div className="flex items-baseline gap-1 min-w-0">
               <h4 className="font-semibold text-sm truncate">{guest.name}</h4>
-              {guest.position && (
-                <span className="text-[10px] text-muted-foreground truncate">({guest.position})</span>
+              {displayPosition && (
+                <span className="text-[10px] text-muted-foreground truncate">({displayPosition})</span>
+              )}
+              {fromHistorico && (
+                <span className="text-[9px] px-1 py-0.5 rounded shrink-0 bg-amber-500/10 text-amber-700" title="Completado desde el histórico">
+                  📜
+                </span>
               )}
             </div>
 
-            <p className="text-xs text-muted-foreground line-clamp-2">{guest.topic}</p>
+            <p className="text-xs text-muted-foreground line-clamp-2">{displayTopic}</p>
             {guest.phone && (
               <div className="flex items-center gap-2 text-xs">
                 <Phone className="w-3 h-3 text-primary" />
@@ -396,6 +413,24 @@ const GuestSlotCard = ({ day, slot, guest, coGuest, onGuestClick, onAddGuest, ed
             )}
           </div>
         </Card>
+      </div>
+    );
+  }
+
+  if (historicoRow) {
+    return (
+      <div ref={setDropRef} className="relative group">
+        <HistoricoSlotCard row={historicoRow} />
+        {editMode && (
+          <button
+            type="button"
+            onClick={() => onAddGuest(day, slot)}
+            className="absolute top-1 right-1 text-[10px] text-primary bg-background/80 rounded px-1 opacity-0 group-hover:opacity-100 transition-opacity"
+            title="Agregar invitado real a la agenda"
+          >
+            + Agregar
+          </button>
+        )}
       </div>
     );
   }
