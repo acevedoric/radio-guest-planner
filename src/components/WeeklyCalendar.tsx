@@ -310,13 +310,13 @@ const GuestSlotCard = ({ day, slot, guest, coGuest, onGuestClick, onAddGuest, ed
     const displayTopic = guest.topic || historicoRow?.tema || "";
     const fromHistorico = (!realGuestPosition && !!historicoRow?.cargo) || (!guest.topic && !!historicoRow?.tema);
     return (
-      <div ref={setDropRef}>
+      <div ref={setDropRef} className="min-w-0 w-full">
         <Card
           ref={setDragRef}
           {...listeners}
           {...attributes}
           className={cn(
-            "p-3 min-h-[110px] transition-all",
+            "p-3 min-h-[110px] w-full min-w-0 transition-all",
             statusCardStyles[guest.recording_status],
             editMode ? "cursor-grab active:cursor-grabbing" : "cursor-pointer",
             isDragging && "opacity-50",
@@ -325,10 +325,12 @@ const GuestSlotCard = ({ day, slot, guest, coGuest, onGuestClick, onAddGuest, ed
           onClick={() => onGuestClick(guest)}
         >
           <div className="space-y-2">
-            <div className="flex items-baseline gap-1 min-w-0">
-              <h4 className="font-semibold text-sm truncate">{guest.name}</h4>
+            <div className="flex items-baseline gap-1 min-w-0 w-full">
+              <h4 className="font-semibold text-sm truncate min-w-0 flex-1" title={guest.name}>{guest.name}</h4>
               {displayPosition && (
-                <span className="text-[10px] text-muted-foreground truncate">({displayPosition})</span>
+                <span className="text-[10px] text-muted-foreground truncate shrink-0 max-w-[40%]" title={displayPosition}>
+                  ({displayPosition})
+                </span>
               )}
               {fromHistorico && (
                 <span className="text-[9px] px-1 py-0.5 rounded shrink-0 bg-amber-500/10 text-amber-700">
@@ -421,7 +423,7 @@ const GuestSlotCard = ({ day, slot, guest, coGuest, onGuestClick, onAddGuest, ed
 
   if (historicoRow) {
     return (
-      <div ref={setDropRef} className="relative group">
+      <div ref={setDropRef} className="relative group min-w-0 w-full">
         <HistoricoSlotCard row={historicoRow} />
         {editMode && (
           <button
@@ -438,10 +440,10 @@ const GuestSlotCard = ({ day, slot, guest, coGuest, onGuestClick, onAddGuest, ed
   }
 
   return (
-    <div ref={setDropRef}>
+    <div ref={setDropRef} className="min-w-0 w-full">
       <Card
         className={cn(
-          "p-3 min-h-[110px] transition-all bg-muted/30 border-dashed",
+          "p-3 min-h-[110px] w-full min-w-0 transition-all bg-muted/30 border-dashed",
           editMode ? "cursor-pointer hover:shadow-md" : "cursor-default",
           isOver && "border-primary bg-primary/10 border-2"
         )}

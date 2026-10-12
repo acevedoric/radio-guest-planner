@@ -70,15 +70,25 @@ export const HistoricoSlotCard = ({ row, variant = "week", label }: { row: Histo
             <HistoricoBadge estado={row.estado_emision} />
           </div>
           <div>
-            <h4 className="text-xl font-bold text-foreground flex items-baseline gap-2 min-w-0">
-              <span className="truncate">{row.guest_name}</span>
-              {row.cargo && <span className="text-sm font-normal text-muted-foreground truncate">({row.cargo})</span>}
+            <h4 className="text-xl font-bold text-foreground flex items-baseline gap-2 min-w-0 w-full">
+              <span className="truncate" title={row.guest_name}>{row.guest_name}</span>
+              {row.cargo && (
+                <span className="text-sm font-normal text-muted-foreground truncate shrink-0 max-w-[45%]" title={row.cargo}>
+                  ({row.cargo})
+                </span>
+              )}
             </h4>
           </div>
           {row.tema && (
             <div>
               <span className="text-xs text-muted-foreground">Tema</span>
-              <p className="text-base text-foreground mt-1">{row.tema}</p>
+              <p className="text-base text-foreground mt-1 line-clamp-2">{row.tema}</p>
+            </div>
+          )}
+          {row.perfil && (
+            <div>
+              <span className="text-xs text-muted-foreground">Perfil</span>
+              <p className="text-sm text-foreground mt-1">{row.perfil}</p>
             </div>
           )}
           {row.tiene_libreto && row.libreto_chunk_ids && row.libreto_chunk_ids.length > 0 && (
@@ -93,11 +103,15 @@ export const HistoricoSlotCard = ({ row, variant = "week", label }: { row: Histo
   // padding/alto mínimo/tipografía) -- mismas clases, para que ocupe la
   // celda de la cuadrícula como si fuera una tarjeta de invitado normal.
   return (
-    <Card className="p-3 min-h-[110px] bg-muted/20 border-dashed">
+    <Card className="p-3 min-h-[110px] bg-muted/20 border-dashed w-full min-w-0">
       <div className="space-y-2">
-        <div className="flex items-baseline gap-1 min-w-0 flex-wrap">
-          <h4 className="font-semibold text-sm truncate">{row.guest_name}</h4>
-          {row.cargo && <span className="text-[10px] text-muted-foreground truncate">({row.cargo})</span>}
+        <div className="flex items-baseline gap-1 min-w-0 w-full">
+          <h4 className="font-semibold text-sm truncate min-w-0 flex-1" title={row.guest_name}>{row.guest_name}</h4>
+          {row.cargo && (
+            <span className="text-[10px] text-muted-foreground truncate shrink-0 max-w-[45%]" title={row.cargo}>
+              ({row.cargo})
+            </span>
+          )}
         </div>
         <p className="text-xs text-muted-foreground line-clamp-2">{row.tema}</p>
         <div className="pt-2 border-t border-muted flex flex-row flex-wrap items-center gap-2" onClick={(e) => e.stopPropagation()}>

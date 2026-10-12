@@ -9,4 +9,6 @@ export interface HistoricoRow {
   conflicto: boolean;
   tiene_libreto: boolean;
   libreto_chunk_ids: string[] | null;
+  /** Cargo original largo/descripción del personaje cuando el cargo se condensó (FASE Q). */
+  perfil: string | null;
 }
