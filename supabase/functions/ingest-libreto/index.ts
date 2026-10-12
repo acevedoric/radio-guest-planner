@@ -315,6 +315,11 @@ Deno.serve(async (req) => {
       const validRows: Record<string, unknown>[] = [];
       let linked = 0;
       const linkedDetails: { historico_name: string; guest_name: string; guest_id: string; fecha: string | null | undefined; method: string }[] = [];
+      // FASE Q: contadores para el reporte de carga (ver bbb-ingest/load_old_years.js).
+      let cargosDeApp = 0;
+      let temasDeApp = 0;
+      let cargosCondensados = 0;
+      let cargosVacios = 0;
       for (const [i, row] of rows.entries()) {
         const r = schema.safeParse(row);
         if (!r.success) {
@@ -330,19 +335,19 @@ Deno.serve(async (req) => {
             linked++;
             linkedDetails.push({ historico_name: data.guest_name, guest_name: match.name, guest_id: match.id, fecha: data.fecha, method: match.method });
 
-            // FASE O: prioridad de cargo/tema cuando la fila está enlazada a
-            // un guest -- manda el de la app (datos cargados a mano por el
-            // productor, p.ej. 2026) por encima de web/promo. Solo
-            // reemplaza si el campo NO vino de GUÍA directamente (lo marca
-            // campos_fuente del cliente): un dato de GUÍA nunca se
-            // sobrescribe. Si el campo seguía vacío, también se llena aquí.
+            // FASE Q: prioridad de cargo cuando la fila está enlazada a un
+            // guest -- "cargo de la app (si es corto) > condensado > vacío".
+            // El cliente ya condensó el cargo local a <=4 palabras (ver
+            // bbb-ingest/lib/cargo_condensado_cache.js), así que ya no se
+            // protege un cargo "de GUÍA" por sí solo: el de la app manda
+            // mientras sea corto (<=4 palabras) y no sea basura de Excel.
+            // El tema conserva la regla anterior (FASE O): no se
+            // sobrescribe un tema que ya vino de GUÍA directamente.
             const camposFuente = (built.campos_fuente as Record<string, string> | null) ?? {};
-            const cargoEsDeGuia = !!data.cargo && !camposFuente.cargo;
             const temaEsDeGuia = !!data.tema && !camposFuente.tema;
-            // Cargo basura importado de Excel: no manda, se ignora como si
-            // el guest no tuviera cargo (cae a web/promo/GUÍA igual).
             const cargoAppEsBasura = match.proposed_by === "excel_import" && looksLikeGarbageCargo(match.position);
-            if (match.position && !cargoEsDeGuia && !cargoAppEsBasura) {
+            const cargoAppEsCorto = !!match.position && match.position.trim().split(/\s+/).filter(Boolean).length <= 4;
+            if (match.position && !cargoAppEsBasura && cargoAppEsCorto) {
               built.cargo = match.position;
               camposFuente.cargo = "app";
             }
@@ -351,11 +356,21 @@ Deno.serve(async (req) => {
               camposFuente.tema = "app";
             }
             if (Object.keys(camposFuente).length > 0) built.campos_fuente = camposFuente;
+
+            if (camposFuente.cargo === "app") cargosDeApp++;
+            if (camposFuente.tema === "app") temasDeApp++;
           }
         } else if (kind === "libretos_chunks") {
           // guest_name es NOT NULL en la tabla; algunos bloques (sin línea
           // "Invitado:"/"Programa con:") llegan sin nombre identificable.
           built.guest_name = (built.guest_name as string | null) ?? "";
+        }
+        if (kind === "invitados_historicos") {
+          const perfil = (built.campos_fuente as Record<string, string> | null)?.perfil;
+          if (perfil) {
+            if (built.cargo) cargosCondensados++;
+            else cargosVacios++;
+          }
         }
         validRows.push(built);
       }
@@ -365,7 +380,19 @@ Deno.serve(async (req) => {
         inserted = count ?? validRows.length;
       }
       if (kind === "invitados_historicos") {
-        return json({ ok: true, kind, inserted, linked, linked_details: linkedDetails, total: rows.length, errors: errors.slice(0, 20) });
+        return json({
+          ok: true,
+          kind,
+          inserted,
+          linked,
+          linked_details: linkedDetails,
+          total: rows.length,
+          errors: errors.slice(0, 20),
+          cargos_de_app: cargosDeApp,
+          temas_de_app: temasDeApp,
+          cargos_condensados: cargosCondensados,
+          cargos_vacios: cargosVacios,
+        });
       }
     } else if (kind === "canciones") {
       for (const [i, row] of rows.entries()) {
