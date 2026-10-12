@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -130,6 +130,7 @@ interface CancionesSectionProps {
   slot: number;
   selectedDay: string;
   editMode: boolean;
+  onGuestUpdate?: (updatedGuest: Partial<Guest> & { id?: string }) => void;
 }
 
 const CANCIONES_FIELD_MAP: Record<number, keyof Guest> = {
@@ -138,16 +139,40 @@ const CANCIONES_FIELD_MAP: Record<number, keyof Guest> = {
   3: 'h3_canciones',
 };
 
-export const CancionesSection = ({ guest, slot, selectedDay, editMode }: CancionesSectionProps) => {
+export const CancionesSection = ({ guest, slot, selectedDay, editMode, onGuestUpdate }: CancionesSectionProps) => {
   const field = CANCIONES_FIELD_MAP[slot];
-  // Hooks nunca después de un return condicional -- se declara siempre,
+  const isWednesdayH2 = selectedDay === 'wednesday' && slot === 2;
+  // Hooks nunca después de un return condicional -- se declaran siempre,
   // aunque el valor inicial no se use si el componente termina en null.
   const [value, setValue] = useState((field && guest[field] as string) || '');
+  const [firmas, setFirmas] = useState<{ titulo: string; artista: string | null }[]>([]);
+
+  useEffect(() => {
+    if (!isWednesdayH2) {
+      setFirmas([]);
+      return;
+    }
+    supabase
+      .rpc('sugerir_canciones', {
+        p_fecha: guestFecha(guest, selectedDay),
+        p_day_of_week: 'wednesday',
+        p_hour_number: 2,
+        p_genero: null,
+        p_limite: 1,
+      })
+      .then(({ data, error }) => {
+        if (error) {
+          console.error('Error cargando firmas:', error);
+          return;
+        }
+        setFirmas((data || []).filter((c: any) => c.es_firma).map((c: any) => ({ titulo: c.titulo, artista: c.artista })));
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isWednesdayH2]);
 
   if (!guest.id || !field) return null;
 
   const isClips = selectedDay === 'thursday' && slot === 1;
-  const isWednesdayH2 = selectedDay === 'wednesday' && slot === 2;
   const label = isClips ? "Clips de comediante" : "Canciones en stock";
   const icon = <Music className="w-4 h-4 text-primary" />;
   const placeholder = isClips
@@ -163,7 +188,11 @@ export const CancionesSection = ({ guest, slot, selectedDay, editMode }: Cancion
     if (error) {
       console.error('Error guardando cancion sugerida:', error);
       toast.error('No se pudo guardar la sugerencia');
+      return pick;
     }
+    // Propaga al estado compartido (el mismo guest se muestra también en
+    // LibretoView) para que se vea al instante, sin esperar a refrescar.
+    onGuestUpdate?.({ id: guest.id, [field]: next });
     return pick;
   };
 
@@ -221,13 +250,27 @@ export const CancionesSection = ({ guest, slot, selectedDay, editMode }: Cancion
           </div>
         )}
       </div>
+      {isWednesdayH2 && firmas.length > 0 && (
+        <div className="text-[11px] text-muted-foreground bg-primary/5 rounded px-2 py-1 flex flex-wrap items-center gap-1">
+          <span className="font-semibold text-primary/80 uppercase tracking-wide">Firmas fijas (apertura/cierre):</span>
+          {firmas.map((f, i) => (
+            <span key={i}>
+              {i > 0 && " · "}
+              {f.titulo}{f.artista ? ` - ${f.artista}` : ""}
+            </span>
+          ))}
+        </div>
+      )}
       <LibretoField
         guestId={guest.id}
         field={field}
         value={value}
         placeholder={placeholder}
         editMode={editMode}
-        onSaved={(_f, v) => setValue(v)}
+        onSaved={(_f, v) => {
+          setValue(v);
+          onGuestUpdate?.({ id: guest.id, [field]: v });
+        }}
       />
     </div>
   );

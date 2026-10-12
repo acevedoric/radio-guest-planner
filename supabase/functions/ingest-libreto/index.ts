@@ -197,6 +197,14 @@ const CancionUsoRow = z.object({
   day_of_week: z.string().nullable().optional(),
   hour_number: z.number().int().nullable().optional(),
   segmento: z.string().nullable().optional(),
+  // FASE R: catálogo/género ya resueltos por el cliente (bbb-ingest/
+  // parse_canciones.js) contra Consolidado Canciones 90s/Lista EN VIVO --
+  // se pasan a upsert_cancion para que una canción nueva (encontrada por
+  // primera vez al cargar el uso de un año) no quede en 'otros'/'otro'
+  // por defecto si sí se sabía su catálogo/género real.
+  catalogo: z.enum(["90s", "en_vivo", "otros"]).optional(),
+  genero: z.enum(["anglo", "español", "tropical", "salsa", "otro"]).optional(),
+  es_cortinilla: z.boolean().optional(),
 });
 
 const CancionSegmentoRow = z.object({
@@ -444,6 +452,10 @@ Deno.serve(async (req) => {
         const { data: cancionId, error: upsertError } = await supabase.rpc("upsert_cancion", {
           p_titulo: r.data.cancion_titulo,
           p_artista: r.data.cancion_artista ?? null,
+          p_anio: null,
+          p_catalogo: r.data.catalogo ?? "otros",
+          p_es_cortinilla: r.data.es_cortinilla ?? false,
+          p_genero: r.data.genero ?? null,
         });
         if (upsertError || !cancionId) {
           errors.push(`row ${i}: ${upsertError?.message ?? "no cancion id"}`);

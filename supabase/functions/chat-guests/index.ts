@@ -53,10 +53,38 @@ const APARICIONES_RE = /\b(cu[áa]nt[ao]s?\s+veces\s+(?:ha\s+)?vin[oi]|cu[áa]nd
 const FULL_DATE_RE = /(\d{1,2})\s+de\s+([a-záéíóúñ]+)(?:\s+de\s+(\d{4}))?/i;
 const HORA_RE = /\b(primera|segunda|tercera)\s+hora\b/i;
 const HORA_NUM: Record<string, number> = { primera: 1, segunda: 2, tercera: 3 };
-// Herramienta canciones: "¿cuándo sonó X?", "¿qué salsas no han sonado este año?".
-const CANCION_RE = /\bcanci[oó]n(es)?\b|\bson[oó]\b|\bsonaron\b|\bha\s+sonado\b|\bhan\s+sonado\b/i;
+// Herramienta canciones: "¿cuándo sonó X?", "¿qué salsas no han sonado este año?",
+// "cuándo sonó 'niña bonita'" -- también dispara si la pregunta trae un
+// título entre comillas (rectas o tipográficas).
+// OJO: \b de JS NO reconoce vocales acentuadas como caracter de palabra,
+// así que "\bson[oó]\b" NUNCA calza con "sonó" (el \b final falla justo
+// después de la ó) -- se usa un lookahead de "no-palabra o fin de
+// cadena" en vez de \b al final de cada alternativa.
+const CANCION_EDGE = "(?=[^a-zA-Z0-9_]|$)";
+const CANCION_RE = new RegExp(
+  "\\b(canci[oó]n(es)?|son[oó]|sonaron|suena[n]?|ha\\s+sonado|han\\s+sonado|tema\\s+musical|la\\s+pusimos|la\\s+pasamos)" + CANCION_EDGE,
+  "i"
+);
 const NO_SONADO_RE = /\bno\s+ha[n]?\s+sonado\b|\bno\s+suena[n]?\b/i;
 const GENERO_WORDS: Record<string, string> = { anglo: "anglo", español: "español", espanol: "español", tropical: "tropical", salsa: "salsa" };
+const QUOTED_RE = /["“”'‘’]([^"“”'‘’]{2,80})["“”'‘’]/;
+// Palabras de la propia pregunta (verbos/conectores) que hay que quitar
+// para que el texto de búsqueda sea el título, no la pregunta completa.
+const CANCION_FILLER_RE = new RegExp(
+  "\\b(cu[áa]ndo|qu[ée]|son[oó]|sonaron|suena[n]?|ha\\s+sonado|han\\s+sonado|la\\s+pusimos|la\\s+pasamos|canci[oó]n(es)?|tema\\s+musical|tema)" + CANCION_EDGE,
+  "gi"
+);
+
+/** Texto de búsqueda para buscar_cancion: el título entre comillas si hay uno, o la pregunta sin verbos/conectores. */
+function extractCancionQuery(question: string): string {
+  const quoted = question.match(QUOTED_RE);
+  if (quoted) return quoted[1].trim();
+  return question
+    .replace(CANCION_FILLER_RE, " ")
+    .replace(/[¿?¡!]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -270,12 +298,18 @@ serve(async (req) => {
       }
     }
 
-    // --- Herramienta 7: canciones (buscar_cancion) -- "¿cuándo sonó X?", "¿qué salsas no han sonado este año?" ---
+    // --- Herramienta 7: canciones (buscar_cancion) -- "¿cuándo sonó X?",
+    // "¿qué salsas no han sonado este año?", o con el título entre
+    // comillas. También es el fallback cuando la búsqueda de invitados no
+    // encontró nada, antes de responder "no hay registros".
     let canciones: { titulo: string; artista: string | null; catalogo: string; genero: string; veces_usada: number; ultima_vez: string | null }[] | null = null;
-    if (CANCION_RE.test(question)) {
+    const cancionTriggered = CANCION_RE.test(question) || QUOTED_RE.test(question);
+    const cancionQuery = extractCancionQuery(question);
+    const tryCanciones = cancionTriggered || (results.length === 0 && cancionQuery.length >= 3);
+    if (tryCanciones) {
       const generoMatch = Object.keys(GENERO_WORDS).find((w) => rawWords.includes(w));
       const { data, error } = await userClient.rpc("buscar_cancion", {
-        p_texto: keywords.filter((k) => !GENERO_WORDS[k]).join(" "),
+        p_texto: cancionQuery,
         p_catalogo: null,
       });
       if (!error && data) {
@@ -338,7 +372,7 @@ serve(async (req) => {
 
     const cancionesBlock = canciones
       ? `CANCIONES OFICIAL (de buscar_cancion, única fuente válida para preguntas de canciones): ${canciones.length} resultado(s): ${JSON.stringify(canciones)}`
-      : CANCION_RE.test(question)
+      : tryCanciones
         ? "CANCIONES OFICIAL: no se encontraron canciones que coincidan."
         : null;
 

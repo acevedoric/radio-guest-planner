@@ -125,6 +125,24 @@ const formatFollowers = (n: number): string => {
   return String(n);
 };
 
+/** Cada línea del campo (una canción "Título - Artista" por línea) en su propia línea, no pegadas. */
+const CancionesInline = ({ texto }: { texto: string | null | undefined }) => {
+  if (!texto) return null;
+  const lineas = texto.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  if (!lineas.length) return null;
+  return (
+    <span className="text-muted-foreground italic text-sm">
+      {" — "}
+      {lineas.map((l, i) => (
+        <React.Fragment key={i}>
+          {i > 0 && <br />}
+          {l}
+        </React.Fragment>
+      ))}
+    </span>
+  );
+};
+
 // ── Section wrapper ────────────────────────────────────────────────
 const HourSection = ({ title, defaultOpen = false, open: openProp, onOpenChange, editMode, onEditNotes, children }: { title: string; defaultOpen?: boolean; open?: boolean; onOpenChange?: (o: boolean) => void; editMode?: boolean; onEditNotes?: () => void; children: React.ReactNode }) => {
   const [internalOpen, setInternalOpen] = useState(defaultOpen);
@@ -290,7 +308,7 @@ export const LibretoView: React.FC<LibretoViewProps> = ({ guests, selectedDay, s
         <Spacer />
 
         {/* Segments */}
-        <Line>{(isTuesday || isMonOrWed) ? "1. Canción." : "1. Clip 1 COMEDIANTE"} {h1?.h1_canciones && <span className="text-muted-foreground italic text-sm"> — {h1.h1_canciones}</span>}</Line>
+        <Line>{(isTuesday || isMonOrWed) ? "1. Canción." : "1. Clip 1 COMEDIANTE"} <CancionesInline texto={h1?.h1_canciones} /></Line>
         <Line>2. Primer segmento: <Bold>Bienvenida.</Bold></Line>
         <div className="pl-4 border-l-2 border-primary/20">
           {F(h1, "tema_principal", "TEMA PRINCIPAL", true)}

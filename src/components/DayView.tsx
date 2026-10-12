@@ -432,7 +432,7 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
 
                 {/* Canciones / Clips - solo para el invitado principal */}
                 {!isCoGuest && (
-                  <CancionesSection guest={guest} slot={slot} selectedDay={selectedDay} editMode={editMode} />
+                  <CancionesSection guest={guest} slot={slot} selectedDay={selectedDay} editMode={editMode} onGuestUpdate={onGuestUpdate} />
                 )}
 
                 {/* Avance siguiente hora - solo para el invitado principal */}
