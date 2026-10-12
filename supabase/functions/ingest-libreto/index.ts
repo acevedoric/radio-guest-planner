@@ -185,6 +185,9 @@ const CancionRow = z.object({
   anio: z.number().int().nullable().optional(),
   catalogo: z.enum(["90s", "en_vivo", "otros"]).default("otros"),
   es_cortinilla: z.boolean().default(false),
+  // FASE R: solo "Consolidado Canciones 90s.xlsx" trae género real; el
+  // resto llega 'otro' desde bbb-ingest/parse_canciones.js.
+  genero: z.enum(["anglo", "español", "tropical", "salsa", "otro"]).default("otro"),
 });
 
 const CancionUsoRow = z.object({
@@ -422,6 +425,7 @@ Deno.serve(async (req) => {
           p_anio: r.data.anio ?? null,
           p_catalogo: r.data.catalogo,
           p_es_cortinilla: r.data.es_cortinilla,
+          p_genero: r.data.genero,
         });
         if (error) errors.push(`row ${i}: ${error.message}`);
         else if (data) inserted++;

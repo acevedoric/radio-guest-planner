@@ -53,6 +53,10 @@ const APARICIONES_RE = /\b(cu[áa]nt[ao]s?\s+veces\s+(?:ha\s+)?vin[oi]|cu[áa]nd
 const FULL_DATE_RE = /(\d{1,2})\s+de\s+([a-záéíóúñ]+)(?:\s+de\s+(\d{4}))?/i;
 const HORA_RE = /\b(primera|segunda|tercera)\s+hora\b/i;
 const HORA_NUM: Record<string, number> = { primera: 1, segunda: 2, tercera: 3 };
+// Herramienta canciones: "¿cuándo sonó X?", "¿qué salsas no han sonado este año?".
+const CANCION_RE = /\bcanci[oó]n(es)?\b|\bson[oó]\b|\bsonaron\b|\bha\s+sonado\b|\bhan\s+sonado\b/i;
+const NO_SONADO_RE = /\bno\s+ha[n]?\s+sonado\b|\bno\s+suena[n]?\b/i;
+const GENERO_WORDS: Record<string, string> = { anglo: "anglo", español: "español", espanol: "español", tropical: "tropical", salsa: "salsa" };
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -266,6 +270,25 @@ serve(async (req) => {
       }
     }
 
+    // --- Herramienta 7: canciones (buscar_cancion) -- "¿cuándo sonó X?", "¿qué salsas no han sonado este año?" ---
+    let canciones: { titulo: string; artista: string | null; catalogo: string; genero: string; veces_usada: number; ultima_vez: string | null }[] | null = null;
+    if (CANCION_RE.test(question)) {
+      const generoMatch = Object.keys(GENERO_WORDS).find((w) => rawWords.includes(w));
+      const { data, error } = await userClient.rpc("buscar_cancion", {
+        p_texto: keywords.filter((k) => !GENERO_WORDS[k]).join(" "),
+        p_catalogo: null,
+      });
+      if (!error && data) {
+        let rows = data as typeof canciones;
+        if (generoMatch) rows = rows!.filter((r) => r.genero === GENERO_WORDS[generoMatch]);
+        if (NO_SONADO_RE.test(question)) {
+          const yearStart = `${yearFilter ?? now.getFullYear()}-01-01`;
+          rows = rows!.filter((r) => !r.ultima_vez || r.ultima_vez < yearStart);
+        }
+        canciones = rows!.slice(0, 30);
+      }
+    }
+
     const sourceLabels: Record<string, string> = { app: "Agenda", historico: "Histórico", libreto: "Guion (fragmento)" };
 
     const formatRow = (r: any) => {
@@ -313,6 +336,12 @@ serve(async (req) => {
         ? "QUIÉN OFICIAL: no se encontró nadie para esa fecha/hora."
         : null;
 
+    const cancionesBlock = canciones
+      ? `CANCIONES OFICIAL (de buscar_cancion, única fuente válida para preguntas de canciones): ${canciones.length} resultado(s): ${JSON.stringify(canciones)}`
+      : CANCION_RE.test(question)
+        ? "CANCIONES OFICIAL: no se encontraron canciones que coincidan."
+        : null;
+
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -332,6 +361,7 @@ REGLAS DE CONSISTENCIA (MUY IMPORTANTE):
 - Si la pregunta es sobre quién ha venido más veces/con más frecuencia y hay un bloque "RANKING OFICIAL", ESA es la única fuente válida — no la recalcules contando filas.
 - Si hay un bloque "HISTORIAL OFICIAL" (cuántas veces/cuándo vino alguien), responde SOLO con esas apariciones — no agregues ni quites fechas, no mezcles con otras filas de "Invitados disponibles".
 - Si hay un bloque "QUIÉN OFICIAL" (quién vino tal fecha/hora), responde SOLO con esos nombres — nunca agregues a nadie más del contexto, aunque aparezca en "Invitados disponibles".
+- Si hay un bloque "CANCIONES OFICIAL" (preguntas sobre canciones: cuándo sonó, qué canciones de un género no han sonado, etc.), ESA es la única fuente válida — no la mezcles con filas de "Invitados disponibles".
 - REGLA GENERAL ANTI-RUIDO: responde SOLO lo que se pregunta, con los datos de la herramienta oficial correspondiente (CONTEO/RANKING/HISTORIAL/QUIÉN) cuando exista. Está PROHIBIDO mencionar un invitado de la Agenda que no sea necesario para responder la pregunta solo porque aparece en la lista "Invitados disponibles" — esa lista es contexto de búsqueda, no una lista para recitar completa.
 - Las filas [Guion (fragmento)] son fragmentos de texto para contexto cualitativo (qué se dijo, de qué se habló) — NUNCA las uses para contar personas, pueden repetir al mismo invitado varias veces (un chunk por fragmento del guion). Una fila marcada "Mención en el libreto de X" NO es una aparición propia de la persona buscada — es el libreto de X mencionándola; no la cuentes como si X fuera quien se buscó, y no mezcles sus datos con los de la persona buscada.
 - Una fila con "[+histórico]" ya representa a la misma persona en agenda e histórico combinados — no la cuentes ni la menciones dos veces.
@@ -346,7 +376,7 @@ FORMATO DE ENLACES: cuando menciones un invitado de la Agenda con su fecha, usa:
           {
             role: "user",
             content: `Filtros detectados: ${filterSummary}
-${countBlock ? `\n${countBlock}\n` : ""}${rankingBlock ? `\n${rankingBlock}\n` : ""}${aparicionesBlock ? `\n${aparicionesBlock}\n` : ""}${porFechaBlock ? `\n${porFechaBlock}\n` : ""}
+${countBlock ? `\n${countBlock}\n` : ""}${rankingBlock ? `\n${rankingBlock}\n` : ""}${aparicionesBlock ? `\n${aparicionesBlock}\n` : ""}${porFechaBlock ? `\n${porFechaBlock}\n` : ""}${cancionesBlock ? `\n${cancionesBlock}\n` : ""}
 Invitados disponibles:
 ${guestContext}
 

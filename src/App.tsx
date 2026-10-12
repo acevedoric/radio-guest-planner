@@ -8,6 +8,7 @@ import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 import SearchResults from "./pages/SearchResults";
+import CancionesCatalogo from "./pages/CancionesCatalogo";
 import OAuthConsent from "./pages/OAuthConsent";
 import { AuthGuard } from "./components/AuthGuard";
 
@@ -24,6 +25,7 @@ const App = () => (
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
           <Route path="/search" element={<AuthGuard><SearchResults /></AuthGuard>} />
+          <Route path="/canciones" element={<AuthGuard><CancionesCatalogo /></AuthGuard>} />
           <Route path="/" element={<AuthGuard><Index /></AuthGuard>} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
