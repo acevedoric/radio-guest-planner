@@ -302,7 +302,8 @@ serve(async (req) => {
     // "¿qué salsas no han sonado este año?", o con el título entre
     // comillas. También es el fallback cuando la búsqueda de invitados no
     // encontró nada, antes de responder "no hay registros".
-    let canciones: { titulo: string; artista: string | null; catalogo: string; genero: string; veces_usada: number; ultima_vez: string | null }[] | null = null;
+    type CancionRow = { titulo: string; artista: string | null; catalogo: string; genero: string; veces_usada: number; ultima_vez: string | null };
+    let canciones: CancionRow[] | null = null;
     const cancionTriggered = CANCION_RE.test(question) || QUOTED_RE.test(question);
     const cancionQuery = extractCancionQuery(question);
     const tryCanciones = cancionTriggered || (results.length === 0 && cancionQuery.length >= 3);
@@ -313,7 +314,7 @@ serve(async (req) => {
         p_catalogo: null,
       });
       if (!error && data) {
-        let rows = data as typeof canciones;
+        let rows = data as unknown as CancionRow[];
         if (generoMatch) rows = rows!.filter((r) => r.genero === GENERO_WORDS[generoMatch]);
         if (NO_SONADO_RE.test(question)) {
           const yearStart = `${yearFilter ?? now.getFullYear()}-01-01`;
