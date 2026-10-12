@@ -82,13 +82,13 @@ async function findGuest(
   name: string | null | undefined,
   fecha: string | null | undefined,
   hourNumber: number | null | undefined
-): Promise<{ id: string; name: string; method: "exact" | "contains"; position: string | null; topic: string | null; proposed_by: string | null } | null> {
+): Promise<{ id: string; name: string; method: "exact" | "contains"; position: string | null; topic: string | null; notes: string | null; proposed_by: string | null } | null> {
   if (!name || !fecha) return null;
   const firstWord = name.trim().split(/\s+/)[0];
   if (!firstWord) return null;
   const { data } = await supabase
     .from("guests")
-    .select("id, name, week_date, day_of_week, scheduled_date, time_slot, position, topic, proposed_by")
+    .select("id, name, week_date, day_of_week, scheduled_date, time_slot, position, topic, notes, proposed_by")
     .ilike("name", `%${firstWord}%`)
     .limit(50);
   if (!data) return null;
@@ -101,7 +101,7 @@ async function findGuest(
 
   for (const g of data) {
     if (normalizeName(g.name) === target && dateMatches(g)) {
-      return { id: g.id, name: g.name, method: "exact", position: g.position ?? null, topic: g.topic ?? null, proposed_by: g.proposed_by ?? null };
+      return { id: g.id, name: g.name, method: "exact", position: g.position ?? null, topic: g.topic ?? null, notes: g.notes ?? null, proposed_by: g.proposed_by ?? null };
     }
   }
 
@@ -112,7 +112,7 @@ async function findGuest(
       if (shorter.trim().split(/\s+/).length < 2) continue;
       const contains = target.includes(gNorm) || gNorm.includes(target);
       if (contains && dateMatches(g) && g.time_slot === hourNumber) {
-        return { id: g.id, name: g.name, method: "contains", position: g.position ?? null, topic: g.topic ?? null, proposed_by: g.proposed_by ?? null };
+        return { id: g.id, name: g.name, method: "contains", position: g.position ?? null, topic: g.topic ?? null, notes: g.notes ?? null, proposed_by: g.proposed_by ?? null };
       }
     }
   }
@@ -320,6 +320,7 @@ Deno.serve(async (req) => {
       let temasDeApp = 0;
       let cargosCondensados = 0;
       let cargosVacios = 0;
+      let guestsRellenados = 0;
       for (const [i, row] of rows.entries()) {
         const r = schema.safeParse(row);
         if (!r.success) {
@@ -359,6 +360,19 @@ Deno.serve(async (req) => {
 
             if (camposFuente.cargo === "app") cargosDeApp++;
             if (camposFuente.tema === "app") temasDeApp++;
+
+            // FASE Q: la agenda (guests) se completa SOLO en los campos que
+            // el guest tiene vacíos, desde el histórico ya enlazado -- NUNCA
+            // sobrescribe nada que el guest ya tenga (cargo condensado,
+            // tema, perfil como notas adicionales).
+            const guestUpdates: Record<string, unknown> = {};
+            if (!match.position && built.cargo) guestUpdates.position = built.cargo;
+            if (!match.topic && built.tema) guestUpdates.topic = built.tema;
+            if (!match.notes && camposFuente.perfil) guestUpdates.notes = camposFuente.perfil;
+            if (Object.keys(guestUpdates).length > 0) {
+              const { error: guestUpdateError } = await supabase.from("guests").update(guestUpdates).eq("id", match.id);
+              if (!guestUpdateError) guestsRellenados++;
+            }
           }
         } else if (kind === "libretos_chunks") {
           // guest_name es NOT NULL en la tabla; algunos bloques (sin línea
@@ -392,6 +406,7 @@ Deno.serve(async (req) => {
           temas_de_app: temasDeApp,
           cargos_condensados: cargosCondensados,
           cargos_vacios: cargosVacios,
+          guests_rellenados: guestsRellenados,
         });
       }
     } else if (kind === "canciones") {
