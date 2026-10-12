@@ -32,6 +32,86 @@ const HOUR_TIMESTAMP_KEY: Record<"H1" | "H2" | "H3", string> = {
 
 const MAX_FIELD_LENGTH = 10000;
 
+// FASE R: bloque de texto fijo que n8n puede mandar en CUALQUIER campo de
+// `fields` (no se sabe de antemano en cuál) con este formato:
+//   REDES Y CONTACTO:
+//   - Instagram: @usuario — 12.3K seguidores
+//   - X: @usuario
+//   - TikTok: @usuario — 500 seguidores
+//   - YouTube: @usuario
+//   - Facebook: @usuario
+//   - Sitio web: https://...
+//   - Contacto profesional: nombre@agencia.com
+// Solo rellena lo que el guest tenga vacío -- nunca sobrescribe. El
+// correo (si "Contacto profesional" parece uno) NUNCA va a
+// guests.email/press_email directo: se ofrece como correo_sugerido.
+const REDES_PLATFORM_KEY: Record<string, string> = {
+  instagram: "instagram",
+  x: "x",
+  twitter: "x",
+  tiktok: "tiktok",
+  youtube: "youtube",
+  facebook: "facebook",
+  "sitio web": "website",
+};
+const EMAIL_RE = /[\w.+-]+@[\w-]+\.[\w.-]+/;
+
+type RedesParsed = {
+  // social_networks guarda el handle como string plano (compatible con
+  // el formulario de edición manual y el resto del frontend); los
+  // seguidores van aparte en social_followers.
+  socialHandles: Record<string, string>;
+  socialFollowers: Record<string, number>;
+  correoDesdeContacto: string | null;
+};
+
+/** Busca el bloque "REDES Y CONTACTO" en cualquiera de los fields recibidos y lo parsea línea por línea. */
+function parseRedesBlock(fields: Record<string, string | null>): RedesParsed {
+  const socialHandles: Record<string, string> = {};
+  const socialFollowers: Record<string, number> = {};
+  let correoDesdeContacto: string | null = null;
+
+  const blockText = Object.values(fields).find((v) => typeof v === "string" && /REDES\s+Y\s+CONTACTO/i.test(v)) as
+    | string
+    | undefined;
+  if (!blockText) return { socialHandles, socialFollowers, correoDesdeContacto };
+
+  const afterHeader = blockText.slice(blockText.search(/REDES\s+Y\s+CONTACTO/i));
+  const lines = afterHeader.split(/\r?\n/).map((l) => l.trim()).filter((l) => l.startsWith("-"));
+
+  for (const line of lines) {
+    const m = line.match(/^-\s*([^:]+):\s*(.+)$/);
+    if (!m) continue;
+    const label = m[1].trim().toLowerCase();
+    const value = m[2].trim();
+
+    if (label === "contacto profesional") {
+      const emailMatch = value.match(EMAIL_RE);
+      if (emailMatch) correoDesdeContacto = emailMatch[0];
+      continue;
+    }
+
+    const platform = REDES_PLATFORM_KEY[label];
+    if (!platform) continue;
+
+    const [handlePart, followersPart] = value.split(/\s+—\s+/);
+    const handle = handlePart.trim();
+    if (!handle) continue;
+    socialHandles[platform] = handle;
+    if (followersPart) {
+      const num = followersPart.match(/([\d.,]+)\s*([km]?)/i);
+      if (num) {
+        let n = parseFloat(num[1].replace(/,/g, ""));
+        if (/k/i.test(num[2])) n *= 1000;
+        else if (/m/i.test(num[2])) n *= 1000000;
+        socialFollowers[platform] = Math.round(n);
+      }
+    }
+  }
+
+  return { socialHandles, socialFollowers, correoDesdeContacto };
+}
+
 const CallbackPayloadSchema = z.object({
   guest_id: z.string().uuid("guest_id must be a valid UUID"),
   hour: z.enum(["H1", "H2", "H3"]),
@@ -88,7 +168,12 @@ Deno.serve(async (req) => {
     const now = new Date().toISOString();
     console.log(`n8n callback for guest ${payload.guest_id}, ${payload.hour}: ${payload.status}`);
 
-    const updateData: Record<string, string | null> = {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // deno-lint-ignore no-explicit-any
+    const updateData: Record<string, any> = {
       research_hour: payload.hour,
       research_updated_at: now,
     };
@@ -104,14 +189,65 @@ Deno.serve(async (req) => {
       updateData[HOUR_TIMESTAMP_KEY[payload.hour]] = now;
       updateData.research_status = "done";
       updateData.research_error = null;
+
+      // FASE R: redes y correo sugerido -- solo rellena lo que el guest
+      // tiene vacío, nunca sobrescribe.
+      const { socialHandles, socialFollowers, correoDesdeContacto } = parseRedesBlock(payload.fields);
+      if (Object.keys(socialHandles).length > 0 || correoDesdeContacto) {
+        const { data: current } = await supabase
+          .from("guests")
+          .select("name, social_networks, social_followers, correo_sugerido, press_email")
+          .eq("id", payload.guest_id)
+          .maybeSingle();
+
+        if (current) {
+          const existingSocial = (current.social_networks as Record<string, unknown> | null) ?? {};
+          const existingFollowers = (current.social_followers as Record<string, number> | null) ?? {};
+          const mergedSocial = { ...existingSocial };
+          const mergedFollowers = { ...existingFollowers };
+          let socialChanged = false;
+          let followersChanged = false;
+          for (const [platform, handle] of Object.entries(socialHandles)) {
+            if (!existingSocial[platform]) {
+              mergedSocial[platform] = handle;
+              socialChanged = true;
+              if (socialFollowers[platform] !== undefined) {
+                mergedFollowers[platform] = socialFollowers[platform];
+                followersChanged = true;
+              }
+            }
+          }
+          if (socialChanged) updateData.social_networks = mergedSocial;
+          if (followersChanged) updateData.social_followers = mergedFollowers;
+
+          if (!current.correo_sugerido) {
+            if (correoDesdeContacto) {
+              updateData.correo_sugerido = correoDesdeContacto;
+              updateData.correo_fuente = "n8n_redes";
+            } else if (current.name) {
+              // Punto 9: si no vino correo de n8n, ofrece el de un correo
+              // de PR de una aparición anterior del mismo invitado.
+              const { data: previous } = await supabase
+                .from("guests")
+                .select("press_email")
+                .ilike("name", current.name)
+                .neq("id", payload.guest_id)
+                .not("press_email", "is", null)
+                .order("created_at", { ascending: false })
+                .limit(1)
+                .maybeSingle();
+              if (previous?.press_email) {
+                updateData.correo_sugerido = previous.press_email;
+                updateData.correo_fuente = "invitado_anterior";
+              }
+            }
+          }
+        }
+      }
     } else {
       updateData.research_status = "error";
       updateData.research_error = payload.error_message?.trim() || "La investigación falló en n8n";
     }
-
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const { data, error } = await supabase
       .from("guests")

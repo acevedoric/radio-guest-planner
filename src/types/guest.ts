@@ -5,6 +5,9 @@ export interface Guest {
   phone?: string | null;
   email?: string | null;
   social_networks?: any;
+  social_followers?: Record<string, number> | null;
+  correo_sugerido?: string | null;
+  correo_fuente?: string | null;
   topic: string;
   recording_status: "live" | "recorded" | "to_record" | "postponed" | "proposed";
   program_type?: string | null;

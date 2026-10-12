@@ -112,6 +112,19 @@ const getSocial = (guest: Guest | undefined, platform: string): string | null =>
   return sn[platform] || sn[platform.toLowerCase()] || null;
 };
 
+/** Seguidores de esa red (FASE R: guests.social_followers, separado de social_networks). */
+const getSocialFollowers = (guest: Guest | undefined, platform: string): number | null => {
+  const sf = guest?.social_followers;
+  if (!sf) return null;
+  return sf[platform] ?? sf[platform.toLowerCase()] ?? null;
+};
+
+const formatFollowers = (n: number): string => {
+  if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}K`;
+  return String(n);
+};
+
 // ── Section wrapper ────────────────────────────────────────────────
 const HourSection = ({ title, defaultOpen = false, open: openProp, onOpenChange, editMode, onEditNotes, children }: { title: string; defaultOpen?: boolean; open?: boolean; onOpenChange?: (o: boolean) => void; editMode?: boolean; onEditNotes?: () => void; children: React.ReactNode }) => {
   const [internalOpen, setInternalOpen] = useState(defaultOpen);
@@ -269,8 +282,8 @@ export const LibretoView: React.FC<LibretoViewProps> = ({ guests, selectedDay, s
         <Line>En la casa: Mauricio Quintero.</Line>
         <Spacer />
 
-        <Line>TW: <Bold>{getSocial(h1, "twitter") || <InlineField guestId={h1?.id} field="social_networks" value={null} label="twitter" editMode={false} />}</Bold></Line>
-        <Line>IG: <Bold>{getSocial(h1, "instagram") || <InlineField guestId={h1?.id} field="social_networks" value={null} label="instagram" editMode={false} />}</Bold></Line>
+        <Line>TW: <Bold>{getSocial(h1, "twitter") || <InlineField guestId={h1?.id} field="social_networks" value={null} label="twitter" editMode={false} />}</Bold>{getSocialFollowers(h1, "twitter") != null && <span className="text-muted-foreground"> ({formatFollowers(getSocialFollowers(h1, "twitter")!)} seguidores)</span>}</Line>
+        <Line>IG: <Bold>{getSocial(h1, "instagram") || <InlineField guestId={h1?.id} field="social_networks" value={null} label="instagram" editMode={false} />}</Bold>{getSocialFollowers(h1, "instagram") != null && <span className="text-muted-foreground"> ({formatFollowers(getSocialFollowers(h1, "instagram")!)} seguidores)</span>}</Line>
         <Spacer />
 
         <Line><Bold>CONTENIDO: </Bold>Recorrido por sus inicios, su infancia, sus logros y sus futuros proyectos.</Line>

@@ -651,6 +651,23 @@ export const GuestDetailModal = ({ guest, isOpen, onClose, onSave, onDelete, rea
             <p className="text-xs text-muted-foreground">
               Recibirá la invitación del calendario y la confirmación al agendar.
             </p>
+            {!readOnly && formData.correo_sugerido && formData.correo_sugerido !== formData.email && (
+              <div className="flex items-center gap-2 text-xs bg-amber-500/10 border border-amber-500/30 rounded px-2 py-1.5">
+                <span className="text-muted-foreground">
+                  Sugerido ({formData.correo_fuente === "n8n_redes" ? "redes/contacto" : formData.correo_fuente === "invitado_anterior" ? "visita anterior" : formData.correo_fuente}):{" "}
+                  <span className="text-foreground font-medium">{formData.correo_sugerido}</span>
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-6 text-[11px] shrink-0"
+                  onClick={() => setFormData({ ...formData, email: formData.correo_sugerido })}
+                >
+                  Usar
+                </Button>
+              </div>
+            )}
           </div>
 
           {/* Nueva sección de redes sociales */}

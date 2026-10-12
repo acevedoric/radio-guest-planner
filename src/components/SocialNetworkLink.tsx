@@ -1,4 +1,4 @@
-import { ExternalLink, Facebook, Instagram, Linkedin, Youtube } from "lucide-react";
+import { ExternalLink, Facebook, Globe, Instagram, Linkedin, Music2, Youtube } from "lucide-react";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
@@ -72,6 +72,18 @@ const platformConfig: Record<string, PlatformConfig> = {
     Icon: PinterestLogo,
     colorClass: "text-red-500",
   },
+  tiktok: {
+    urlPrefix: "https://tiktok.com/@",
+    label: "TikTok",
+    Icon: ({ size, className }) => <Music2 size={size} className={className} />,
+    colorClass: "text-foreground",
+  },
+  website: {
+    urlPrefix: "",
+    label: "Sitio web",
+    Icon: ({ size, className }) => <Globe size={size} className={className} />,
+    colorClass: "text-muted-foreground",
+  },
 };
 
 export const SocialNetworkLink = ({ platform, username, className = "", compact = false, iconSize }: SocialNetworkLinkProps) => {
@@ -128,4 +140,6 @@ export const getSocialPlatformOptions = () => [
   { value: "youtube", label: "YouTube" },
   { value: "linkedin", label: "LinkedIn" },
   { value: "pinterest", label: "Pinterest" },
+  { value: "tiktok", label: "TikTok" },
+  { value: "website", label: "Sitio web" },
 ];
