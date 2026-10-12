@@ -176,6 +176,7 @@ export type Database = {
           catalogo: string
           created_at: string
           es_cortinilla: boolean
+          genero: string
           id: string
           titulo: string
           titulo_normalizado: string | null
@@ -186,6 +187,7 @@ export type Database = {
           catalogo?: string
           created_at?: string
           es_cortinilla?: boolean
+          genero?: string
           id?: string
           titulo: string
           titulo_normalizado?: string | null
@@ -196,6 +198,7 @@ export type Database = {
           catalogo?: string
           created_at?: string
           es_cortinilla?: boolean
+          genero?: string
           id?: string
           titulo?: string
           titulo_normalizado?: string | null
@@ -359,6 +362,8 @@ export type Database = {
           carrera_profesional: string | null
           confirmed_blu: boolean
           confirmed_pr: boolean
+          correo_fuente: string | null
+          correo_sugerido: string | null
           created_at: string
           datos_curiosos: string | null
           day_of_week: string | null
@@ -409,6 +414,7 @@ export type Database = {
           scheduled_date: string | null
           scheduled_time: string | null
           slot_order: number
+          social_followers: Json | null
           social_networks: Json | null
           tema_principal: string | null
           tema_principal_documento_nombre: string | null
@@ -426,6 +432,8 @@ export type Database = {
           carrera_profesional?: string | null
           confirmed_blu?: boolean
           confirmed_pr?: boolean
+          correo_fuente?: string | null
+          correo_sugerido?: string | null
           created_at?: string
           datos_curiosos?: string | null
           day_of_week?: string | null
@@ -476,6 +484,7 @@ export type Database = {
           scheduled_date?: string | null
           scheduled_time?: string | null
           slot_order?: number
+          social_followers?: Json | null
           social_networks?: Json | null
           tema_principal?: string | null
           tema_principal_documento_nombre?: string | null
@@ -493,6 +502,8 @@ export type Database = {
           carrera_profesional?: string | null
           confirmed_blu?: boolean
           confirmed_pr?: boolean
+          correo_fuente?: string | null
+          correo_sugerido?: string | null
           created_at?: string
           datos_curiosos?: string | null
           day_of_week?: string | null
@@ -543,6 +554,7 @@ export type Database = {
           scheduled_date?: string | null
           scheduled_time?: string | null
           slot_order?: number
+          social_followers?: Json | null
           social_networks?: Json | null
           tema_principal?: string | null
           tema_principal_documento_nombre?: string | null
@@ -911,6 +923,19 @@ export type Database = {
           tema: string
         }[]
       }
+      buscar_cancion: {
+        Args: { p_catalogo?: string; p_texto: string }
+        Returns: {
+          artista: string
+          cancion_id: string
+          catalogo: string
+          es_cortinilla: boolean
+          genero: string
+          titulo: string
+          ultima_vez: string
+          veces_usada: number
+        }[]
+      }
       buscar_invitado: {
         Args: { max_results?: number; query_text: string }
         Returns: {
@@ -985,6 +1010,7 @@ export type Database = {
           guest_name: string
           hour_number: number
           libreto_chunk_ids: string[]
+          perfil: string
           tema: string
           tiene_libreto: boolean
         }[]
@@ -1012,6 +1038,25 @@ export type Database = {
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      sugerir_canciones: {
+        Args: {
+          p_day_of_week: string
+          p_fecha: string
+          p_genero?: string
+          p_hour_number: number
+          p_limite?: number
+        }
+        Returns: {
+          artista: string
+          cancion_id: string
+          catalogo: string
+          es_firma: boolean
+          genero: string
+          titulo: string
+          ultima_vez: string
+          veces_usada: number
+        }[]
+      }
       unaccent: { Args: { "": string }; Returns: string }
       unaccent_immutable: { Args: { "": string }; Returns: string }
       upsert_cancion: {
@@ -1020,6 +1065,7 @@ export type Database = {
           p_artista?: string
           p_catalogo?: string
           p_es_cortinilla?: boolean
+          p_genero?: string
           p_titulo: string
         }
         Returns: string

@@ -5,6 +5,9 @@
 -- también devuelve perfil, para mostrarlo en el detalle del histórico
 -- (DayView/WeeklyCalendar vía HistoricoSlotCard).
 
+-- Cambia el tipo de retorno (agrega perfil): hay que borrar antes de crear.
+DROP FUNCTION IF EXISTS public.historico_por_rango(date, date);
+
 CREATE OR REPLACE FUNCTION public.historico_por_rango(p_desde date, p_hasta date)
 RETURNS TABLE (
   fecha date,

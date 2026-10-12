@@ -13,6 +13,10 @@ ALTER TABLE public.canciones ADD CONSTRAINT canciones_genero_check
 -- Solo fija genero en el INSERT inicial; si la canción ya existía con
 -- 'otro' y ahora se conoce el género real (p.ej. al recargar el catálogo
 -- 90s), lo actualiza -- nunca degrada un género ya puesto a 'otro'.
+-- La firma cambia (p_genero nuevo): se borra la versión de 5 parámetros
+-- para que las llamadas de 5 argumentos no queden ambiguas.
+DROP FUNCTION IF EXISTS public.upsert_cancion(text, text, integer, text, boolean);
+
 CREATE OR REPLACE FUNCTION public.upsert_cancion(
   p_titulo text, p_artista text DEFAULT NULL, p_anio integer DEFAULT NULL,
   p_catalogo text DEFAULT 'otros', p_es_cortinilla boolean DEFAULT false,
