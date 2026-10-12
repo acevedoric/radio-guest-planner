@@ -362,6 +362,8 @@ export type Database = {
           carrera_profesional: string | null
           confirmed_blu: boolean
           confirmed_pr: boolean
+          correo_fuente: string | null
+          correo_sugerido: string | null
           created_at: string
           datos_curiosos: string | null
           day_of_week: string | null
@@ -412,6 +414,7 @@ export type Database = {
           scheduled_date: string | null
           scheduled_time: string | null
           slot_order: number
+          social_followers: Json | null
           social_networks: Json | null
           tema_principal: string | null
           tema_principal_documento_nombre: string | null
@@ -429,6 +432,8 @@ export type Database = {
           carrera_profesional?: string | null
           confirmed_blu?: boolean
           confirmed_pr?: boolean
+          correo_fuente?: string | null
+          correo_sugerido?: string | null
           created_at?: string
           datos_curiosos?: string | null
           day_of_week?: string | null
@@ -479,6 +484,7 @@ export type Database = {
           scheduled_date?: string | null
           scheduled_time?: string | null
           slot_order?: number
+          social_followers?: Json | null
           social_networks?: Json | null
           tema_principal?: string | null
           tema_principal_documento_nombre?: string | null
@@ -496,6 +502,8 @@ export type Database = {
           carrera_profesional?: string | null
           confirmed_blu?: boolean
           confirmed_pr?: boolean
+          correo_fuente?: string | null
+          correo_sugerido?: string | null
           created_at?: string
           datos_curiosos?: string | null
           day_of_week?: string | null
@@ -546,6 +554,7 @@ export type Database = {
           scheduled_date?: string | null
           scheduled_time?: string | null
           slot_order?: number
+          social_followers?: Json | null
           social_networks?: Json | null
           tema_principal?: string | null
           tema_principal_documento_nombre?: string | null
