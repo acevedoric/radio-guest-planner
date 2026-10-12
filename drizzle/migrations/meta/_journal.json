@@ -190,6 +190,13 @@
       "when": 1791750224502,
       "tag": "0026_fase_o_historico_por_rango_vista_semanal",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1791831378408,
+      "tag": "0027_fase_q_perfil_historico_por_rango",
+      "breakpoints": true
     }
   ]
 }

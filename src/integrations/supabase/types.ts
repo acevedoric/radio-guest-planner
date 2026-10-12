@@ -985,6 +985,7 @@ export type Database = {
           guest_name: string
           hour_number: number
           libreto_chunk_ids: string[]
+          perfil: string
           tema: string
           tiene_libreto: boolean
         }[]
