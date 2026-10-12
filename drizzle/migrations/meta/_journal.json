@@ -197,6 +197,13 @@
       "when": 1791831378408,
       "tag": "0027_fase_q_perfil_historico_por_rango",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1791831423726,
+      "tag": "0028_fase_r_canciones_genero_rpc",
+      "breakpoints": true
     }
   ]
 }
