@@ -298,16 +298,47 @@ serve(async (req) => {
       }
     }
 
-    // --- Herramienta 7: canciones (buscar_cancion) -- "¿cuándo sonó X?",
-    // "¿qué salsas no han sonado este año?", o con el título entre
-    // comillas. También es el fallback cuando la búsqueda de invitados no
-    // encontró nada, antes de responder "no hay registros".
-    type CancionRow = { titulo: string; artista: string | null; catalogo: string; genero: string; veces_usada: number; ultima_vez: string | null };
+    // --- Herramienta 7: canciones -- "¿cuándo sonó X?" (buscar_cancion),
+    // "¿qué salsas no han sonado este año?" (canciones_no_usadas), o con
+    // el título entre comillas. También es el fallback cuando la
+    // búsqueda de invitados no encontró nada, antes de responder "no hay
+    // registros".
+    type CancionRow = { titulo: string; artista: string | null; catalogo: string; genero: string; veces_usada: number; ultima_emision: string | null; proxima_programada: string | null };
+    type CancionNoUsadaRow = { titulo: string; artista: string | null; catalogo: string; genero: string; ultima_emision: string | null; periodo_sin_historial: boolean };
     let canciones: CancionRow[] | null = null;
+    let cancionesNoUsadas: CancionNoUsadaRow[] | null = null;
+    let periodoSinHistorial = false;
     const cancionTriggered = CANCION_RE.test(question) || QUOTED_RE.test(question);
     const cancionQuery = extractCancionQuery(question);
     const tryCanciones = cancionTriggered || (results.length === 0 && cancionQuery.length >= 3);
-    if (tryCanciones) {
+    const esNoSonado = NO_SONADO_RE.test(question);
+
+    if (tryCanciones && esNoSonado) {
+      const generoMatch = Object.keys(GENERO_WORDS).find((w) => rawWords.includes(w));
+      const ultimosMesesMatch = question.match(/\b[uú]ltimos?\s+(\d+)\s+mes(?:es)?\b/i);
+      let p_desde: string;
+      const p_hasta = today;
+      if (ultimosMesesMatch) {
+        const d = new Date(now);
+        d.setMonth(d.getMonth() - parseInt(ultimosMesesMatch[1], 10));
+        p_desde = d.toISOString().slice(0, 10);
+      } else if (dateRange) {
+        p_desde = dateRange.from;
+      } else {
+        p_desde = `${yearFilter ?? now.getFullYear()}-01-01`;
+      }
+      const { data, error } = await userClient.rpc("canciones_no_usadas", {
+        p_genero: generoMatch ? GENERO_WORDS[generoMatch] : null,
+        p_catalogo: null,
+        p_desde,
+        p_hasta,
+        p_limite: 30,
+      });
+      if (!error && data) {
+        cancionesNoUsadas = data as unknown as CancionNoUsadaRow[];
+        periodoSinHistorial = cancionesNoUsadas.length > 0 && cancionesNoUsadas[0].periodo_sin_historial;
+      }
+    } else if (tryCanciones) {
       const generoMatch = Object.keys(GENERO_WORDS).find((w) => rawWords.includes(w));
       const { data, error } = await userClient.rpc("buscar_cancion", {
         p_texto: cancionQuery,
@@ -316,10 +347,6 @@ serve(async (req) => {
       if (!error && data) {
         let rows = data as unknown as CancionRow[];
         if (generoMatch) rows = rows!.filter((r) => r.genero === GENERO_WORDS[generoMatch]);
-        if (NO_SONADO_RE.test(question)) {
-          const yearStart = `${yearFilter ?? now.getFullYear()}-01-01`;
-          rows = rows!.filter((r) => !r.ultima_vez || r.ultima_vez < yearStart);
-        }
         canciones = rows!.slice(0, 30);
       }
     }
@@ -371,11 +398,13 @@ serve(async (req) => {
         ? "QUIÉN OFICIAL: no se encontró nadie para esa fecha/hora."
         : null;
 
-    const cancionesBlock = canciones
-      ? `CANCIONES OFICIAL (de buscar_cancion, única fuente válida para preguntas de canciones): ${canciones.length} resultado(s): ${JSON.stringify(canciones)}`
-      : tryCanciones
-        ? "CANCIONES OFICIAL: no se encontraron canciones que coincidan."
-        : null;
+    const cancionesBlock = cancionesNoUsadas
+      ? `CANCIONES NO USADAS OFICIAL (de canciones_no_usadas, única fuente válida para "qué canciones/géneros no han sonado en un periodo"): ${periodoSinHistorial ? "AVISO: no hay ningún registro de uso para ese periodo (puede ser antes de que existiera el registro, o un año aún en curso con poco historial) -- dilo explícitamente, no asumas que ninguna sonó. " : ""}${cancionesNoUsadas.length} resultado(s): ${JSON.stringify(cancionesNoUsadas)}`
+      : canciones
+        ? `CANCIONES OFICIAL (de buscar_cancion, única fuente válida para preguntas de canciones -- ultima_emision es la última vez que sonó realmente, hasta hoy; proxima_programada es una fecha futura ya asignada pero aún no emitida, NUNCA la confundas con que ya sonó): ${canciones.length} resultado(s): ${JSON.stringify(canciones)}`
+        : tryCanciones
+          ? "CANCIONES OFICIAL: no se encontraron canciones que coincidan."
+          : null;
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -396,7 +425,7 @@ REGLAS DE CONSISTENCIA (MUY IMPORTANTE):
 - Si la pregunta es sobre quién ha venido más veces/con más frecuencia y hay un bloque "RANKING OFICIAL", ESA es la única fuente válida — no la recalcules contando filas.
 - Si hay un bloque "HISTORIAL OFICIAL" (cuántas veces/cuándo vino alguien), responde SOLO con esas apariciones — no agregues ni quites fechas, no mezcles con otras filas de "Invitados disponibles".
 - Si hay un bloque "QUIÉN OFICIAL" (quién vino tal fecha/hora), responde SOLO con esos nombres — nunca agregues a nadie más del contexto, aunque aparezca en "Invitados disponibles".
-- Si hay un bloque "CANCIONES OFICIAL" (preguntas sobre canciones: cuándo sonó, qué canciones de un género no han sonado, etc.), ESA es la única fuente válida — no la mezcles con filas de "Invitados disponibles".
+- Si hay un bloque "CANCIONES OFICIAL" o "CANCIONES NO USADAS OFICIAL" (preguntas sobre canciones), ESA es la única fuente válida — no la mezcles con filas de "Invitados disponibles". En "CANCIONES OFICIAL", si una fila tiene ultima_emision, responde "sonó por última vez el <ultima_emision>"; si además tiene proxima_programada, agrega por separado "y está programada para el <proxima_programada>" — nunca digas que "sonó" en una fecha de proxima_programada, esa aún no se emitió. Si un bloque "CANCIONES NO USADAS OFICIAL" trae el aviso de que no hay historial para ese periodo, dilo explícitamente en tu respuesta (no afirmes que "ninguna canción sonó" si simplemente no hay datos registrados para esas fechas).
 - REGLA GENERAL ANTI-RUIDO: responde SOLO lo que se pregunta, con los datos de la herramienta oficial correspondiente (CONTEO/RANKING/HISTORIAL/QUIÉN) cuando exista. Está PROHIBIDO mencionar un invitado de la Agenda que no sea necesario para responder la pregunta solo porque aparece en la lista "Invitados disponibles" — esa lista es contexto de búsqueda, no una lista para recitar completa.
 - Las filas [Guion (fragmento)] son fragmentos de texto para contexto cualitativo (qué se dijo, de qué se habló) — NUNCA las uses para contar personas, pueden repetir al mismo invitado varias veces (un chunk por fragmento del guion). Una fila marcada "Mención en el libreto de X" NO es una aparición propia de la persona buscada — es el libreto de X mencionándola; no la cuentes como si X fuera quien se buscó, y no mezcles sus datos con los de la persona buscada.
 - Una fila con "[+histórico]" ya representa a la misma persona en agenda e histórico combinados — no la cuentes ni la menciones dos veces.

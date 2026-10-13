@@ -22,7 +22,8 @@ interface CancionRow {
   genero: string;
   es_cortinilla: boolean;
   veces_usada: number;
-  ultima_vez: string | null;
+  ultima_emision: string | null;
+  proxima_programada: string | null;
 }
 
 const CATALOGO_OPTIONS = [
@@ -194,16 +195,17 @@ const CancionesCatalogo = () => {
                 <th className="text-left p-2">Artista</th>
                 <th className="text-left p-2">Catálogo</th>
                 <th className="text-left p-2">Género</th>
-                <th className="text-left p-2">Última vez</th>
+                <th className="text-left p-2">Última emisión</th>
+                <th className="text-left p-2">Programada</th>
                 <th className="text-left p-2">Veces</th>
               </tr>
             </thead>
             <tbody>
               {loading && (
-                <tr><td colSpan={6} className="p-4 text-center text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin inline mr-2" />Cargando...</td></tr>
+                <tr><td colSpan={7} className="p-4 text-center text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin inline mr-2" />Cargando...</td></tr>
               )}
               {!loading && results.length === 0 && (
-                <tr><td colSpan={6} className="p-4 text-center text-muted-foreground">Sin resultados</td></tr>
+                <tr><td colSpan={7} className="p-4 text-center text-muted-foreground">Sin resultados</td></tr>
               )}
               {!loading && results.map((r) => (
                 <tr key={r.cancion_id} className="border-t">
@@ -211,7 +213,8 @@ const CancionesCatalogo = () => {
                   <td className="p-2 text-muted-foreground">{r.artista || "—"}</td>
                   <td className="p-2">{r.catalogo}</td>
                   <td className="p-2">{r.genero}</td>
-                  <td className="p-2 text-muted-foreground">{r.ultima_vez || "—"}</td>
+                  <td className="p-2 text-muted-foreground">{r.ultima_emision || "—"}</td>
+                  <td className="p-2 text-muted-foreground">{r.proxima_programada || "—"}</td>
                   <td className="p-2 text-muted-foreground">{r.veces_usada}</td>
                 </tr>
               ))}

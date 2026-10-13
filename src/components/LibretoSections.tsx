@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -145,6 +145,11 @@ export const CancionesSection = ({ guest, slot, selectedDay, editMode, onGuestUp
   // Hooks nunca después de un return condicional -- se declaran siempre,
   // aunque el valor inicial no se use si el componente termina en null.
   const [value, setValue] = useState((field && guest[field] as string) || '');
+  // Ref sincronizado con value para que dos "Sugerir" seguidos (antes de
+  // que el primer guardado y su re-render terminen) no pisen uno al otro
+  // por un closure desactualizado -- las escrituras a un ref son
+  // inmediatas, a diferencia de setState.
+  const valueRef = useRef(value);
   const [firmas, setFirmas] = useState<{ titulo: string; artista: string | null }[]>([]);
 
   useEffect(() => {
@@ -182,7 +187,11 @@ export const CancionesSection = ({ guest, slot, selectedDay, editMode, onGuestUp
   const appendLine = async (pick: { titulo: string; artista: string | null } | null) => {
     if (!pick || !guest.id) return pick;
     const line = pick.artista ? `${pick.titulo} - ${pick.artista}` : pick.titulo;
-    const next = value ? `${value}\n${line}` : line;
+    // Lee/escribe el ref, no el state, para que un segundo "Sugerir"
+    // lanzado antes de que termine el primero vea lo que éste ya agregó.
+    const base = valueRef.current;
+    const next = base ? `${base}\n${line}` : line;
+    valueRef.current = next;
     setValue(next);
     const { error } = await supabase.from('guests').update({ [field]: next } as any).eq('id', guest.id);
     if (error) {
@@ -268,6 +277,7 @@ export const CancionesSection = ({ guest, slot, selectedDay, editMode, onGuestUp
         placeholder={placeholder}
         editMode={editMode}
         onSaved={(_f, v) => {
+          valueRef.current = v;
           setValue(v);
           onGuestUpdate?.({ id: guest.id, [field]: v });
         }}
