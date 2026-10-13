@@ -317,7 +317,7 @@ serve(async (req) => {
       const generoMatch = Object.keys(GENERO_WORDS).find((w) => rawWords.includes(w));
       const ultimosMesesMatch = question.match(/\b[uú]ltimos?\s+(\d+)\s+mes(?:es)?\b/i);
       let p_desde: string;
-      const p_hasta = today;
+      const p_hasta = new Date().toISOString().split("T")[0];
       if (ultimosMesesMatch) {
         const d = new Date(now);
         d.setMonth(d.getMonth() - parseInt(ultimosMesesMatch[1], 10));
