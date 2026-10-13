@@ -219,12 +219,42 @@ const CancionSegmentoRow = z.object({
 const DELETABLE_KINDS = ["invitados_historicos", "libretos_chunks", "canciones_uso"] as const;
 
 const PayloadSchema = z.object({
-  kind: z.enum(["invitados_historicos", "libretos_chunks", "canciones", "canciones_uso", "cancion_segmento"]),
+  kind: z.enum(["invitados_historicos", "libretos_chunks", "canciones", "canciones_uso", "cancion_segmento", "guests"]),
   source_file: z.string().min(1).max(300).optional(),
-  mode: z.enum(["replace", "append", "delete", "relink_check"]).default("replace"),
-  // rows no es obligatorio en mode="delete" (solo borra, no inserta nada).
+  mode: z.enum(["replace", "append", "delete", "relink_check", "guests_diagnose", "guest_cleanup"]).default("replace"),
+  // rows no es obligatorio en mode="delete"/"guests_diagnose" (no insertan nada).
   rows: z.array(z.record(z.unknown())).max(2000).default([]),
 });
+
+// FASE S: calidad de guests.position/topic importados de Excel o
+// rellenados desde el histórico (ver findGuest/"la agenda se completa").
+// Reusa looksLikeGarbageCargo ya existente arriba.
+const TEMA_RESUMEN_EDGE = "(?=[^a-zA-Z0-9_]|$)";
+const TEMA_RESUMEN_VERB_RE = new RegExp("habl[oó]\\s+(sobre|de)|cont[oó]" + TEMA_RESUMEN_EDGE, "i");
+const PRIMERA_PERSONA_RE = /\b(yo|mi|me|nosotros|nuestro|nuestra)\b/i;
+
+function esCargoMinuscula(position: string): boolean {
+  return /^[a-záéíóúñ]/.test(position.trim());
+}
+
+function esTemaResumen(topic: string, name: string | null, position: string | null): boolean {
+  const t = topic.trim();
+  if (!t) return false;
+  const words = t.split(/\s+/).filter(Boolean);
+  if (words.length > 15) return true;
+  if (TEMA_RESUMEN_VERB_RE.test(t)) return true;
+  if (PRIMERA_PERSONA_RE.test(t)) return true;
+  const tNorm = normalizeName(t);
+  if (name) {
+    const firstName = normalizeName(name.trim().split(/\s+/)[0] || "");
+    if (firstName && firstName.length > 2 && tNorm.startsWith(firstName)) return true;
+  }
+  if (position) {
+    const posFirstWord = normalizeName(position.trim().split(/\s+/)[0] || "");
+    if (posFirstWord && posFirstWord.length > 3 && tNorm.startsWith(posFirstWord)) return true;
+  }
+  return false;
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -306,6 +336,128 @@ Deno.serve(async (req) => {
         linked_contains: linkedDetails.filter((l) => l.method === "contains").length,
         linked_details: linkedDetails,
         errors: relinkErrors.slice(0, 20),
+      });
+    }
+
+    // FASE S: solo lectura -- diagnóstico de calidad de guests.position/
+    // topic por año, separado en total vs. excel_import vs. "con enlace a
+    // histórico" (proxy de "pudo haber sido rellenado por ingest": solo
+    // ingest-libreto escribe invitados_historicos.guest_id, y el AGENDA-fill
+    // solo corre cuando ese enlace existe). No toca nada.
+    if (mode === "guests_diagnose") {
+      const { data: allGuests, error: selError } = await supabase
+        .from("guests")
+        .select("id, name, position, topic, notes, proposed_by, scheduled_date, week_date, day_of_week, time_slot, created_at, updated_at");
+      if (selError) return json({ error: `select failed: ${selError.message}` }, 500);
+
+      const { data: historicoLinks } = await supabase.from("invitados_historicos").select("guest_id").not("guest_id", "is", null);
+      const linkedGuestIds = new Set((historicoLinks || []).map((h: any) => h.guest_id));
+
+      const porAnio: Record<string, any> = {};
+      const flagged: any[] = [];
+      for (const g of allGuests || []) {
+        const fecha = g.scheduled_date || emissionDateFromWeek(g.week_date, g.day_of_week);
+        const anio = fecha ? fecha.slice(0, 4) : "sin_fecha";
+        if (!porAnio[anio]) {
+          porAnio[anio] = {
+            total: 0, excel_import: 0, con_enlace_historico: 0,
+            cargo_basura: 0, cargo_largo: 0, cargo_minuscula: 0, tema_resumen: 0,
+          };
+        }
+        const b = porAnio[anio];
+        b.total++;
+        const esExcelImport = g.proposed_by === "excel_import";
+        const tieneEnlaceHistorico = linkedGuestIds.has(g.id);
+        if (esExcelImport) b.excel_import++;
+        if (tieneEnlaceHistorico) b.con_enlace_historico++;
+
+        let cargoBasura = false, cargoLargo = false, cargoMinuscula = false, temaResumen = false;
+        if (g.position) {
+          cargoBasura = looksLikeGarbageCargo(g.position);
+          const words = g.position.trim().split(/\s+/).filter(Boolean);
+          cargoLargo = words.length > 4;
+          cargoMinuscula = esCargoMinuscula(g.position);
+          if (cargoBasura) b.cargo_basura++;
+          if (cargoLargo) b.cargo_largo++;
+          if (cargoMinuscula) b.cargo_minuscula++;
+        }
+        if (g.topic) {
+          temaResumen = esTemaResumen(g.topic, g.name, g.position);
+          if (temaResumen) b.tema_resumen++;
+        }
+
+        if (cargoBasura || cargoLargo || cargoMinuscula || temaResumen) {
+          flagged.push({
+            id: g.id, name: g.name, position: g.position, topic: g.topic, notes: g.notes,
+            proposed_by: g.proposed_by, fecha, anio, esExcelImport, tieneEnlaceHistorico,
+            created_at: g.created_at, updated_at: g.updated_at,
+            cargoBasura, cargoLargo, cargoMinuscula, temaResumen,
+            elegibleParaLimpieza: esExcelImport || tieneEnlaceHistorico,
+          });
+        }
+      }
+
+      return json({ ok: true, mode: "guests_diagnose", total_guests: (allGuests || []).length, por_anio: porAnio, flagged });
+    }
+
+    // Escritura restringida: solo guest_id que sean excel_import o que
+    // tengan un enlace a invitados_historicos (mismo criterio que
+    // guests_diagnose) -- cualquier otra fila se rechaza, no se toca
+    // nada ingresado a mano por un productor.
+    if (mode === "guest_cleanup") {
+      const GuestCleanupRow = z.object({
+        guest_id: z.string().uuid(),
+        position: z.string().nullable().optional(),
+        topic: z.string().nullable().optional(),
+        notes: z.string().nullable().optional(),
+      });
+      if (rows.length === 0) return json({ error: "mode=guest_cleanup requiere rows (min 1)" }, 400);
+
+      const updated: string[] = [];
+      const rejected: { guest_id: string; reason: string }[] = [];
+      const cleanupErrors: string[] = [];
+
+      for (const [i, row] of rows.entries()) {
+        const r = GuestCleanupRow.safeParse(row);
+        if (!r.success) {
+          cleanupErrors.push(`row ${i}: ${JSON.stringify(r.error.issues)}`);
+          continue;
+        }
+        const { data: guestRow } = await supabase.from("guests").select("id, proposed_by").eq("id", r.data.guest_id).maybeSingle();
+        if (!guestRow) {
+          rejected.push({ guest_id: r.data.guest_id, reason: "no existe" });
+          continue;
+        }
+        const esExcelImport = guestRow.proposed_by === "excel_import";
+        let tieneEnlaceHistorico = false;
+        if (!esExcelImport) {
+          const { data: histRow } = await supabase.from("invitados_historicos").select("id").eq("guest_id", r.data.guest_id).limit(1);
+          tieneEnlaceHistorico = (histRow?.length ?? 0) > 0;
+        }
+        if (!esExcelImport && !tieneEnlaceHistorico) {
+          rejected.push({ guest_id: r.data.guest_id, reason: "no es excel_import ni tiene enlace a histórico -- probablemente ingresado a mano" });
+          continue;
+        }
+        const updateData: Record<string, unknown> = {};
+        if (r.data.position !== undefined) updateData.position = r.data.position;
+        if (r.data.topic !== undefined) updateData.topic = r.data.topic;
+        if (r.data.notes !== undefined) updateData.notes = r.data.notes;
+        const { error: updError } = await supabase.from("guests").update(updateData).eq("id", r.data.guest_id);
+        if (updError) {
+          cleanupErrors.push(`guest ${r.data.guest_id}: ${updError.message}`);
+          continue;
+        }
+        updated.push(r.data.guest_id);
+      }
+
+      return json({
+        ok: true,
+        mode: "guest_cleanup",
+        total: rows.length,
+        updated: updated.length,
+        updated_ids: updated,
+        rejected,
+        errors: cleanupErrors.slice(0, 20),
       });
     }
 
