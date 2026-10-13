@@ -931,8 +931,9 @@ export type Database = {
           catalogo: string
           es_cortinilla: boolean
           genero: string
+          proxima_programada: string
           titulo: string
-          ultima_vez: string
+          ultima_emision: string
           veces_usada: number
         }[]
       }
@@ -972,6 +973,24 @@ export type Database = {
           tipo: string
           topic: string
           week_date: string
+        }[]
+      }
+      canciones_no_usadas: {
+        Args: {
+          p_catalogo?: string
+          p_desde?: string
+          p_genero?: string
+          p_hasta?: string
+          p_limite?: number
+        }
+        Returns: {
+          artista: string
+          cancion_id: string
+          catalogo: string
+          genero: string
+          periodo_sin_historial: boolean
+          titulo: string
+          ultima_emision: string
         }[]
       }
       check_blacklist: {
