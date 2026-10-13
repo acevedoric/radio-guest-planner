@@ -195,3 +195,39 @@ $function$;
 
 REVOKE ALL ON FUNCTION public.canciones_no_usadas(text, text, date, date, integer) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.canciones_no_usadas(text, text, date, date, integer) TO authenticated;
+
+-- cambiar_cancion_uso: "Cambiar por…" -- la original queda 'no_emitida'
+-- y la que realmente sonó se registra 'emitida' en la misma fecha/hora.
+CREATE OR REPLACE FUNCTION public.cambiar_cancion_uso(p_uso_id uuid, p_titulo text, p_artista text DEFAULT NULL)
+RETURNS uuid
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $function$
+#variable_conflict use_column
+DECLARE
+  orig public.canciones_uso%ROWTYPE;
+  nueva uuid;
+  nuevo_uso uuid;
+BEGIN
+  IF NOT (public.has_role(auth.uid(), 'producer'::app_role) OR public.has_role(auth.uid(), 'admin'::app_role)) THEN
+    RAISE EXCEPTION 'No autorizado';
+  END IF;
+  IF p_titulo IS NULL OR btrim(p_titulo) = '' THEN
+    RAISE EXCEPTION 'Título requerido';
+  END IF;
+  SELECT * INTO orig FROM public.canciones_uso WHERE id = p_uso_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Uso de canción no encontrado';
+  END IF;
+  UPDATE public.canciones_uso SET estado = 'no_emitida' WHERE id = p_uso_id;
+  nueva := public.upsert_cancion(btrim(p_titulo), nullif(btrim(coalesce(p_artista, '')), ''), NULL, 'otros', false);
+  INSERT INTO public.canciones_uso (cancion_id, fecha, day_of_week, hour_number, segmento, guest_id, source_file, estado)
+  VALUES (nueva, orig.fecha, orig.day_of_week, orig.hour_number, orig.segmento, orig.guest_id, 'cambio_al_aire', 'emitida')
+  RETURNING id INTO nuevo_uso;
+  RETURN nuevo_uso;
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.cambiar_cancion_uso(uuid, text, text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.cambiar_cancion_uso(uuid, text, text) TO authenticated;
