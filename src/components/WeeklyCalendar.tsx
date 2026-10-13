@@ -308,9 +308,10 @@ const GuestSlotCard = ({ day, slot, fecha, guest, coGuest, onGuestClick, onAddGu
     // Si el guest no tiene cargo/tema propio, se completa con el histórico
     // enlazado de esa fecha+hora (solo en pantalla, no se escribe en guests).
     const realGuestPosition = effectiveGuestPosition(guest);
-    const displayPosition = realGuestPosition || historicoRow?.cargo || null;
-    const displayTopic = guest.topic || historicoRow?.tema || "";
-    const fromHistorico = (!realGuestPosition && !!historicoRow?.cargo) || (!guest.topic && !!historicoRow?.tema);
+    const hist = historicoRow && sameGuestName(historicoRow.guest_name, guest.name) ? historicoRow : undefined;
+    const displayPosition = realGuestPosition || hist?.cargo || null;
+    const displayTopic = guest.topic || hist?.tema || "";
+    const fromHistorico = (!realGuestPosition && !!hist?.cargo) || (!guest.topic && !!hist?.tema);
     const fechaPasada = fecha < format(new Date(), "yyyy-MM-dd");
     const emitido = guest.recording_status === "live" || guest.recording_status === "recorded";
     return (

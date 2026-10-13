@@ -18,6 +18,7 @@ import { maybeSendConfirmationEmail } from "@/hooks/useConfirmationWebhook";
 import type { HistoricoRow } from "@/types/historico";
 import { HistoricoSlotCard, HistoricoBadge } from "./HistoricoSlotCard";
 import { effectiveGuestPosition } from "@/lib/garbageCargo";
+import { sameGuestName } from "@/lib/sameGuestName";
 
 interface DayViewProps {
   isAuthenticated?: boolean;
@@ -323,7 +324,8 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
           const coGuest = slot === 3 ? slotGuests[1] : undefined;
 
           const renderGuestCard = (guest: Guest, cardLabel: string, isCoGuest: boolean) => {
-            const historicoRow = selectedDayDate ? getHistoricoFor?.(selectedDayDate, slot) : undefined;
+            const histCandidate = selectedDayDate ? getHistoricoFor?.(selectedDayDate, slot) : undefined;
+            const historicoRow = histCandidate && sameGuestName(histCandidate.guest_name, guest.name) ? histCandidate : undefined;
             const realGuestPosition = effectiveGuestPosition(guest);
             const displayPosition = realGuestPosition || historicoRow?.cargo || null;
             const displayTopic = guest.topic || historicoRow?.tema || "";

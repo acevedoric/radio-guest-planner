@@ -30,7 +30,7 @@ const VerLibretoButton = ({ chunkIds, size = "sm" }: { chunkIds: string[]; size?
     setOpen(true);
     if (content !== null) return;
     setLoading(true);
-    const { data } = await supabase.from("libretos_chunks").select("content").in("id", chunkIds);
+    const { data } = await supabase.from("libretos_chunks").select("content").in("id", chunkIds).order("created_at").order("id");
     setContent((data || []).map((d) => d.content as string).join(" "));
     setLoading(false);
   };
