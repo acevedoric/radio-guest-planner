@@ -105,12 +105,10 @@ export const HistoricoSlotCard = ({ row, variant = "week", label }: { row: Histo
   return (
     <Card className="p-3 min-h-[110px] bg-muted/20 border-dashed w-full min-w-0">
       <div className="space-y-2">
-        <div className="flex items-baseline gap-1 min-w-0 w-full">
-          <h4 className="font-semibold text-sm truncate min-w-0 flex-1" title={row.guest_name}>{row.guest_name}</h4>
+        <div className="min-w-0 w-full">
+          <h4 className="font-semibold text-sm leading-snug line-clamp-2" title={row.guest_name}>{row.guest_name}</h4>
           {row.cargo && (
-            <span className="text-[10px] text-muted-foreground truncate shrink-0 max-w-[45%]" title={row.cargo}>
-              ({row.cargo})
-            </span>
+            <p className="text-[10px] text-muted-foreground truncate" title={row.cargo}>{row.cargo}</p>
           )}
         </div>
         <p className="text-xs text-muted-foreground line-clamp-2">{row.tema}</p>

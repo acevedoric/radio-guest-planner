@@ -171,6 +171,7 @@ export const WeeklyCalendar = ({ guests, allGuests, onGuestClick, onAddGuest, se
                   key={`${day.key}-${timeSlot.slot}`}
                   day={day.key}
                   slot={timeSlot.slot}
+                  fecha={fecha}
                   guest={guest}
                   coGuest={coGuest}
                   onGuestClick={onGuestClick}
@@ -207,6 +208,7 @@ export const WeeklyCalendar = ({ guests, allGuests, onGuestClick, onAddGuest, se
 interface GuestSlotCardProps {
   day: string;
   slot: number;
+  fecha: string;
   guest: Guest | undefined;
   coGuest?: Guest | undefined;
   onGuestClick: (guest: Guest) => void;
@@ -215,7 +217,7 @@ interface GuestSlotCardProps {
   historicoRow?: HistoricoRow;
 }
 
-const GuestSlotCard = ({ day, slot, guest, coGuest, onGuestClick, onAddGuest, editMode, historicoRow }: GuestSlotCardProps) => {
+const GuestSlotCard = ({ day, slot, fecha, guest, coGuest, onGuestClick, onAddGuest, editMode, historicoRow }: GuestSlotCardProps) => {
   const slotId = `slot-${day}-${slot}`;
 
   const { setNodeRef: setDropRef, isOver } = useDroppable({
@@ -309,6 +311,8 @@ const GuestSlotCard = ({ day, slot, guest, coGuest, onGuestClick, onAddGuest, ed
     const displayPosition = realGuestPosition || historicoRow?.cargo || null;
     const displayTopic = guest.topic || historicoRow?.tema || "";
     const fromHistorico = (!realGuestPosition && !!historicoRow?.cargo) || (!guest.topic && !!historicoRow?.tema);
+    const fechaPasada = fecha < format(new Date(), "yyyy-MM-dd");
+    const emitido = guest.recording_status === "live" || guest.recording_status === "recorded";
     return (
       <div ref={setDropRef} className="min-w-0 w-full">
         <Card
@@ -325,18 +329,20 @@ const GuestSlotCard = ({ day, slot, guest, coGuest, onGuestClick, onAddGuest, ed
           onClick={() => onGuestClick(guest)}
         >
           <div className="space-y-2">
-            <div className="flex items-baseline gap-1 min-w-0 w-full">
-              <h4 className="font-semibold text-sm truncate min-w-0 flex-1" title={guest.name}>{guest.name}</h4>
-              {displayPosition && (
-                <span className="text-[10px] text-muted-foreground truncate shrink-0 max-w-[40%]" title={displayPosition}>
-                  ({displayPosition})
-                </span>
-              )}
-              {fromHistorico && (
-                <span className="text-[9px] px-1 py-0.5 rounded shrink-0 bg-amber-500/10 text-amber-700">
-                  📜 (desde histórico)
-                </span>
-              )}
+            <div className="min-w-0 w-full">
+              <h4 className="font-semibold text-sm leading-snug line-clamp-2" title={guest.name}>{guest.name}</h4>
+              <div className="flex items-baseline gap-1 min-w-0 w-full">
+                {displayPosition && (
+                  <span className="text-[10px] text-muted-foreground truncate" title={displayPosition}>
+                    {displayPosition}
+                  </span>
+                )}
+                {fromHistorico && (
+                  <span className="text-[9px] px-1 py-0.5 rounded shrink-0 bg-amber-500/10 text-amber-700">
+                    📜 (desde histórico)
+                  </span>
+                )}
+              </div>
             </div>
 
             <p className="text-xs text-muted-foreground line-clamp-2">{displayTopic}</p>
@@ -364,43 +370,51 @@ const GuestSlotCard = ({ day, slot, guest, coGuest, onGuestClick, onAddGuest, ed
                 </div>
               )}
             </div>
-            {/* Checkboxes de confirmación */}
+            {/* Checkboxes de confirmación (o insignia de emisión si ya pasó) */}
             <div className="pt-2 border-t border-muted flex flex-row flex-wrap gap-3" onClick={(e) => e.stopPropagation()}>
-              {guest.proposed_by && (
+              {guest.proposed_by && guest.proposed_by !== "excel_import" && (
                 <div className="text-[9px] text-muted-foreground truncate mb-1 w-full" title={`Propuesto por: ${guest.proposed_by}`}>
                   📋 {guest.proposed_by}
                 </div>
               )}
-              <div className="flex items-center space-x-1">
-                <Checkbox
-                  id={`blu-week-${guest.id}-${slot}`}
-                  checked={guest.confirmed_blu || false}
-                  onCheckedChange={(checked) => handleCheckboxChange(guest, 'blu', checked as boolean)}
-                  disabled={!editMode}
-                  className="h-3 w-3"
-                />
-                <label
-                  htmlFor={`blu-week-${guest.id}-${slot}`}
-                  className="text-[10px] font-medium leading-none cursor-pointer"
-                >
-                  CONF. BLU
-                </label>
-              </div>
-              <div className="flex items-center space-x-1">
-                <Checkbox
-                  id={`pr-week-${guest.id}-${slot}`}
-                  checked={guest.confirmed_pr || false}
-                  onCheckedChange={(checked) => handleCheckboxChange(guest, 'pr', checked as boolean)}
-                  disabled={!editMode}
-                  className="h-3 w-3"
-                />
-                <label
-                  htmlFor={`pr-week-${guest.id}-${slot}`}
-                  className="text-[10px] font-medium leading-none cursor-pointer"
-                >
-                  CONF. PR
-                </label>
-              </div>
+              {fechaPasada ? (
+                <span className={cn("text-[10px] px-1.5 py-0.5 rounded shrink-0", emitido ? "bg-green-500/10 text-green-700" : "bg-gray-400/20 text-gray-600")}>
+                  {emitido ? "Emitido ✓" : "Sin confirmar"}
+                </span>
+              ) : (
+                <>
+                  <div className="flex items-center space-x-1">
+                    <Checkbox
+                      id={`blu-week-${guest.id}-${slot}`}
+                      checked={guest.confirmed_blu || false}
+                      onCheckedChange={(checked) => handleCheckboxChange(guest, 'blu', checked as boolean)}
+                      disabled={!editMode}
+                      className="h-3 w-3"
+                    />
+                    <label
+                      htmlFor={`blu-week-${guest.id}-${slot}`}
+                      className="text-[10px] font-medium leading-none cursor-pointer"
+                    >
+                      CONF. BLU
+                    </label>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <Checkbox
+                      id={`pr-week-${guest.id}-${slot}`}
+                      checked={guest.confirmed_pr || false}
+                      onCheckedChange={(checked) => handleCheckboxChange(guest, 'pr', checked as boolean)}
+                      disabled={!editMode}
+                      className="h-3 w-3"
+                    />
+                    <label
+                      htmlFor={`pr-week-${guest.id}-${slot}`}
+                      className="text-[10px] font-medium leading-none cursor-pointer"
+                    >
+                      CONF. PR
+                    </label>
+                  </div>
+                </>
+              )}
             </div>
             {slot === 3 && coGuest && renderCoGuestMini(coGuest)}
             {slot === 3 && !coGuest && editMode && (
