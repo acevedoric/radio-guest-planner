@@ -19,6 +19,7 @@ import type { HistoricoRow } from "@/types/historico";
 import { HistoricoSlotCard, HistoricoBadge } from "./HistoricoSlotCard";
 import { effectiveGuestPosition } from "@/lib/garbageCargo";
 import { sameGuestName } from "@/lib/sameGuestName";
+import { CancionesAlAire } from "./CancionesAlAire";
 
 interface DayViewProps {
   isAuthenticated?: boolean;
@@ -435,6 +436,14 @@ export const DayView = ({ guests, allGuests, onGuestClick, onAddGuest, selectedD
                 {/* Canciones / Clips - solo para el invitado principal */}
                 {!isCoGuest && (
                   <CancionesSection guest={guest} slot={slot} selectedDay={selectedDay} editMode={editMode} onGuestUpdate={onGuestUpdate} />
+                )}
+                {!isCoGuest && editMode && guest.id && selectedDayDate && (
+                  <CancionesAlAire
+                    guestId={guest.id}
+                    slot={slot}
+                    fecha={selectedDayDate}
+                    refreshKey={String(guest[(slot === 1 ? "h1_canciones" : slot === 2 ? "h2_canciones" : "h3_canciones") as keyof Guest] ?? "")}
+                  />
                 )}
 
                 {/* Avance siguiente hora - solo para el invitado principal */}

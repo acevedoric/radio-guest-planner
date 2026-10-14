@@ -210,6 +210,7 @@ export type Database = {
           cancion_id: string
           created_at: string
           day_of_week: string | null
+          estado: string
           fecha: string | null
           guest_id: string | null
           hour_number: number | null
@@ -221,6 +222,7 @@ export type Database = {
           cancion_id: string
           created_at?: string
           day_of_week?: string | null
+          estado?: string
           fecha?: string | null
           guest_id?: string | null
           hour_number?: number | null
@@ -232,6 +234,7 @@ export type Database = {
           cancion_id?: string
           created_at?: string
           day_of_week?: string | null
+          estado?: string
           fecha?: string | null
           guest_id?: string | null
           hour_number?: number | null
@@ -974,6 +977,10 @@ export type Database = {
           topic: string
           week_date: string
         }[]
+      }
+      cambiar_cancion_uso: {
+        Args: { p_artista?: string; p_titulo: string; p_uso_id: string }
+        Returns: string
       }
       canciones_no_usadas: {
         Args: {
