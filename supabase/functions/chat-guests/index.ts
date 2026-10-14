@@ -140,6 +140,7 @@ serve(async (req) => {
     // TODOS los años (bug real: "más frecuente de 2025" devolvía el total
     // histórico completo, no solo 2025).
     const now = new Date();
+    const today = now.toISOString().split("T")[0];
     let yearFilter: number | null = null;
     const explicitYearMatch = question.match(/\b(20\d{2})\b/);
     if (explicitYearMatch) {
@@ -317,7 +318,7 @@ serve(async (req) => {
       const generoMatch = Object.keys(GENERO_WORDS).find((w) => rawWords.includes(w));
       const ultimosMesesMatch = question.match(/\b[uú]ltimos?\s+(\d+)\s+mes(?:es)?\b/i);
       let p_desde: string;
-      const p_hasta = new Date().toISOString().split("T")[0];
+      const p_hasta = today;
       if (ultimosMesesMatch) {
         const d = new Date(now);
         d.setMonth(d.getMonth() - parseInt(ultimosMesesMatch[1], 10));
@@ -365,7 +366,6 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("Missing API configuration");
 
-    const today = new Date().toISOString().split("T")[0];
 
     const filterSummary = [
       yearFilter ? `año=${yearFilter}` : null,
